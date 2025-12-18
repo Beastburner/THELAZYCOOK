@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+passlib
+python-dotenv
+regex
+PyPDF2
+rich
+google-generativeai
+groq
+numpy
