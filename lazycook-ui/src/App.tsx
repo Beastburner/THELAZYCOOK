@@ -37,6 +37,15 @@ function titleFromPrompt(text: string) {
   return t.length > 28 ? `${t.slice(0, 28)}…` : t;
 }
 
+// Component to render LazyCook with red Z
+function LazyCookText({ className }: { className?: string }) {
+  return (
+    <span className={className}>
+      La<span className="lc-red-z">z</span>yCook
+    </span>
+  );
+}
+
 function analyzeSentiment(text: string): { sentiment: 'positive' | 'neutral' | 'negative' | 'question' | 'excited'; score: number } {
   const lowerText = text.toLowerCase();
   
@@ -142,66 +151,148 @@ function enhanceWithEmojis(content: string): string {
     let text = part.content;
     
     // Split text into sentences for better sentiment analysis
-    const sentences = text.split(/([.!?]\s+|\.\n|\n\n)/);
+    // Better sentence splitting that handles various punctuation and line breaks
+    const sentenceRegex = /([.!?]+\s+|\.\n|\n\n+|\.\s+$)/g;
+    const sentences: string[] = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = sentenceRegex.exec(text)) !== null) {
+      const sentence = text.substring(lastIndex, match.index + match[0].length);
+      if (sentence.trim().length > 0) {
+        sentences.push(sentence);
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      const remaining = text.substring(lastIndex);
+      if (remaining.trim().length > 0) {
+        sentences.push(remaining);
+      }
+    }
+    
+    // If no sentences found, treat entire text as one sentence
+    if (sentences.length === 0) {
+      sentences.push(text);
+    }
+    
     const processedSentences: string[] = [];
     let emojiCount = 0;
-    const maxEmojis = 3; // Maximum emojis per text block
+    // Calculate max emojis based on text length - more emojis for longer responses
+    const textLength = text.length;
+    const maxEmojis = Math.min(Math.max(2, Math.floor(textLength / 200)), 8); // 2-8 emojis based on length
     
-    for (let i = 0; i < sentences.length; i += 2) {
-      const sentence = sentences[i];
-      const punctuation = sentences[i + 1] || '';
+    // Distribute emojis evenly throughout the text
+    const emojiInterval = sentences.length > maxEmojis ? Math.floor(sentences.length / maxEmojis) : 1;
+    
+    sentences.forEach((sentence, index) => {
+      const trimmedSentence = sentence.trim();
       
-      if (!sentence || sentence.trim().length < 5) {
-        processedSentences.push(sentence + punctuation);
-        continue;
+      if (!trimmedSentence || trimmedSentence.length < 5) {
+        processedSentences.push(sentence);
+        return;
       }
       
       // Analyze sentiment for this sentence
-      const sentimentResult = analyzeSentiment(sentence);
+      const sentimentResult = analyzeSentiment(trimmedSentence);
       
-      // Only add emoji if sentiment is strong enough and we haven't exceeded limit
-      if (emojiCount < maxEmojis && sentimentResult.score > 0) {
+      // Add emoji if:
+      // 1. We haven't exceeded the limit
+      // 2. Either sentiment is strong OR it's at an interval position
+      const shouldAddEmoji = emojiCount < maxEmojis && (
+        sentimentResult.score > 0 || 
+        (index > 0 && index % emojiInterval === 0 && emojiCount < maxEmojis - 1)
+      );
+      
+      if (shouldAddEmoji) {
         let emoji = '';
         
-        switch (sentimentResult.sentiment) {
-          case 'positive':
-            emoji = ['😊', '✨', '👍', '🎉'][Math.floor(Math.random() * 4)];
-            break;
-          case 'excited':
-            emoji = ['🚀', '🎉', '✨', '🌟'][Math.floor(Math.random() * 4)];
-            break;
-          case 'question':
-            emoji = ['🤔', '❓', '💭'][Math.floor(Math.random() * 3)];
-            break;
-          case 'negative':
-            emoji = ['😔', '🔧', '⚠️'][Math.floor(Math.random() * 3)];
-            break;
-          case 'neutral':
-            // For neutral, only add if it's a greeting or helpful phrase
-            if (/^(hello|hi|hey|greetings)\b/gi.test(sentence)) {
-              emoji = '👋';
-            } else if (/\b(how can i|what can i|let me know)\b/gi.test(sentence)) {
-              emoji = '😊';
-            }
-            break;
+        if (sentimentResult.score > 0) {
+          switch (sentimentResult.sentiment) {
+            case 'positive':
+              emoji = ['😊', '✨', '👍', '🎉'][Math.floor(Math.random() * 4)];
+              break;
+            case 'excited':
+              emoji = ['🚀', '🎉', '✨', '🌟'][Math.floor(Math.random() * 4)];
+              break;
+            case 'question':
+              emoji = ['🤔', '❓', '💭'][Math.floor(Math.random() * 3)];
+              break;
+            case 'negative':
+              emoji = ['😔', '🔧', '⚠️'][Math.floor(Math.random() * 3)];
+              break;
+            case 'neutral':
+              // For neutral, only add if it's a greeting or helpful phrase
+              if (/^(hello|hi|hey|greetings)\b/gi.test(trimmedSentence)) {
+                emoji = '👋';
+              } else if (/\b(how can i|what can i|let me know)\b/gi.test(trimmedSentence)) {
+                emoji = '😊';
+              }
+              break;
+          }
+        } else {
+          // For sentences without strong sentiment, add subtle emojis at intervals
+          const subtleEmojis = ['✨', '💡', '🎯'];
+          emoji = subtleEmojis[Math.floor(Math.random() * subtleEmojis.length)];
         }
         
         if (emoji) {
-          // Add emoji at the end of the sentence (before punctuation)
-          processedSentences.push(sentence + ' ' + emoji + punctuation);
+          // Add emoji at the end of the sentence (before punctuation if it exists)
+          const hasPunctuation = /[.!?]$/.test(trimmedSentence);
+          if (hasPunctuation) {
+            processedSentences.push(sentence.replace(/([.!?]+)$/, ' ' + emoji + '$1'));
+          } else {
+            processedSentences.push(sentence.trim() + ' ' + emoji + (sentence.endsWith('\n') ? '\n' : ''));
+          }
           emojiCount++;
         } else {
-          processedSentences.push(sentence + punctuation);
+          processedSentences.push(sentence);
         }
       } else {
-        processedSentences.push(sentence + punctuation);
+        processedSentences.push(sentence);
       }
-    }
+    });
     
     return processedSentences.join('');
   });
   
   return processedParts.join('');
+}
+
+function TypingIndicator() {
+  const [showProgress, setShowProgress] = useState(false);
+  
+  useEffect(() => {
+    // Show progress bar after 3 seconds to indicate longer processing
+    const timer = setTimeout(() => {
+      setShowProgress(true);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  return (
+    <div className="lc-typing-indicator">
+      <div className="lc-typing-avatar">LC</div>
+      <div className="lc-typing-bubble">
+        <div className="lc-typing-dots">
+          <span className="lc-typing-dot"></span>
+          <span className="lc-typing-dot"></span>
+          <span className="lc-typing-dot"></span>
+        </div>
+        <span className="lc-typing-text"><LazyCookText /> is cooking…</span>
+      </div>
+      {showProgress && (
+        <div className="lc-typing-progress-container">
+          <div className="lc-typing-progress-bar">
+            <div className="lc-typing-progress-fill"></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate?: () => void }) {
@@ -215,7 +306,7 @@ function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="lc-msg-inner">
-        <div className="lc-msg-role">{message.role === "user" ? "You" : "LazyCook"}</div>
+        <div className="lc-msg-role">{message.role === "user" ? "You" : <LazyCookText />}</div>
         <div className="lc-msg-content">
           {message.role === "assistant" ? (
             <MarkdownContent content={message.content} />
@@ -687,7 +778,7 @@ export default function App() {
           <div className="lc-brand">
             <div className="lc-logo">LC</div>
             <div>
-              <div className="lc-title">LazyCook</div>
+              <div className="lc-title"><LazyCookText /></div>
               <div className="lc-subtitle">Sign in to continue</div>
             </div>
           </div>
@@ -788,7 +879,7 @@ export default function App() {
             ☰
           </button>
 
-          <div className="lc-topbar-title">{activeChat?.title || "LazyCook"}</div>
+          <div className="lc-topbar-title">{activeChat?.title || <LazyCookText />}</div>
 
           <div className="lc-topbar-actions">
             <select
@@ -826,7 +917,7 @@ export default function App() {
                   onRegenerate={m.role === 'assistant' ? () => regenerateResponse(m.id) : undefined}
                 />
               ))}
-              {loading && <div className="lc-typing">Cooking…</div>}
+              {loading && <TypingIndicator />}
               {activeChat && activeChat.messages.length > 0 && (
                 <div className="lc-chat-actions">
                   <button
