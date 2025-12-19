@@ -36,7 +36,7 @@ function titleFromPrompt(text: string) {
 }
 
 export default function App() {
-  const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://127.0.0.1:8001";
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://localhost:8000";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("1234");
@@ -156,13 +156,26 @@ export default function App() {
   };
 
   const runAI = async () => {
-    if (!activeChatId) return;
     if (!token || !plan) return;
     const text = prompt.trim();
     if (!text) return;
     if (!PLAN_MODELS[plan].includes(model)) {
       setError("Upgrade plan to access this model.");
       return;
+    }
+
+    // If no active chat, create a new one based on the prompt
+    let chatId = activeChatId;
+    if (!chatId || !chats.find((c) => c.id === chatId)) {
+      const newChat: Chat = {
+        id: uid("chat"),
+        title: titleFromPrompt(text),
+        createdAt: Date.now(),
+        messages: [],
+      };
+      setChats((prev) => [newChat, ...prev]);
+      setActiveChatId(newChat.id);
+      chatId = newChat.id;
     }
 
     setLoading(true);
@@ -174,11 +187,11 @@ export default function App() {
     // If it's a fresh chat, set title from first user message
     setChats((prev) =>
       prev.map((c) =>
-        c.id === activeChatId && c.messages.length === 0 ? { ...c, title: titleFromPrompt(text) } : c
+        c.id === chatId && c.messages.length === 0 ? { ...c, title: titleFromPrompt(text) } : c
       )
     );
 
-    updateChatMessages(activeChatId, (m) => [...m, userMsg, assistantMsg]);
+    updateChatMessages(chatId, (m) => [...m, userMsg, assistantMsg]);
     setPrompt("");
 
     try {
@@ -195,14 +208,14 @@ export default function App() {
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
       const content = data.response || JSON.stringify(data.responses ?? data, null, 2);
-      updateChatMessages(activeChatId, (m) => {
+      updateChatMessages(chatId, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMsg.id);
         if (idx >= 0) next[idx] = { ...next[idx], content };
         return next;
       });
     } catch (e) {
-      updateChatMessages(activeChatId, (m) => {
+      updateChatMessages(chatId, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMsg.id);
         if (idx >= 0) next[idx] = { ...next[idx], content: `Error: ${(e as Error).message}` };
@@ -350,7 +363,7 @@ export default function App() {
                   </div>
                 </div>
               ))}
-              {loading && <div className="lc-typing">Thinking…</div>}
+              {loading && <div className="lc-typing">Cooking…</div>}
               <div ref={messagesEndRef} />
             </div>
           )}
