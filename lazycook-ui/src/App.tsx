@@ -37,6 +37,279 @@ function titleFromPrompt(text: string) {
   return t.length > 28 ? `${t.slice(0, 28)}…` : t;
 }
 
+function analyzeSentiment(text: string): { sentiment: 'positive' | 'neutral' | 'negative' | 'question' | 'excited'; score: number } {
+  const lowerText = text.toLowerCase();
+  
+  // Positive sentiment indicators
+  const positiveWords = ['great', 'excellent', 'wonderful', 'amazing', 'perfect', 'awesome', 'fantastic', 'brilliant', 'outstanding', 'superb', 'delighted', 'pleased', 'happy', 'glad', 'success', 'solved', 'fixed', 'working', 'good', 'nice', 'helpful', 'useful', 'efficient', 'optimized', 'streamlined'];
+  const positivePhrases = ['well done', 'good job', 'thank you', 'thanks', 'appreciate', 'love it', 'exactly what', 'perfect solution'];
+  
+  // Negative sentiment indicators
+  const negativeWords = ['error', 'failed', 'broken', 'wrong', 'bad', 'terrible', 'awful', 'horrible', 'problem', 'issue', 'bug', 'crash', 'doesn\'t work', 'not working', 'disappointed', 'frustrated', 'confused', 'stuck'];
+  const negativePhrases = ['not working', 'doesn\'t work', 'can\'t', 'cannot', 'unable to', 'failed to', 'error occurred'];
+  
+  // Question indicators
+  const questionWords = ['how', 'what', 'why', 'when', 'where', 'which', 'who', 'can you', 'could you', 'would you', 'should i', 'is it', 'are you'];
+  
+  // Excitement indicators
+  const excitedWords = ['wow', 'awesome', 'amazing', 'incredible', 'fantastic', 'brilliant', 'excellent'];
+  const hasExclamation = text.includes('!');
+  
+  let positiveScore = 0;
+  let negativeScore = 0;
+  let questionScore = 0;
+  let excitedScore = 0;
+  
+  // Count positive indicators
+  positiveWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    positiveScore += (text.match(regex) || []).length;
+  });
+  positivePhrases.forEach(phrase => {
+    if (lowerText.includes(phrase)) positiveScore += 2;
+  });
+  
+  // Count negative indicators
+  negativeWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    negativeScore += (text.match(regex) || []).length;
+  });
+  negativePhrases.forEach(phrase => {
+    if (lowerText.includes(phrase)) negativeScore += 2;
+  });
+  
+  // Count question indicators
+  questionWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    questionScore += (text.match(regex) || []).length;
+  });
+  if (text.includes('?')) questionScore += 2;
+  
+  // Count excitement indicators
+  excitedWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    excitedScore += (text.match(regex) || []).length;
+  });
+  if (hasExclamation) excitedScore += 1;
+  
+  // Determine sentiment
+  if (questionScore > 0 && questionScore >= Math.max(positiveScore, negativeScore)) {
+    return { sentiment: 'question', score: questionScore };
+  }
+  if (excitedScore > 0 && excitedScore >= 2) {
+    return { sentiment: 'excited', score: excitedScore };
+  }
+  if (negativeScore > positiveScore && negativeScore > 0) {
+    return { sentiment: 'negative', score: negativeScore };
+  }
+  if (positiveScore > 0) {
+    return { sentiment: 'positive', score: positiveScore };
+  }
+  
+  return { sentiment: 'neutral', score: 0 };
+}
+
+function enhanceWithEmojis(content: string): string {
+  // Split content by code blocks to preserve them
+  const codeBlockRegex = /(```[\s\S]*?```|`[^`]+`)/g;
+  const parts: Array<{ type: 'code' | 'text'; content: string }> = [];
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: content.substring(lastIndex, match.index) });
+    }
+    parts.push({ type: 'code', content: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+  
+  if (lastIndex < content.length) {
+    parts.push({ type: 'text', content: content.substring(lastIndex) });
+  }
+  
+  // If no code blocks found, treat entire content as text
+  if (parts.length === 0) {
+    parts.push({ type: 'text', content });
+  }
+  
+  // Process only text parts
+  const processedParts = parts.map(part => {
+    if (part.type === 'code') {
+      return part.content; // Keep code blocks unchanged
+    }
+    
+    let text = part.content;
+    
+    // Split text into sentences for better sentiment analysis
+    const sentences = text.split(/([.!?]\s+|\.\n|\n\n)/);
+    const processedSentences: string[] = [];
+    let emojiCount = 0;
+    const maxEmojis = 3; // Maximum emojis per text block
+    
+    for (let i = 0; i < sentences.length; i += 2) {
+      const sentence = sentences[i];
+      const punctuation = sentences[i + 1] || '';
+      
+      if (!sentence || sentence.trim().length < 5) {
+        processedSentences.push(sentence + punctuation);
+        continue;
+      }
+      
+      // Analyze sentiment for this sentence
+      const sentimentResult = analyzeSentiment(sentence);
+      
+      // Only add emoji if sentiment is strong enough and we haven't exceeded limit
+      if (emojiCount < maxEmojis && sentimentResult.score > 0) {
+        let emoji = '';
+        
+        switch (sentimentResult.sentiment) {
+          case 'positive':
+            emoji = ['😊', '✨', '👍', '🎉'][Math.floor(Math.random() * 4)];
+            break;
+          case 'excited':
+            emoji = ['🚀', '🎉', '✨', '🌟'][Math.floor(Math.random() * 4)];
+            break;
+          case 'question':
+            emoji = ['🤔', '❓', '💭'][Math.floor(Math.random() * 3)];
+            break;
+          case 'negative':
+            emoji = ['😔', '🔧', '⚠️'][Math.floor(Math.random() * 3)];
+            break;
+          case 'neutral':
+            // For neutral, only add if it's a greeting or helpful phrase
+            if (/^(hello|hi|hey|greetings)\b/gi.test(sentence)) {
+              emoji = '👋';
+            } else if (/\b(how can i|what can i|let me know)\b/gi.test(sentence)) {
+              emoji = '😊';
+            }
+            break;
+        }
+        
+        if (emoji) {
+          // Add emoji at the end of the sentence (before punctuation)
+          processedSentences.push(sentence + ' ' + emoji + punctuation);
+          emojiCount++;
+        } else {
+          processedSentences.push(sentence + punctuation);
+        }
+      } else {
+        processedSentences.push(sentence + punctuation);
+      }
+    }
+    
+    return processedSentences.join('');
+  });
+  
+  return processedParts.join('');
+}
+
+function MessageItem({ message }: { message: Message }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [liked, setLiked] = useState(false);
+
+  return (
+    <div 
+      className={`lc-msg ${message.role === "user" ? "is-user" : "is-assistant"}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="lc-msg-inner">
+        <div className="lc-msg-role">{message.role === "user" ? "You" : "LazyCook"}</div>
+        <div className="lc-msg-content">
+          {message.role === "assistant" ? (
+            <MarkdownContent content={message.content} />
+          ) : (
+            message.content
+          )}
+        </div>
+        {message.role === "assistant" && isHovered && (
+          <div className="lc-msg-actions">
+            <button
+              className="lc-msg-action-btn"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(message.content);
+                } catch (err) {
+                  console.error('Copy failed:', err);
+                }
+              }}
+              aria-label="Copy message"
+              title="Copy"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              className={`lc-msg-action-btn ${liked ? 'is-active' : ''}`}
+              onClick={() => setLiked(!liked)}
+              aria-label="Thumbs up"
+              title="Good response"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.5 7.5H4.5V13.5H2.5C2.22386 13.5 2 13.2761 2 13V8C2 7.72386 2.22386 7.5 2.5 7.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M4.5 7.5V6.5C4.5 5.67157 5.17157 5 6 5H7.5C7.77614 5 8 5.22386 8 5.5V6.5L6.5 10.5H11.5C12.3284 10.5 13 9.82843 13 9V8.5C13 8.22386 12.7761 8 12.5 8H9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              className="lc-msg-action-btn"
+              onClick={() => {}}
+              aria-label="Thumbs down"
+              title="Bad response"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13.5 8.5H11.5V2.5H13.5C13.7761 2.5 14 2.72386 14 3V8C14 8.27614 13.7761 8.5 13.5 8.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11.5 8.5V9.5C11.5 10.3284 10.8284 11 10 11H8.5C8.22386 11 8 10.7761 8 10.5V9.5L9.5 5.5H4.5C3.67157 5.5 3 6.17157 3 7V7.5C3 7.77614 3.22386 8 3.5 8H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              className="lc-msg-action-btn"
+              onClick={() => {}}
+              aria-label="Share"
+              title="Share"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11 8C11.8284 8 12.5 7.32843 12.5 6.5C12.5 5.67157 11.8284 5 11 5C10.1716 5 9.5 5.67157 9.5 6.5C9.5 7.32843 10.1716 8 11 8Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5 11C5.82843 11 6.5 10.3284 6.5 9.5C6.5 8.67157 5.82843 8 5 8C4.17157 8 3.5 8.67157 3.5 9.5C3.5 10.3284 4.17157 11 5 11Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11 3L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11 8L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              className="lc-msg-action-btn"
+              onClick={() => {}}
+              aria-label="Regenerate"
+              title="Regenerate response"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1.5 8C1.5 11.5899 4.41015 14.5 8 14.5C9.61061 14.5 11.0899 13.9528 12.2803 13.0196" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C6.38939 1.5 4.91015 2.04724 3.71967 2.98039" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M5.5 11.5L1.5 8L5.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10.5 4.5L14.5 8L10.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              className="lc-msg-action-btn"
+              onClick={() => {}}
+              aria-label="More options"
+              title="More"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="4" r="1" fill="currentColor"/>
+                <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                <circle cx="8" cy="12" r="1" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://localhost:8000";
 
@@ -211,7 +484,10 @@ export default function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
-      const content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      // Enhance content with emojis for better engagement
+      content = enhanceWithEmojis(content);
+      
       updateChatMessages(chatId, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMsg.id);
@@ -482,18 +758,7 @@ export default function App() {
           ) : (
             <div className="lc-messages">
               {(activeChat?.messages || []).map((m) => (
-                <div key={m.id} className={`lc-msg ${m.role === "user" ? "is-user" : "is-assistant"}`}>
-                  <div className="lc-msg-inner">
-                    <div className="lc-msg-role">{m.role === "user" ? "You" : "LazyCook"}</div>
-                    <div className="lc-msg-content">
-                      {m.role === "assistant" ? (
-                        <MarkdownContent content={m.content} />
-                      ) : (
-                        m.content
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <MessageItem key={m.id} message={m} />
               ))}
               {loading && <div className="lc-typing">Cooking…</div>}
               {activeChat && activeChat.messages.length > 0 && (
@@ -504,7 +769,12 @@ export default function App() {
                     aria-label="Copy whole chat"
                     title={chatCopyStatus === 'copied' ? 'Copied!' : chatCopyStatus === 'error' ? 'Copy failed' : 'Copy chat'}
                   >
-                    {chatCopyStatus === 'copied' ? '✓ Copied' : chatCopyStatus === 'error' ? '✗ Failed' : '📋 Copy Chat'}
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-chat-action-icon">
+                      <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>{chatCopyStatus === 'copied' ? 'Copied' : chatCopyStatus === 'error' ? 'Failed' : 'Copy Chat'}</span>
                   </button>
                   <button
                     className="lc-chat-action-btn"
@@ -512,7 +782,12 @@ export default function App() {
                     aria-label="Download chat as PDF"
                     title="Download as PDF"
                   >
-                    📄 Download PDF
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-chat-action-icon">
+                      <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Download PDF</span>
                   </button>
                 </div>
               )}

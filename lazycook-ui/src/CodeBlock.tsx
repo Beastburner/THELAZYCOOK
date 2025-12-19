@@ -9,12 +9,19 @@ interface CodeBlockProps {
 export default function CodeBlock({ code, language, className }: CodeBlockProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedCode, setEditedCode] = useState(code);
+  const [savedCode, setSavedCode] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previousCodeRef = useRef<string>(code);
 
-  // Update edited code when code prop changes
+  // Update edited code when code prop changes (new code from AI)
   useEffect(() => {
-    setEditedCode(code);
+    // Only reset if the code prop has actually changed (new code from AI)
+    if (code !== previousCodeRef.current) {
+      setEditedCode(code);
+      setSavedCode(null); // Clear saved edits when new code arrives
+      previousCodeRef.current = code;
+    }
   }, [code]);
 
   // Focus textarea when entering edit mode
@@ -28,7 +35,7 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
   }, [isEditing]);
 
   const handleCopy = async () => {
-    const textToCopy = isEditing ? editedCode : code;
+    const textToCopy = isEditing ? editedCode : (savedCode || code);
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopyStatus('copied');
@@ -40,7 +47,7 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
   };
 
   const handleDownload = () => {
-    const textToDownload = isEditing ? editedCode : code;
+    const textToDownload = isEditing ? editedCode : (savedCode || code);
     try {
       const extension = getFileExtension(language || 'txt');
       const filename = `generated_code.${extension}`;
@@ -65,11 +72,12 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
   };
 
   const handleSave = () => {
+    setSavedCode(editedCode); // Save the edited code
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setEditedCode(code);
+    setEditedCode(savedCode || code); // Revert to saved code or original
     setIsEditing(false);
   };
 
@@ -145,7 +153,8 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
 
   const showDownloadEdit = isProgrammingLanguage(language);
 
-  const displayCode = isEditing ? editedCode : code;
+  // Use saved code if available, otherwise use original code
+  const displayCode = isEditing ? editedCode : (savedCode || code);
 
   return (
     <div className="lc-code-block-wrapper">

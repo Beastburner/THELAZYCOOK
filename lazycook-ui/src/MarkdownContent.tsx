@@ -43,6 +43,56 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
           const codeString = Array.isArray(children)
             ? children.map((c: any) => (typeof c === 'string' ? c : String(c))).join('')
             : String(children).replace(/\n$/, '');
+          
+          // Determine if this should be a full code block or just inline code
+          // Only show full code block for substantial code:
+          const trimmedCode = codeString.trim();
+          const lines = trimmedCode.split('\n').filter(line => line.trim().length > 0);
+          const hasMultipleLines = lines.length > 1;
+          
+          // Check for simple patterns that should NOT be code blocks (render as inline):
+          // - Single variable assignment: "n=0", "x=1", "count = 5", etc.
+          // - Single function call: "fib(3)", "func()", "method(arg)", etc.
+          // - Simple comparison: "n > 1", "x < 5", "y >= 10", etc.
+          // - Single identifier: "RecursionError", "Error", "MyClass", etc.
+          // - Simple expressions: "n-1", "n-2", "x+1", etc.
+          const isSimpleAssignment = /^[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[^=].*$/.test(trimmedCode) && trimmedCode.length < 30;
+          const isSimpleFunctionCall = /^[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*$/.test(trimmedCode) && trimmedCode.length < 50;
+          const isSimpleComparison = /^[a-zA-Z_][a-zA-Z0-9_]*\s*[<>!=]+\s*[^<>=].*$/.test(trimmedCode) && trimmedCode.length < 30;
+          const isSimpleIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*\s*$/.test(trimmedCode) && trimmedCode.length < 50;
+          const isSimpleExpression = /^[a-zA-Z_][a-zA-Z0-9_]*\s*[+\-*/]\s*[0-9a-zA-Z_].*$/.test(trimmedCode) && trimmedCode.length < 30;
+          
+          const isSimplePattern = isSimpleAssignment || isSimpleFunctionCall || isSimpleComparison || isSimpleIdentifier || isSimpleExpression;
+          
+          // Check for actual code patterns (function definitions, imports, control structures, etc.)
+          const hasRealCodePatterns = /^(def |function |class |import |from |const |let |var |return |if |for |while |async |await |export |public |private |protected |@|#include|#define|package |namespace |try |catch |finally |switch |case |default )|=>|->|::|=>\s*\{|function\s*\(|=>\s*\(/.test(trimmedCode);
+          
+          // Check for code structure (indentation, multiple statements, etc.)
+          const hasCodeStructure = lines.some(line => /^\s{2,}/.test(line)) || // Has indentation
+                                   (trimmedCode.includes(';') && lines.length > 1) || // Multiple statements
+                                   (/\{[\s\S]{10,}\}|\[[\s\S]{10,}\]/.test(trimmedCode)); // Has substantial code blocks/arrays
+          
+          // Only show full code block for substantial code:
+          // - Has multiple lines (2+) AND is not a simple pattern, OR
+          // - Is long enough (100+ chars) AND not a simple pattern, OR
+          // - Has real code patterns (definitions, imports, etc.) AND not a simple pattern, OR
+          // - Has code structure (indentation, multiple statements)
+          const isSubstantialCode = !isSimplePattern && (
+            (hasMultipleLines && trimmedCode.length > 20) ||
+            trimmedCode.length > 100 ||
+            (hasRealCodePatterns && trimmedCode.length > 30) ||
+            hasCodeStructure
+          );
+          
+          // If it's not substantial code, render as inline code instead
+          if (!isSubstantialCode) {
+            return (
+              <code className="lc-md-code-inline" {...props}>
+                {trimmedCode}
+              </code>
+            );
+          }
+          
           return (
             <CodeBlock
               code={codeString}

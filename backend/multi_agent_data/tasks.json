@@ -1,5 +1,33 @@
 [
   {
+    "id": "go@lazycook.ai_1766148118_task_1",
+    "conversation_id": "go@lazycook.ai_1766148118",
+    "task_type": "research",
+    "description": "Explain best practices for: make fibonacci function using python",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T18:11:58.574866",
+    "scheduled_for": "2025-12-19T18:16:58.574867",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766148118_task_0",
+    "conversation_id": "go@lazycook.ai_1766148118",
+    "task_type": "research",
+    "description": "Find Python code examples related to: make fibonacci function using python",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T18:11:58.571484",
+    "scheduled_for": "2025-12-19T18:13:58.571487",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
     "id": "go@lazycook.ai_1766145539_task_1",
     "conversation_id": "go@lazycook.ai_1766145539",
     "task_type": "research",
