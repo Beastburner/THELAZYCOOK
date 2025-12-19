@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import MarkdownContent from "./MarkdownContent";
+import jsPDF from "jspdf";
 
 type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
@@ -45,11 +47,13 @@ export default function App() {
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [chatCopyStatus, setChatCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const [model, setModel] = useState<Model>("gemini");
   const [prompt, setPrompt] = useState("");
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -234,6 +238,110 @@ export default function App() {
     }
   };
 
+  const copyWholeChat = async () => {
+    if (!activeChat) return;
+    
+    const chatText = activeChat.messages
+      .map((m) => {
+        const role = m.role === "user" ? "You" : "LazyCook";
+        return `${role}:\n${m.content}\n\n`;
+      })
+      .join("---\n\n");
+    
+    try {
+      await navigator.clipboard.writeText(chatText);
+      setChatCopyStatus('copied');
+      setTimeout(() => setChatCopyStatus('idle'), 2000);
+    } catch (err) {
+      setChatCopyStatus('error');
+      setTimeout(() => setChatCopyStatus('idle'), 3000);
+    }
+  };
+
+  const downloadChatAsPDF = () => {
+    if (!activeChat) return;
+    
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
+      const lineHeight = 7;
+      const titleHeight = 15;
+
+      // Add title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(activeChat.title || "Chat Conversation", margin, yPosition);
+      yPosition += titleHeight;
+
+      // Add date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(128, 128, 128);
+      doc.text(new Date(activeChat.createdAt).toLocaleString(), margin, yPosition);
+      yPosition += lineHeight + 5;
+      doc.setTextColor(0, 0, 0);
+
+      // Add messages
+      activeChat.messages.forEach((m, idx) => {
+        const role = m.role === "user" ? "You" : "LazyCook";
+        const content = m.content;
+
+        // Check if we need a new page
+        if (yPosition > pageHeight - 40) {
+          doc.addPage();
+          yPosition = margin;
+        }
+
+        // Add role label
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(role + ":", margin, yPosition);
+        yPosition += lineHeight;
+
+        // Add content (handle long text by splitting)
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        // Remove markdown code blocks for cleaner PDF (or keep them, but format better)
+        const cleanContent = content.replace(/```[\s\S]*?```/g, (match) => {
+          return match.replace(/```\w*\n?/g, '').replace(/```/g, '');
+        });
+
+        const lines = doc.splitTextToSize(cleanContent, maxWidth);
+        lines.forEach((line: string) => {
+          if (yPosition > pageHeight - 20) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+
+        // Add separator
+        if (idx < activeChat.messages.length - 1) {
+          yPosition += 5;
+          doc.setDrawColor(200, 200, 200);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 10;
+        }
+      });
+
+      // Save PDF
+      const filename = `${activeChat.title || "chat"}_${Date.now()}.pdf`;
+      doc.save(filename);
+    } catch (err) {
+      alert('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  const filteredChats = chats.filter((chat) =>
+    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (!token) {
     return (
       <div className="lc-login">
@@ -290,18 +398,36 @@ export default function App() {
           </button>
         </div>
 
+        {/* Search */}
+        <div className="lc-sidebar-search">
+          <input
+            type="text"
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="lc-search-input"
+            aria-label="Search conversations"
+          />
+        </div>
+
         <div className="lc-chatlist">
-          {chats.map((c) => (
-            <button
-              key={c.id}
-              className={`lc-chatitem ${c.id === activeChatId ? "is-active" : ""}`}
-              onClick={() => setActiveChatId(c.id)}
-              title={c.title}
-            >
-              <div className="lc-chatitem-title">{c.title}</div>
-              <div className="lc-chatitem-meta">{new Date(c.createdAt).toLocaleString()}</div>
-            </button>
-          ))}
+          {filteredChats.length === 0 ? (
+            <div className="lc-chatlist-empty">
+              {searchQuery ? 'No conversations found' : 'No conversations yet'}
+            </div>
+          ) : (
+            filteredChats.map((c) => (
+              <button
+                key={c.id}
+                className={`lc-chatitem ${c.id === activeChatId ? "is-active" : ""}`}
+                onClick={() => setActiveChatId(c.id)}
+                title={c.title}
+              >
+                <div className="lc-chatitem-title">{c.title}</div>
+                <div className="lc-chatitem-meta">{new Date(c.createdAt).toLocaleString()}</div>
+              </button>
+            ))
+          )}
         </div>
 
         <div className="lc-sidebar-bottom">
@@ -359,11 +485,37 @@ export default function App() {
                 <div key={m.id} className={`lc-msg ${m.role === "user" ? "is-user" : "is-assistant"}`}>
                   <div className="lc-msg-inner">
                     <div className="lc-msg-role">{m.role === "user" ? "You" : "LazyCook"}</div>
-                    <div className="lc-msg-content">{m.content}</div>
+                    <div className="lc-msg-content">
+                      {m.role === "assistant" ? (
+                        <MarkdownContent content={m.content} />
+                      ) : (
+                        m.content
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
               {loading && <div className="lc-typing">Cooking…</div>}
+              {activeChat && activeChat.messages.length > 0 && (
+                <div className="lc-chat-actions">
+                  <button
+                    className={`lc-chat-action-btn ${chatCopyStatus === 'copied' ? 'is-copied' : chatCopyStatus === 'error' ? 'is-error' : ''}`}
+                    onClick={copyWholeChat}
+                    aria-label="Copy whole chat"
+                    title={chatCopyStatus === 'copied' ? 'Copied!' : chatCopyStatus === 'error' ? 'Copy failed' : 'Copy chat'}
+                  >
+                    {chatCopyStatus === 'copied' ? '✓ Copied' : chatCopyStatus === 'error' ? '✗ Failed' : '📋 Copy Chat'}
+                  </button>
+                  <button
+                    className="lc-chat-action-btn"
+                    onClick={downloadChatAsPDF}
+                    aria-label="Download chat as PDF"
+                    title="Download as PDF"
+                  >
+                    📄 Download PDF
+                  </button>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -390,5 +542,3 @@ export default function App() {
     </div>
   );
 }
-
-
