@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import MarkdownContent from "./MarkdownContent";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
@@ -416,7 +417,27 @@ export default function App() {
   const [model, setModel] = useState<Model>("gemini");
   const [prompt, setPrompt] = useState("");
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Sidebar starts closed on mobile, open on desktop
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth > 900;
+    }
+    return true;
+  });
+  
+  // Close sidebar on mobile when window resizes to mobile size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 900 && sidebarOpen) {
+        setSidebarOpen(false);
+      } else if (window.innerWidth > 900 && !sidebarOpen) {
+        setSidebarOpen(true);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarOpen]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -687,83 +708,334 @@ export default function App() {
     }
   };
 
-  const downloadChatAsPDF = () => {
-    if (!activeChat) return;
+  const downloadChatAsPDF = async () => {
+    if (!activeChat) {
+      alert('No active chat to download.');
+      return;
+    }
+    
+    let loadingMsg: HTMLDivElement | null = null;
+    let pdfContainer: HTMLDivElement | null = null;
     
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
-      const maxWidth = pageWidth - 2 * margin;
-      let yPosition = margin;
-      const lineHeight = 7;
-      const titleHeight = 15;
+      // Show loading indicator
+      loadingMsg = document.createElement('div');
+      loadingMsg.id = 'pdf-loading-indicator';
+      loadingMsg.style.position = 'fixed';
+      loadingMsg.style.top = '20px';
+      loadingMsg.style.right = '20px';
+      loadingMsg.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      loadingMsg.style.color = 'white';
+      loadingMsg.style.padding = '12px 20px';
+      loadingMsg.style.borderRadius = '8px';
+      loadingMsg.style.zIndex = '10000';
+      loadingMsg.textContent = 'Generating PDF...';
+      document.body.appendChild(loadingMsg);
+
+      // Create a temporary container for PDF rendering (hidden but visible for rendering)
+      pdfContainer = document.createElement('div');
+      if (!pdfContainer) {
+        throw new Error('Failed to create PDF container');
+      }
+      
+      // TypeScript guard - pdfContainer is now guaranteed to be non-null
+      const container = pdfContainer;
+      
+      container.id = 'pdf-container-temp';
+      container.style.position = 'absolute';
+      container.style.left = '-99999px'; // Move off-screen but keep visible for canvas
+      container.style.top = '0';
+      container.style.width = '768px';
+      container.style.maxWidth = '768px';
+      container.style.margin = '0 auto'; // Center the container
+      container.style.backgroundColor = '#0b0b0f';
+      container.style.color = 'rgba(255, 255, 255, 0.92)';
+      container.style.padding = '24px';
+      container.style.fontFamily = 'system-ui, Avenir, Helvetica, Arial, sans-serif';
+      container.style.overflow = 'visible';
+      container.style.zIndex = '0'; // Must be 0 or positive for html2canvas
+      container.style.opacity = '1'; // MUST be visible for html2canvas to work
+      container.style.pointerEvents = 'none';
+      document.body.appendChild(container);
+
+      console.log('PDF: Container created, messages count:', activeChat.messages.length);
 
       // Add title
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(activeChat.title || "Chat Conversation", margin, yPosition);
-      yPosition += titleHeight;
+      const titleDiv = document.createElement('div');
+      titleDiv.style.fontSize = '20px';
+      titleDiv.style.fontWeight = 'bold';
+      titleDiv.style.marginBottom = '8px';
+      titleDiv.style.color = 'rgba(255, 255, 255, 0.92)';
+      titleDiv.textContent = activeChat.title || "Chat Conversation";
+      container.appendChild(titleDiv);
 
       // Add date
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(128, 128, 128);
-      doc.text(new Date(activeChat.createdAt).toLocaleString(), margin, yPosition);
-      yPosition += lineHeight + 5;
-      doc.setTextColor(0, 0, 0);
+      const dateDiv = document.createElement('div');
+      dateDiv.style.fontSize = '12px';
+      dateDiv.style.color = 'rgba(255, 255, 255, 0.5)';
+      dateDiv.style.marginBottom = '24px';
+      dateDiv.textContent = new Date(activeChat.createdAt).toLocaleString();
+      container.appendChild(dateDiv);
 
-      // Add messages
-      activeChat.messages.forEach((m, idx) => {
-        const role = m.role === "user" ? "You" : "LazyCook";
-        const content = m.content;
+      // Clone and render messages
+      activeChat.messages.forEach((m) => {
+        const msgDiv = document.createElement('div');
+        msgDiv.style.marginBottom = '24px';
+        msgDiv.style.display = 'flex';
+        msgDiv.style.flexDirection = 'column';
+        msgDiv.style.gap = '8px';
 
-        // Check if we need a new page
-        if (yPosition > pageHeight - 40) {
-          doc.addPage();
-          yPosition = margin;
+        // Role label
+        const roleDiv = document.createElement('div');
+        roleDiv.style.fontSize = '13px';
+        roleDiv.style.fontWeight = '600';
+        roleDiv.style.color = 'rgba(255, 255, 255, 0.7)';
+        roleDiv.style.marginBottom = '4px';
+        if (m.role === 'user') {
+          roleDiv.textContent = 'You';
+        } else {
+          roleDiv.innerHTML = 'La<span style="color: #ff4444; font-weight: 700;">z</span>yCook';
         }
+        msgDiv.appendChild(roleDiv);
 
-        // Add role label
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(role + ":", margin, yPosition);
-        yPosition += lineHeight;
-
-        // Add content (handle long text by splitting)
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
+        // Content
+        const contentDiv = document.createElement('div');
+        contentDiv.style.fontSize = '14px';
+        contentDiv.style.lineHeight = '1.6';
+        contentDiv.style.color = 'rgba(255, 255, 255, 0.92)';
+        contentDiv.style.whiteSpace = 'pre-wrap';
+        contentDiv.style.wordWrap = 'break-word';
         
-        // Remove markdown code blocks for cleaner PDF (or keep them, but format better)
-        const cleanContent = content.replace(/```[\s\S]*?```/g, (match) => {
-          return match.replace(/```\w*\n?/g, '').replace(/```/g, '');
-        });
-
-        const lines = doc.splitTextToSize(cleanContent, maxWidth);
-        lines.forEach((line: string) => {
-          if (yPosition > pageHeight - 20) {
-            doc.addPage();
-            yPosition = margin;
+        if (m.role === 'assistant') {
+          // For assistant messages, we need to render markdown
+          // Simple markdown to HTML conversion for PDF
+          let htmlContent = m.content
+            // Code blocks (multiline)
+            .replace(/```(\w+)?\n?([\s\S]*?)```/g, (_match, _lang, code) => {
+              return `<pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; margin: 12px 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;"><code>${code.trim()}</code></pre>`;
+            })
+            // Inline code
+            .replace(/`([^`\n]+)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px;">$1</code>')
+            // Bold
+            .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight: 700;">$1</strong>')
+            // Italic
+            .replace(/\*(.+?)\*/g, '<em style="font-style: italic;">$1</em>')
+            // Headings
+            .replace(/^#### (.+)$/gm, '<h4 style="font-size: 16px; font-weight: 700; margin: 16px 0 8px 0; line-height: 1.3;">$1</h4>')
+            .replace(/^### (.+)$/gm, '<h3 style="font-size: 18px; font-weight: 700; margin: 18px 0 10px 0; line-height: 1.3;">$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2 style="font-size: 20px; font-weight: 700; margin: 20px 0 12px 0; line-height: 1.3;">$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1 style="font-size: 24px; font-weight: 700; margin: 24px 0 14px 0; line-height: 1.3;">$1</h1>')
+            // Lists
+            .replace(/^\- (.+)$/gm, '<li style="margin: 4px 0; padding-left: 8px;">$1</li>')
+            .replace(/^(\d+)\. (.+)$/gm, '<li style="margin: 4px 0; padding-left: 8px;">$2</li>')
+            // Line breaks
+            .replace(/\n\n/g, '</p><p style="margin: 12px 0;">')
+            .replace(/\n/g, '<br>');
+          
+          // Wrap in paragraph if not already wrapped
+          if (!htmlContent.startsWith('<')) {
+            htmlContent = `<p style="margin: 8px 0;">${htmlContent}</p>`;
+          } else {
+            htmlContent = `<div>${htmlContent}</div>`;
           }
-          doc.text(line, margin, yPosition);
-          yPosition += lineHeight;
-        });
-
-        // Add separator
-        if (idx < activeChat.messages.length - 1) {
-          yPosition += 5;
-          doc.setDrawColor(200, 200, 200);
-          doc.line(margin, yPosition, pageWidth - margin, yPosition);
-          yPosition += 10;
+          
+          // Replace LazyCook with red z
+          htmlContent = htmlContent.replace(/LazyCook/gi, 'La<span style="color: #ff4444; font-weight: 700;">z</span>yCook');
+          
+          contentDiv.innerHTML = htmlContent;
+        } else {
+          contentDiv.textContent = m.content;
         }
+        
+        msgDiv.appendChild(contentDiv);
+        container.appendChild(msgDiv);
       });
 
-      // Save PDF
-      const filename = `${activeChat.title || "chat"}_${Date.now()}.pdf`;
-      doc.save(filename);
+      // Wait for DOM to update and images/fonts to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      console.log('PDF: Container dimensions:', {
+        width: container.scrollWidth,
+        height: container.scrollHeight,
+        offsetWidth: container.offsetWidth,
+        offsetHeight: container.offsetHeight
+      });
+
+      // Capture as canvas
+      console.log('PDF: Starting html2canvas...');
+      const canvas = await html2canvas(container, {
+        backgroundColor: '#0b0b0f',
+        scale: window.devicePixelRatio || 2,
+        useCORS: true,
+        width: container.scrollWidth,
+        height: container.scrollHeight,
+        windowWidth: container.scrollWidth,
+        windowHeight: container.scrollHeight,
+      });
+
+      console.log('PDF: Canvas created:', {
+        width: canvas.width,
+        height: canvas.height
+      });
+
+      // DO NOT remove container yet - wait until after PDF is saved
+      // Remove loading indicator only
+      if (loadingMsg && loadingMsg.parentElement) {
+        document.body.removeChild(loadingMsg);
+      }
+
+      // Convert canvas to PDF
+      console.log('PDF: Converting canvas to image...');
+      const imgData = canvas.toDataURL('image/png');
+      if (!imgData || imgData === 'data:,') {
+        throw new Error('Failed to convert canvas to image');
+      }
+      console.log('PDF: Image data created, length:', imgData.length);
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      console.log('PDF: PDF document created');
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Calculate scaling to fit page width (always scale to width, split by height)
+      const pageMargin = 10; // 10mm margin on each side
+      const availableWidth = pdfWidth - (pageMargin * 2);
+      const availableHeight = pdfHeight - (pageMargin * 2);
+      
+      // ALWAYS scale to fit width (don't scale to fit height, that makes content too narrow)
+      const ratio = availableWidth / imgWidth;
+      
+      const imgScaledWidth = imgWidth * ratio;
+      
+      // Calculate centered position
+      const xPosition = (pdfWidth - imgScaledWidth) / 2;
+      const yStart = pageMargin;
+      
+      // Calculate how many pixels fit on one page
+      const pageHeightInPixels = availableHeight / ratio;
+      
+      // Always split across multiple pages if content is longer than one page
+      let heightLeft = imgHeight;
+      let position = 0;
+      let isFirstPage = true;
+
+      while (heightLeft > 0) {
+        if (!isFirstPage) {
+          pdf.addPage();
+        }
+        isFirstPage = false;
+        
+        const currentPageHeight = Math.min(pageHeightInPixels, heightLeft);
+        
+        const pageCanvas = document.createElement('canvas');
+        const pageCtx = pageCanvas.getContext('2d');
+        pageCanvas.width = imgWidth;
+        pageCanvas.height = currentPageHeight;
+
+        if (pageCtx) {
+          pageCtx.drawImage(
+            canvas,
+            0,
+            position,
+            imgWidth,
+            currentPageHeight,
+            0,
+            0,
+            imgWidth,
+            currentPageHeight
+          );
+        }
+
+        const pageImgData = pageCanvas.toDataURL('image/png');
+        const pageImgScaledHeight = currentPageHeight * ratio;
+        
+        // Center each page horizontally, start from top margin
+        pdf.addImage(pageImgData, 'PNG', xPosition, yStart, imgScaledWidth, pageImgScaledHeight);
+
+        heightLeft -= currentPageHeight;
+        position += currentPageHeight;
+      }
+
+      // Save PDF - use ONLY blob download method (most reliable)
+      const filename = `${(activeChat.title || "chat").replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
+      console.log('PDF: Saving file:', filename);
+      
+      // Generate PDF blob and create download link
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      console.log('PDF: Download triggered via blob method');
+      
+      // Cleanup: Remove container and link after download starts
+      setTimeout(() => {
+        // Remove download link
+        if (link.parentElement) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(blobUrl);
+        
+        // Remove container (now safe to remove)
+        if (container && container.parentElement) {
+          document.body.removeChild(container);
+        }
+        console.log('PDF: Cleanup complete');
+      }, 2000);
+      
+      // Update loading message with helpful instructions
+      if (loadingMsg && loadingMsg.parentElement) {
+        loadingMsg.innerHTML = `
+          <div style="text-align: center;">
+            <div style="font-size: 18px; margin-bottom: 8px;">✓ PDF Generated!</div>
+            <div style="font-size: 12px; margin-bottom: 12px;">File: ${filename}</div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.8);">
+              <div>1. Press <strong>Ctrl+J</strong> to open Downloads</div>
+              <div>2. Check: <strong>C:\\Users\\parth\\Downloads</strong></div>
+              <div>3. Look for: <strong>${filename}</strong></div>
+            </div>
+          </div>
+        `;
+        loadingMsg.style.backgroundColor = 'rgba(76, 175, 80, 0.95)';
+        loadingMsg.style.maxWidth = '400px';
+        loadingMsg.style.padding = '20px';
+        loadingMsg.style.fontSize = '13px';
+        setTimeout(() => {
+          if (loadingMsg && loadingMsg.parentElement) {
+            document.body.removeChild(loadingMsg);
+          }
+        }, 8000);
+      }
+      
+      console.log('PDF: Download complete!');
+      console.log('PDF: File location should be:', `C:\\Users\\parth\\Downloads\\${filename}`);
     } catch (err) {
-      alert('Failed to generate PDF. Please try again.');
+      console.error('PDF generation error:', err);
+      console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      // Clean up in case of error
+      if (loadingMsg && loadingMsg.parentElement) {
+        document.body.removeChild(loadingMsg);
+      }
+      const tempContainer = document.getElementById('pdf-container-temp');
+      if (tempContainer && tempContainer.parentElement) {
+        document.body.removeChild(tempContainer);
+      }
+      
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('PDF Error details:', errorMsg);
+      alert(`Failed to generate PDF: ${errorMsg}\n\nPlease check the browser console (F12) for more details.`);
     }
   };
 
@@ -817,6 +1089,13 @@ export default function App() {
 
   return (
     <div className="lc-shell">
+      {sidebarOpen && (
+        <div 
+          className="lc-sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close sidebar"
+        />
+      )}
       <aside className={`lc-sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <div className="lc-sidebar-top">
           <button className="lc-newchat" onClick={newChat}>

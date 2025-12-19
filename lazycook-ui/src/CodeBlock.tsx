@@ -6,217 +6,236 @@ interface CodeBlockProps {
   className?: string;
 }
 
-export default function CodeBlock({ code, language, className }: CodeBlockProps) {
+export default function CodeBlock({
+  code,
+  language,
+  className,
+}: CodeBlockProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedCode, setEditedCode] = useState(code);
   const [savedCode, setSavedCode] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
+    'idle'
+  );
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousCodeRef = useRef<string>(code);
 
-  // Update edited code when code prop changes (new code from AI)
+  /* ─────────────────────────────
+     Sync when new AI code arrives
+  ───────────────────────────── */
   useEffect(() => {
-    // Only reset if the code prop has actually changed (new code from AI)
     if (code !== previousCodeRef.current) {
       setEditedCode(code);
-      setSavedCode(null); // Clear saved edits when new code arrives
+      setSavedCode(null);
+      setIsEditing(false);
       previousCodeRef.current = code;
     }
   }, [code]);
 
-  // Focus textarea when entering edit mode
+  /* ─────────────────────────────
+     Focus textarea on edit
+  ───────────────────────────── */
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus();
-      // Move cursor to end
-      const length = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(length, length);
+      const len = textareaRef.current.value.length;
+      textareaRef.current.setSelectionRange(len, len);
     }
   }, [isEditing]);
 
+  /* ─────────────────────────────
+     Helpers
+  ───────────────────────────── */
+  const getFileExtension = (lang?: string) => {
+    const map: Record<string, string> = {
+      js: 'js',
+      javascript: 'js',
+      ts: 'ts',
+      typescript: 'ts',
+      jsx: 'jsx',
+      tsx: 'tsx',
+      python: 'py',
+      py: 'py',
+      java: 'java',
+      c: 'c',
+      cpp: 'cpp',
+      cs: 'cs',
+      php: 'php',
+      go: 'go',
+      rust: 'rs',
+      swift: 'swift',
+      kotlin: 'kt',
+      bash: 'sh',
+      sh: 'sh',
+      shell: 'sh',
+      powershell: 'ps1',
+      ps1: 'ps1',
+      json: 'json',
+      yaml: 'yml',
+      yml: 'yml',
+      html: 'html',
+      css: 'css',
+      dockerfile: 'dockerfile',
+      solidity: 'sol',
+      sol: 'sol',
+      ruby: 'rb',
+      rb: 'rb',
+      perl: 'pl',
+      pl: 'pl',
+      r: 'r',
+      scala: 'scala',
+      clojure: 'clj',
+      clj: 'clj',
+      lua: 'lua',
+      dart: 'dart',
+      elm: 'elm',
+      haskell: 'hs',
+      hs: 'hs',
+      ocaml: 'ml',
+      fsharp: 'fs',
+      fs: 'fs',
+      vb: 'vb',
+      vbnet: 'vb',
+      xml: 'xml',
+      markdown: 'md',
+      md: 'md',
+      tex: 'tex',
+      latex: 'tex',
+      makefile: 'make',
+      cmake: 'cmake',
+      ini: 'ini',
+      toml: 'toml',
+      properties: 'properties',
+      env: 'env',
+      config: 'config',
+      conf: 'conf',
+    };
+    return map[lang?.toLowerCase() || ''] || 'txt';
+  };
+
+  /* ─────────────────────────────
+     Derived state
+  ───────────────────────────── */
+  const displayCode = isEditing
+    ? editedCode
+    : savedCode ?? code;
+
+  // Enable download and edit for all code blocks
+  const allowActions = true;
+
+  /* ─────────────────────────────
+     Actions
+  ───────────────────────────── */
   const handleCopy = async () => {
-    const textToCopy = isEditing ? editedCode : (savedCode || code);
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      await navigator.clipboard.writeText(displayCode);
       setCopyStatus('copied');
       setTimeout(() => setCopyStatus('idle'), 2000);
-    } catch (err) {
+    } catch {
       setCopyStatus('error');
       setTimeout(() => setCopyStatus('idle'), 3000);
     }
   };
 
   const handleDownload = () => {
-    const textToDownload = isEditing ? editedCode : (savedCode || code);
     try {
-      const extension = getFileExtension(language || 'txt');
-      const filename = `generated_code.${extension}`;
-      
-      const blob = new Blob([textToDownload], { type: 'text/plain' });
+      const ext = getFileExtension(language);
+      const blob = new Blob([displayCode], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `generated_code.${ext}`;
+      a.style.display = 'none';
+      
+      // Append to DOM first (required for some browsers)
+      document.body.appendChild(a);
+      
+      // Trigger download
+      a.click();
+      
+      // Cleanup after download starts
+      setTimeout(() => {
+        if (a.parentElement) {
+          document.body.removeChild(a);
+        }
+        URL.revokeObjectURL(url);
+      }, 1000);
     } catch (err) {
-      // Fallback: show error or suggest manual copy
-      alert('Download failed. Please copy the code manually.');
+      console.error('Code download failed:', err);
+      alert('Download failed. Please copy manually.');
     }
   };
 
   const handleEdit = () => {
+    setEditedCode(savedCode ?? code);
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    setSavedCode(editedCode); // Save the edited code
+    setSavedCode(editedCode);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setEditedCode(savedCode || code); // Revert to saved code or original
+    setEditedCode(savedCode ?? code);
     setIsEditing(false);
   };
 
-  const isProgrammingLanguage = (lang?: string): boolean => {
-    if (!lang) return false;
-    const programmingLanguages = [
-      'python', 'py',
-      'javascript', 'js',
-      'typescript', 'ts',
-      'jsx', 'tsx',
-      'java',
-      'cpp', 'c', 'cxx', 'cc',
-      'cs', 'csharp',
-      'php',
-      'ruby', 'rb',
-      'go', 'golang',
-      'rust', 'rs',
-      'swift',
-      'kotlin', 'kt',
-      'scala',
-      'dart',
-      'r',
-      'matlab',
-      'perl', 'pl',
-      'lua',
-      'bash', 'sh', 'shell', 'zsh',
-      'powershell', 'ps1',
-      'sql',
-      'r', 'rscript',
-    ];
-    return programmingLanguages.includes(lang.toLowerCase());
-  };
-
-  const getFileExtension = (lang: string): string => {
-    const extensionMap: Record<string, string> = {
-      'python': 'py',
-      'py': 'py',
-      'javascript': 'js',
-      'js': 'js',
-      'typescript': 'ts',
-      'ts': 'ts',
-      'jsx': 'jsx',
-      'tsx': 'tsx',
-      'json': 'json',
-      'html': 'html',
-      'css': 'css',
-      'scss': 'scss',
-      'sass': 'sass',
-      'xml': 'xml',
-      'yaml': 'yml',
-      'yml': 'yml',
-      'markdown': 'md',
-      'md': 'md',
-      'bash': 'sh',
-      'sh': 'sh',
-      'shell': 'sh',
-      'sql': 'sql',
-      'java': 'java',
-      'cpp': 'cpp',
-      'c': 'c',
-      'cs': 'cs',
-      'php': 'php',
-      'ruby': 'rb',
-      'go': 'go',
-      'rust': 'rs',
-      'swift': 'swift',
-      'kotlin': 'kt',
-      'dockerfile': 'dockerfile',
-      'docker': 'dockerfile',
-    };
-    return extensionMap[lang.toLowerCase()] || 'txt';
-  };
-
-  const showDownloadEdit = isProgrammingLanguage(language);
-
-  // Use saved code if available, otherwise use original code
-  const displayCode = isEditing ? editedCode : (savedCode || code);
-
+  /* ─────────────────────────────
+     Render
+  ───────────────────────────── */
   return (
     <div className="lc-code-block-wrapper">
       <div className="lc-code-block-header">
         {language && (
           <span className="lc-code-block-language">{language}</span>
         )}
+
         <div className="lc-code-block-actions">
           <button
-            className={`lc-code-block-btn lc-code-block-btn-copy ${copyStatus === 'copied' ? 'is-copied' : copyStatus === 'error' ? 'is-error' : ''}`}
             onClick={handleCopy}
-            aria-label="Copy code to clipboard"
-            tabIndex={0}
-            title={copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy code'}
+            className={`lc-code-block-btn ${
+              copyStatus === 'copied'
+                ? 'is-copied'
+                : copyStatus === 'error'
+                ? 'is-error'
+                : ''
+            }`}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-copy-icon">
-              <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span>Copy code</span>
+            {copyStatus === 'copied' ? 'Copied' : 'Copy'}
           </button>
-          {showDownloadEdit && (
+
+          {allowActions && (
             <>
               <button
-                className="lc-code-block-btn lc-code-block-btn-download"
+                className="lc-code-block-btn"
                 onClick={handleDownload}
-                aria-label="Download code as file"
-                tabIndex={0}
-                title="Download"
               >
-                ⬇ Download
+                Download
               </button>
+
               {!isEditing ? (
                 <button
-                  className="lc-code-block-btn lc-code-block-btn-edit"
+                  className="lc-code-block-btn"
                   onClick={handleEdit}
-                  aria-label="Edit code block"
-                  tabIndex={0}
-                  title="Edit"
                 >
-                  ✏ Edit
+                  Edit
                 </button>
               ) : (
                 <>
                   <button
-                    className="lc-code-block-btn lc-code-block-btn-save"
+                    className="lc-code-block-btn"
                     onClick={handleSave}
-                    aria-label="Save edits"
-                    tabIndex={0}
-                    title="Save"
                   >
-                    ✓ Save
+                    Save
                   </button>
                   <button
-                    className="lc-code-block-btn lc-code-block-btn-cancel"
+                    className="lc-code-block-btn"
                     onClick={handleCancel}
-                    aria-label="Cancel editing"
-                    tabIndex={0}
-                    title="Cancel"
                   >
-                    ✗ Cancel
+                    Cancel
                   </button>
                 </>
               )}
@@ -224,16 +243,14 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
           )}
         </div>
       </div>
+
       {isEditing ? (
         <textarea
           ref={textareaRef}
-          className="lc-code-block-editable"
           value={editedCode}
           onChange={(e) => setEditedCode(e.target.value)}
-          aria-label="Editable code block"
-          role="textbox"
           spellCheck={false}
-          tabIndex={0}
+          className="lc-code-block-editable"
         />
       ) : (
         <pre className="lc-md-pre">
@@ -242,12 +259,6 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
           </code>
         </pre>
       )}
-      {copyStatus === 'error' && (
-        <div className="lc-code-block-error" role="alert">
-          Copy failed. Please copy manually or try again.
-        </div>
-      )}
     </div>
   );
 }
-

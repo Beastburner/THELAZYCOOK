@@ -1,5 +1,89 @@
 [
   {
+    "id": "go@lazycook.ai_1766154086_task_1",
+    "conversation_id": "go@lazycook.ai_1766154086",
+    "task_type": "research",
+    "description": "Explain best practices for: give me a solidity code with much comments and als",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T19:51:26.578273",
+    "scheduled_for": "2025-12-19T19:56:26.578274",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766154086_task_0",
+    "conversation_id": "go@lazycook.ai_1766154086",
+    "task_type": "research",
+    "description": "Find Python code examples related to: give me a solidity code with much comments and als",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T19:51:26.575078",
+    "scheduled_for": "2025-12-19T19:53:26.575081",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766153439_task_1",
+    "conversation_id": "go@lazycook.ai_1766153439",
+    "task_type": "research",
+    "description": "Explain best practices for: give me a solidity code with much comments and als",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T19:40:39.108930",
+    "scheduled_for": "2025-12-19T19:45:39.108931",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766153439_task_0",
+    "conversation_id": "go@lazycook.ai_1766153439",
+    "task_type": "research",
+    "description": "Find Python code examples related to: give me a solidity code with much comments and als",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T19:40:39.106513",
+    "scheduled_for": "2025-12-19T19:42:39.106516",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766151949_task_1",
+    "conversation_id": "go@lazycook.ai_1766151949",
+    "task_type": "research",
+    "description": "Explain best practices for: Code Assistance but something related to blockchai",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T19:15:49.713327",
+    "scheduled_for": "2025-12-19T19:20:49.713339",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766151949_task_0",
+    "conversation_id": "go@lazycook.ai_1766151949",
+    "task_type": "research",
+    "description": "Find Python code examples related to: Code Assistance but something related to blockchai",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-19T19:15:49.700967",
+    "scheduled_for": "2025-12-19T19:17:49.700978",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
     "id": "go@lazycook.ai_1766148118_task_1",
     "conversation_id": "go@lazycook.ai_1766148118",
     "task_type": "research",
