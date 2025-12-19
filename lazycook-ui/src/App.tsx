@@ -204,7 +204,7 @@ function enhanceWithEmojis(content: string): string {
   return processedParts.join('');
 }
 
-function MessageItem({ message }: { message: Message }) {
+function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate?: () => void }) {
   const [isHovered, setIsHovered] = useState(false);
   const [liked, setLiked] = useState(false);
 
@@ -280,7 +280,7 @@ function MessageItem({ message }: { message: Message }) {
             </button>
             <button
               className="lc-msg-action-btn"
-              onClick={() => {}}
+              onClick={onRegenerate}
               aria-label="Regenerate"
               title="Regenerate response"
             >
@@ -511,6 +511,68 @@ export default function App() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       runAI();
+    }
+  };
+
+  const regenerateResponse = async (assistantMessageId: string) => {
+    if (!token || !plan || !activeChat) return;
+    
+    // Find the assistant message and the user message before it
+    const messages = activeChat.messages;
+    const assistantIndex = messages.findIndex(m => m.id === assistantMessageId);
+    if (assistantIndex === -1 || messages[assistantIndex].role !== 'assistant') return;
+    
+    // Find the previous user message
+    let userMessage: Message | null = null;
+    for (let i = assistantIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userMessage = messages[i];
+        break;
+      }
+    }
+    
+    if (!userMessage) {
+      setError('No user message found to regenerate from');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/ai/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "X-User-ID": email || "anon",
+        },
+        body: JSON.stringify({ prompt: userMessage.content, model }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+
+      let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      // Enhance content with emojis for better engagement
+      content = enhanceWithEmojis(content);
+      
+      // Update the assistant message with new content
+      updateChatMessages(activeChat.id, (m) => {
+        const next = [...m];
+        const idx = next.findIndex((x) => x.id === assistantMessageId);
+        if (idx >= 0) next[idx] = { ...next[idx], content };
+        return next;
+      });
+    } catch (e) {
+      updateChatMessages(activeChat.id, (m) => {
+        const next = [...m];
+        const idx = next.findIndex((x) => x.id === assistantMessageId);
+        if (idx >= 0) next[idx] = { ...next[idx], content: `Error: ${(e as Error).message}` };
+        return next;
+      });
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -758,7 +820,11 @@ export default function App() {
           ) : (
             <div className="lc-messages">
               {(activeChat?.messages || []).map((m) => (
-                <MessageItem key={m.id} message={m} />
+                <MessageItem 
+                  key={m.id} 
+                  message={m} 
+                  onRegenerate={m.role === 'assistant' ? () => regenerateResponse(m.id) : undefined}
+                />
               ))}
               {loading && <div className="lc-typing">Cooking…</div>}
               {activeChat && activeChat.messages.length > 0 && (
