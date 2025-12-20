@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Prism from 'prismjs';
+import 'prismjs/themes/prism-tomorrow.css';
 
 // Import base/core languages first (no dependencies)
 import 'prismjs/components/prism-markup'; // Base for HTML/XML
@@ -239,23 +240,61 @@ export default function CodeBlock({
   const getHighlightedCode = () => {
     if (isEditing) return null;
     
+    // Early return if no code to highlight
+    if (!displayCode || displayCode.trim().length === 0) {
+      return null;
+    }
+    
     const lang = language?.toLowerCase() || '';
     const prismLang = mapLanguageToPrism(lang);
     
-    if (prismLang && Prism.languages[prismLang]) {
-      try {
-        const highlighted = Prism.highlight(
-          displayCode,
-          Prism.languages[prismLang],
-          prismLang
-        );
-        return { __html: highlighted };
-      } catch (err) {
-        console.warn('Prism highlighting failed:', err);
-      }
+    // Validate that the language exists and is properly loaded
+    if (!prismLang) return null;
+    
+    // Check if Prism is available
+    if (!Prism || typeof Prism.highlight !== 'function') {
+      return null;
     }
     
-    return null;
+    // Check if Prism.languages exists
+    if (!Prism.languages || typeof Prism.languages !== 'object') {
+      return null;
+    }
+    
+    // Check if the specific language is loaded
+    if (!(prismLang in Prism.languages)) {
+      return null;
+    }
+    
+    const languageDef = Prism.languages[prismLang];
+    
+    // Validate language definition is an object (not null/undefined)
+    if (!languageDef || typeof languageDef !== 'object' || Array.isArray(languageDef)) {
+      return null;
+    }
+    
+    try {
+      // Use Prism.highlight with proper error handling
+      // Pass the language name as the third parameter
+      const highlighted = Prism.highlight(
+        String(displayCode),
+        languageDef,
+        prismLang
+      );
+      
+      // Validate the result is a non-empty string
+      if (!highlighted || typeof highlighted !== 'string' || highlighted.trim().length === 0) {
+        return null;
+      }
+      
+      return { __html: highlighted };
+    } catch (err: unknown) {
+      // Silently fail - return null to show plain text without highlighting
+      // This prevents console spam from repeated errors
+      // The error is typically "Cannot read properties of undefined (reading 'tokenizePlaceholders')"
+      // which happens when a language definition is incomplete or has missing dependencies
+      return null;
+    }
   };
 
   const mapLanguageToPrism = (lang: string): string => {
@@ -402,7 +441,7 @@ export default function CodeBlock({
           className="lc-code-block-editable"
         />
       ) : (
-        <pre className="lc-md-pre lc-vscode-theme">
+        <pre className={`lc-md-pre lc-vscode-theme language-${mapLanguageToPrism(language?.toLowerCase() || '') || 'text'}`}>
           <code 
             className={`lc-md-code-block language-${mapLanguageToPrism(language?.toLowerCase() || '') || 'text'} ${className || ''}`}
             dangerouslySetInnerHTML={highlightedHtml || undefined}

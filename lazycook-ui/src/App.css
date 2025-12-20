@@ -1,27 +1,61 @@
 :root {
-  --bg: #0b0b0f;
-  --panel: #12121a;
-  --panel-2: #171722;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: rgba(255, 255, 255, 0.92);
-  --muted: rgba(255, 255, 255, 0.6);
-  --muted2: rgba(255, 255, 255, 0.45);
-  --accent: #ffffff;
-  --accentText: #0b0b0f;
-  --red-z: #ff4444;
+  /* Darker, Clearer VS Code Dark+ Inspired Palette */
+  --bg: #0d0d0d; /* Near-black - darker than VS Code */
+  --panel: #1a1a1a; /* Dark surface - clear contrast */
+  --panel-2: #222222; /* Secondary panel - distinct from panel */
+  --border: rgba(255, 255, 255, 0.18); /* Clearer borders - better visibility */
+  --text: #e8e8e8; /* Brighter off-white - clearer text */
+  --muted: #9a9a9a; /* Clearer muted - better readability */
+  --muted2: #7a7a7a; /* More visible secondary muted */
+  --accent: #4a9eff; /* Brighter tech blue - clearer accent */
+  --accentText: #0d0d0d; /* Dark background for accent text */
+  --accent-secondary: #3dd5c4; /* Brighter cyan/teal - clearer highlights */
+  --red-z: #ff6b6b; /* Clearer red - more visible */
+  --error: #ff6b6b; /* Clearer red for errors */
+  --success: #6bcf7f; /* Clearer green for success */
+  /* Shared header height for perfect alignment */
+  --lc-header-height: 60px;
+  
+  /* Apple system fonts - SF Pro for UI */
+  --font-ui: -apple-system, BlinkMacSystemFont,
+             "SF Pro Text", "SF Pro Display",
+             system-ui, "Segoe UI", Roboto,
+             Helvetica, Arial, sans-serif,
+             "Apple Color Emoji", "Segoe UI Emoji";
+  
+  /* Apple system fonts - SF Mono for code */
+  --font-mono: ui-monospace,
+               "SF Mono", SFMono-Regular,
+               Menlo, Monaco,
+               Consolas, "Liberation Mono",
+               "Courier New", monospace;
+  
+  /* Apple SF Pro font weight tokens */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+}
+
+/* Global Apple typography - apply to all UI elements */
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-ui);
+  font-weight: var(--fw-medium);
 }
 
 /* Red Z styling for LazyCook */
 .lc-red-z {
   color: var(--red-z);
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
 }
 
 .lc-login {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(1200px 600px at 50% 0%, rgba(255, 255, 255, 0.06), transparent 55%), var(--bg);
+  background: radial-gradient(1200px 600px at 50% 0%, rgba(74, 158, 255, 0.12), transparent 55%), var(--bg);
   color: var(--text);
   padding: 24px;
 }
@@ -29,7 +63,7 @@
 .lc-login-card {
   width: 100%;
   max-width: 420px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 18px;
@@ -46,16 +80,16 @@
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(74, 158, 255, 0.2);
   border: 1px solid var(--border);
   display: grid;
   place-items: center;
-  font-weight: 800;
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.5px;
 }
 .lc-title {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
 }
 .lc-subtitle {
   font-size: 12px;
@@ -75,10 +109,12 @@
   border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.35);
   color: var(--text);
+  font-family: var(--font-ui);
   outline: none;
 }
 .lc-input:focus {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.3);
 }
 
 .lc-primary {
@@ -86,8 +122,8 @@
   border-radius: 12px;
   padding: 10px 12px;
   background: var(--accent);
-  color: var(--accentText);
-  font-weight: 700;
+  color: white; /* Ensure white color for arrow visibility */
+  font-weight: var(--fw-medium);
   cursor: pointer;
 }
 .lc-primary:disabled {
@@ -104,7 +140,7 @@
 }
 .lc-iconbtn {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text);
   border-radius: 12px;
   padding: 10px 12px;
@@ -115,9 +151,9 @@
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 80, 80, 0.35);
-  background: rgba(255, 80, 80, 0.12);
-  color: rgba(255, 185, 185, 0.95);
+  border: 1px solid rgba(255, 107, 107, 0.5);
+  background: rgba(255, 107, 107, 0.18);
+  color: var(--error);
   font-size: 13px;
 }
 .lc-error-inline {
@@ -129,7 +165,7 @@
   color: var(--muted);
 }
 .lc-hint code {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.12);
   border: 1px solid var(--border);
   padding: 2px 6px;
   border-radius: 8px;
@@ -146,29 +182,139 @@
 }
 
 .lc-sidebar {
-  width: 300px;
+  width: 260px;
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box; /* Ensure border is included in width calculation */
+  font-family: var(--font-ui);
+  /* Hide scrollbars on sidebar - only textarea should have scrollbars */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.lc-sidebar-top {
+.lc-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sidebar Header with Logo and Toggle */
+.lc-sidebar-header {
+  height: var(--lc-header-height);
+  min-height: var(--lc-header-height);
+  padding: 0 16px; /* Remove vertical padding */
   display: flex;
-  gap: 10px;
-  padding: 12px;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid var(--border);
+  box-sizing: border-box; /* Hard alignment guard */
+  font-family: var(--font-ui);
+  position: relative; /* For mobile close button positioning */
 }
 
-.lc-newchat {
-  flex: 1;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
+.lc-sidebar-logo {
+  display: flex;
+  align-items: center;
+}
+
+.lc-logo-icon {
+  font-size: 18px;
+  font-weight: var(--fw-semibold);
   color: var(--text);
-  border-radius: 12px;
-  padding: 10px 12px;
+  letter-spacing: 0.5px;
+}
+
+.lc-sidebar-toggle {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 650;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.lc-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile close button (sidebar header) */
+.lc-sidebar-close {
+  display: none;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  outline: none;
+  z-index: 1;
+}
+
+.lc-sidebar-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Navigation Buttons */
+.lc-sidebar-nav {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lc-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.lc-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lc-nav-btn svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.lc-badge {
+  margin-left: auto;
+  padding: 2px 6px;
+  background: var(--accent);
+  color: white; /* Ensure white color for arrow visibility */
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .lc-sidebar-search {
@@ -181,14 +327,15 @@
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   color: var(--text);
   font-size: 12px;
   outline: none;
 }
 
 .lc-search-input:focus {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.3);
 }
 
 .lc-search-input::placeholder {
@@ -196,9 +343,26 @@
 }
 
 .lc-chatlist {
-  padding: 10px;
+  padding: 8px;
   overflow: auto;
   flex: 1;
+  /* Hide scrollbars - only textarea should have scrollbars */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.lc-chatlist::-webkit-scrollbar {
+  display: none;
+}
+
+.lc-chatlist-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 }
 
 .lc-chatlist-empty {
@@ -211,61 +375,203 @@
 .lc-chatitem {
   width: 100%;
   text-align: left;
-  border: 1px solid transparent;
+  border: none;
   background: transparent;
   color: var(--text);
-  border-radius: 12px;
-  padding: 10px 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
   cursor: pointer;
+  transition: background 0.2s;
 }
 .lc-chatitem:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
 }
 .lc-chatitem.is-active {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lc-chatitem.is-active .lc-chatitem-title {
+  font-weight: var(--fw-semibold);
 }
 .lc-chatitem-title {
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 .lc-chatitem-meta {
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--muted2);
+  display: none; /* Hide timestamps like ChatGPT */
 }
 
 .lc-sidebar-bottom {
   border-top: 1px solid var(--border);
   padding: 12px;
-  display: grid;
-  gap: 10px;
+  position: relative;
 }
+
 .lc-userline {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  position: relative;
+  font-weight: var(--fw-semibold);
 }
-.lc-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+
+.lc-userline:hover {
   background: rgba(255, 255, 255, 0.08);
-  display: grid;
-  place-items: center;
-  font-weight: 800;
 }
+
+.lc-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white; /* Ensure white color for arrow visibility */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-semibold);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.lc-usertext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lc-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .lc-useremail {
-  font-size: 12px;
-  font-weight: 650;
+  display: none; /* Hide email, show name instead */
 }
+
 .lc-userplan {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
+  font-weight: 500;
+}
+
+/* User Menu Dropdown */
+.lc-user-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  right: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  min-width: 240px;
+}
+
+.lc-user-menu-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.lc-avatar-menu {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white; /* Ensure white color for arrow visibility */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-semibold);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lc-user-menu-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lc-user-menu-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-user-menu-username {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-user-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.lc-user-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.2s;
+  outline: none;
+  position: relative;
+}
+
+.lc-user-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lc-user-menu-item svg:first-child {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.lc-user-menu-item span {
+  flex: 1;
+}
+
+.lc-menu-chevron {
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  margin-left: auto;
 }
 
 .lc-main {
@@ -280,54 +586,158 @@
 }
 
 .lc-topbar {
-  height: 56px;
+  height: var(--lc-header-height);
+  min-height: var(--lc-header-height);
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
   border-bottom: 1px solid var(--border);
-  background: rgba(18, 18, 26, 0.6);
-  backdrop-filter: blur(10px);
-}
-.lc-topbar-title {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 10px;
-}
-.lc-topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  background: var(--bg);
+  box-sizing: border-box; /* Hard alignment guard */
+  font-family: var(--font-ui);
 }
 
-.lc-topbar-btn {
+.lc-topbar-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.lc-topbar-model {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  position: relative;
+  font-weight: var(--fw-semibold);
+}
+
+.lc-topbar-model:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lc-model-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lc-model-option {
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
   color: var(--text);
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  text-align: left;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
+  font-size: 14px;
+  transition: background 0.2s;
   outline: none;
 }
 
-.lc-topbar-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+.lc-model-option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.lc-topbar-btn:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.3);
-  outline-offset: 2px;
+.lc-model-option.is-active {
+  background: rgba(74, 158, 255, 0.15);
+  color: var(--accent);
+}
+
+.lc-model-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lc-topbar-model .lc-red-z {
+  color: var(--red-z);
+}
+
+.lc-model-version {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.lc-dropdown-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.lc-topbar-title {
+  display: none; /* Hide old title */
+}
+
+.lc-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc-topbar-action-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  outline: none;
+}
+
+.lc-topbar-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lc-topbar-action-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.lc-topbar-menu-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.lc-topbar-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lc-topbar-menu-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .lc-topbar-btn.is-copied {
@@ -345,7 +755,7 @@
 .lc-select {
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text);
   padding: 8px 10px;
 }
@@ -354,14 +764,15 @@
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--muted);
 }
 
 .lc-thread {
   flex: 1;
-  overflow-y: auto; /* Only vertical scrolling */
-  overflow-x: hidden; /* Prevent horizontal scrolling */
+  overflow-y: auto;
+  overflow-x: auto;          /* ✅ allow left-right scroll */
+  white-space: nowrap; /* Prevent horizontal scrolling */
   padding: 18px 0 0 0; /* Remove horizontal padding, let messages handle it */
   min-width: 0; /* Allow flex shrinking */
   max-width: 100%;
@@ -375,7 +786,7 @@
 }
 
 .lc-thread:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent; /* Show on hover */
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent; /* Show on hover */
 }
 
 .lc-thread::-webkit-scrollbar {
@@ -393,11 +804,11 @@
 }
 
 .lc-thread:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .lc-thread::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* Scroll to bottom button */
@@ -438,30 +849,23 @@
 }
 
 .lc-empty {
-  max-width: 768px; /* Match messages max-width */
-  margin: 0 auto;
+  max-width: 700px; /* Match messages max-width */
+  margin: 0 auto; /* Keep centered */
   padding: 40px 24px;
   text-align: center;
   box-sizing: border-box;
 }
 
-/* On larger screens, add more side padding for better centering */
+/* On larger screens, adjust empty state */
 @media (min-width: 1200px) {
   .lc-empty {
-    padding-left: 48px;
-    padding-right: 48px;
-  }
-}
-
-@media (min-width: 1400px) {
-  .lc-empty {
-    padding-left: 80px;
-    padding-right: 80px;
+    max-width: 720px;
+    padding: 40px 32px;
   }
 }
 .lc-empty-title {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: var(--fw-semibold);
   letter-spacing: -0.02em;
 }
 .lc-empty-subtitle {
@@ -470,36 +874,21 @@
 }
 
 .lc-messages {
-  max-width: 768px; /* Fixed max-width for consistent centering */
   width: 100%;
-  margin: 0 auto;
-  display: grid;
-  gap: 14px;
-  padding-bottom: 24px;
+  max-width: 720px; /* Exact ChatGPT content width */
+  margin: 0 auto; /* Centered */
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* Use margin-bottom on messages instead */
+  padding: 0 24px 32px; /* Desktop: 24px horizontal, 32px bottom */
   box-sizing: border-box;
-  padding-left: 24px;
-  padding-right: 24px;
-  /* Prevent horizontal overflow */
-  overflow-x: hidden;
-  min-width: 0; /* Allow flex shrinking */
 }
 
-/* On larger screens, add more side padding for better centering */
-@media (min-width: 1200px) {
+/* Mobile (≤768px) */
+@media (max-width: 768px) {
   .lc-messages {
-    max-width: 768px; /* Keep fixed max-width */
-    width: 100%;
-    padding-left: 48px;
-    padding-right: 48px;
-  }
-}
-
-@media (min-width: 1400px) {
-  .lc-messages {
-    max-width: 768px; /* Keep fixed max-width */
-    width: 100%;
-    padding-left: 80px;
-    padding-right: 80px;
+    max-width: 100%;
+    padding: 0 16px 24px; /* Mobile: 16px horizontal, 24px bottom */
   }
 }
 
@@ -508,40 +897,65 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  min-width: 0; /* Allow flex shrinking */
+  min-width: 0;
 }
+
 .lc-msg.is-user {
   justify-content: flex-end;
+  margin-bottom: 14px; /* User message spacing */
 }
+
 .lc-msg.is-assistant {
   justify-content: flex-start;
+  margin-bottom: 18px; /* Assistant message spacing */
 }
+
+/* Default: Plain text for assistant messages (NO background, border, or shadow) */
 .lc-msg-inner {
-  max-width: 76%;
-  min-width: 0; /* Allow flex shrinking */
-  width: fit-content; /* Only take space needed, up to max-width */
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  overflow: hidden; /* Prevent content from breaking out */
+  white-space: normal;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  overflow: hidden;
   word-wrap: break-word;
-  overflow-wrap: break-word;
-  /* Ensure content doesn't overflow */
   box-sizing: border-box;
 }
 
+/* User messages: Chat bubbles (pixel-locked) */
 .lc-msg.is-user .lc-msg-inner {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  background: linear-gradient(
+    180deg,
+    rgba(90, 168, 255, 0.25),
+    rgba(90, 168, 255, 0.12)
+  );
+  border: 1px solid rgba(90, 168, 255, 0.45);
+  border-radius: 16px;
+  padding: 10px 14px; /* Exact padding */
+  max-width: 85%; /* Never allow full width */
+  width: fit-content;
+  font-size: 14.5px; /* Match assistant text */
+  line-height: 1.6;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
-.lc-msg.is-user .lc-msg-inner {
-  background: rgba(255, 255, 255, 0.12);
+
+/* Assistant messages: Full readable width, plain text */
+.lc-msg.is-assistant .lc-msg-inner {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
 }
 .lc-msg-role {
-  font-size: 11px;
+  font-size: 11px; /* Exact size */
   color: var(--muted2);
-  margin-bottom: 6px;
+  margin-bottom: 6px; /* Exact spacing */
+  font-weight: 500; /* Exact weight */
+  opacity: 0.7;
 }
 
 /* Typing indicator in message role area */
@@ -574,12 +988,17 @@
 .lc-msg-role .lc-typing-dot:nth-child(3) {
   animation-delay: 0.4s;
 }
+/* Assistant message content: plain text, no extra padding */
+.lc-msg.is-assistant .lc-msg-content {
+  padding: 0;
+}
+
 .lc-msg-content {
-  font-size: 14px;
-  line-height: 1.5;
-  /* Ensure emojis render properly */
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
-  /* Prevent content overflow */
+  font-size: 14.5px; /* Exact ChatGPT size */
+  line-height: 1.65; /* ≈ 23.9px */
+  letter-spacing: -0.01em;
+  font-family: var(--font-ui);
+  font-weight: 400; /* Exact weight */
   max-width: 100%;
   width: 100%; /* Take full width of parent */
   overflow-wrap: break-word;
@@ -601,10 +1020,10 @@
 .lc-msg-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  gap: 6px; /* Exact gap */
+  margin-top: 10px; /* Exact spacing */
+  padding-top: 6px; /* Exact padding */
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .lc-msg-action-btn {
@@ -624,12 +1043,12 @@
 }
 
 .lc-msg-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.9);
 }
 
 .lc-msg-action-btn.is-active {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
   color: rgba(255, 255, 255, 0.95);
 }
 
@@ -640,13 +1059,14 @@
 
 /* Markdown Content Styles */
 .lc-msg-content .lc-md-p {
-  margin: 0 0 1em 0;
-  line-height: 1.7;
+  margin: 0 0 0.85em 0; /* Paragraph spacing ~0.85em */
+  line-height: 1.65; /* Match assistant text line-height */
   color: var(--text);
   max-width: 100%;
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
+  font-weight: var(--fw-regular);
 }
 
 .lc-msg-content .lc-md-p:last-child {
@@ -660,9 +1080,8 @@
 .lc-msg-content .lc-md-h4,
 .lc-msg-content .lc-md-h5,
 .lc-msg-content .lc-md-h6 {
-  margin: 1.5em 0 0.75em 0;
-  font-weight: 700;
-  line-height: 1.3;
+  font-weight: 600; /* Exact weight */
+  line-height: 1.4;
   color: var(--text);
   max-width: 100%;
   overflow-wrap: break-word;
@@ -680,19 +1099,28 @@
 }
 
 .lc-msg-content .lc-md-h1 {
-  font-size: 1.75em;
+  font-size: 22px; /* Exact pixel size */
+  line-height: 1.4;
+  margin: 24px 0 12px 0; /* Exact margins */
+  font-weight: 600;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.5em;
 }
 
 .lc-msg-content .lc-md-h2 {
-  font-size: 1.5em;
+  font-size: 18px; /* Exact pixel size */
+  line-height: 1.4;
+  margin: 22px 0 10px 0; /* Exact margins */
+  font-weight: 600;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.4em;
 }
 
 .lc-msg-content .lc-md-h3 {
-  font-size: 1.3em;
+  font-size: 16px; /* Exact pixel size */
+  line-height: 1.4;
+  margin: 18px 0 8px 0; /* Exact margins */
+  font-weight: 600;
 }
 
 .lc-msg-content .lc-md-h4 {
@@ -734,6 +1162,7 @@
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
+  font-weight: var(--fw-regular);
 }
 
 .lc-msg-content .lc-md-li > p {
@@ -749,7 +1178,7 @@
 
 /* Code Blocks */
 .lc-code-block-wrapper {
-  margin: 1.2em 0;
+  margin: 14px 0; /* Exact spacing: 14px */
   position: relative;
   border-radius: 8px;
   overflow-x: auto; /* Allow horizontal scrolling for long code */
@@ -760,6 +1189,9 @@
   min-width: 0; /* Allow flex shrinking */
   width: 100%; /* Take full width of container */
   box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 13.5px; /* Exact size */
+  line-height: 1.6; /* ≈ 21.6px */
   /* Smooth scrolling for long code lines */
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
@@ -799,7 +1231,7 @@
   padding: 0.35em 0.65em;
   font-size: 0.8em;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text);
   border-radius: 6px;
   cursor: pointer;
@@ -817,7 +1249,7 @@
 }
 
 .lc-code-block-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -885,8 +1317,8 @@
   background: rgba(0, 0, 0, 0.4);
   border: none;
   border-radius: 0;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
   resize: vertical;
@@ -913,6 +1345,29 @@
   text-align: center;
 }
 
+/* Global code font rules - SF Mono (lighter weight) */
+pre,
+code,
+.lc-code-block-wrapper,
+.lc-md-code-block,
+.lc-md-code-inline {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  font-weight: 450; /* Sweet spot for mono fonts */
+}
+
+/* Fallback for browsers that don't support 450 */
+@supports not (font-weight: 450) {
+  pre,
+  code,
+  .lc-code-block-wrapper,
+  .lc-md-code-block,
+  .lc-md-code-inline {
+    font-weight: var(--fw-regular);
+  }
+}
+
 .lc-msg-content .lc-md-pre {
   margin: 0;
   padding: 0;
@@ -929,23 +1384,66 @@
   overflow: hidden;
 }
 
-/* VS Code Dark Theme Colors */
-.lc-vscode-theme {
-  color: #d4d4d4; /* VS Code default text color */
+/* VS Code Dark+ Theme - Exact color matching */
+.lc-code-block-wrapper .lc-md-pre.lc-vscode-theme,
+.lc-code-block-wrapper pre.lc-vscode-theme {
+  background: #1e1e1e !important;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  border-radius: 8px;
+  padding: 12px !important;
+  color: #d4d4d4; /* VS Code default text */
 }
 
+/* Ensure Prism theme colors are visible */
+.lc-code-block-wrapper .lc-vscode-theme code,
+.lc-code-block-wrapper .lc-vscode-theme code[class*="language-"] {
+  color: #d4d4d4;
+  background: transparent;
+}
+
+/* Override Prism Tomorrow theme - target code element directly */
+.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token,
+.lc-code-block-wrapper pre.lc-vscode-theme code .token {
+  /* Base token styles - will be overridden by specific token rules below */
+}
+
+/* VS Code Dark+ Token Colors - Exact Match */
+/* Make selectors more specific to override Prism theme */
+/* Target code element directly to ensure highest specificity */
+.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.comment,
+.lc-code-block-wrapper pre.lc-vscode-theme code .token.comment,
+.lc-code-block-wrapper .lc-vscode-theme code .token.comment,
+.lc-code-block-wrapper .lc-vscode-theme .token.comment,
+.lc-code-block-wrapper .lc-vscode-theme .token.prolog,
+.lc-code-block-wrapper .lc-vscode-theme .token.doctype,
+.lc-code-block-wrapper .lc-vscode-theme .token.cdata,
+.lc-vscode-theme code .token.comment,
 .lc-vscode-theme .token.comment,
 .lc-vscode-theme .token.prolog,
 .lc-vscode-theme .token.doctype,
 .lc-vscode-theme .token.cdata {
-  color: #6a9955; /* VS Code green for comments */
+  color: #6a9955 !important; /* VS Code green for comments */
   font-style: italic;
 }
 
+.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.punctuation,
+.lc-code-block-wrapper pre.lc-vscode-theme code .token.punctuation,
+.lc-code-block-wrapper .lc-vscode-theme code .token.punctuation,
+.lc-code-block-wrapper .lc-vscode-theme .token.punctuation,
+.lc-vscode-theme code .token.punctuation,
 .lc-vscode-theme .token.punctuation {
-  color: #d4d4d4;
+  color: #d4d4d4 !important;
 }
 
+.lc-code-block-wrapper .lc-vscode-theme .token.property,
+.lc-code-block-wrapper .lc-vscode-theme .token.tag,
+.lc-code-block-wrapper .lc-vscode-theme .token.boolean,
+.lc-code-block-wrapper .lc-vscode-theme .token.number,
+.lc-code-block-wrapper .lc-vscode-theme .token.constant,
+.lc-code-block-wrapper .lc-vscode-theme .token.symbol,
+.lc-code-block-wrapper .lc-vscode-theme .token.deleted,
 .lc-vscode-theme .token.property,
 .lc-vscode-theme .token.tag,
 .lc-vscode-theme .token.boolean,
@@ -953,46 +1451,77 @@
 .lc-vscode-theme .token.constant,
 .lc-vscode-theme .token.symbol,
 .lc-vscode-theme .token.deleted {
-  color: #b5cea8; /* VS Code light green */
+  color: #b5cea8 !important; /* VS Code light green for numbers/constants */
 }
 
+.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.string,
+.lc-code-block-wrapper pre.lc-vscode-theme code .token.string,
+.lc-code-block-wrapper .lc-vscode-theme code .token.string,
+.lc-code-block-wrapper .lc-vscode-theme .token.selector,
+.lc-code-block-wrapper .lc-vscode-theme .token.attr-name,
+.lc-code-block-wrapper .lc-vscode-theme .token.string,
+.lc-code-block-wrapper .lc-vscode-theme .token.char,
+.lc-code-block-wrapper .lc-vscode-theme .token.builtin,
+.lc-code-block-wrapper .lc-vscode-theme .token.inserted,
+.lc-vscode-theme code .token.string,
 .lc-vscode-theme .token.selector,
 .lc-vscode-theme .token.attr-name,
 .lc-vscode-theme .token.string,
 .lc-vscode-theme .token.char,
 .lc-vscode-theme .token.builtin,
 .lc-vscode-theme .token.inserted {
-  color: #ce9178; /* VS Code orange for strings */
+  color: #ce9178 !important; /* VS Code orange for strings */
 }
 
+.lc-code-block-wrapper .lc-vscode-theme .token.operator,
+.lc-code-block-wrapper .lc-vscode-theme .token.entity,
+.lc-code-block-wrapper .lc-vscode-theme .token.url,
+.lc-code-block-wrapper .lc-vscode-theme .language-css .token.string,
+.lc-code-block-wrapper .lc-vscode-theme .style .token.string,
 .lc-vscode-theme .token.operator,
 .lc-vscode-theme .token.entity,
 .lc-vscode-theme .token.url,
 .lc-vscode-theme .language-css .token.string,
 .lc-vscode-theme .style .token.string {
-  color: #d4d4d4;
+  color: #d4d4d4 !important;
 }
 
+.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.keyword,
+.lc-code-block-wrapper pre.lc-vscode-theme code .token.keyword,
+.lc-code-block-wrapper .lc-vscode-theme code .token.keyword,
+.lc-code-block-wrapper .lc-vscode-theme .token.atrule,
+.lc-code-block-wrapper .lc-vscode-theme .token.attr-value,
+.lc-code-block-wrapper .lc-vscode-theme .token.keyword,
+.lc-vscode-theme code .token.keyword,
 .lc-vscode-theme .token.atrule,
 .lc-vscode-theme .token.attr-value,
 .lc-vscode-theme .token.keyword {
-  color: #569cd6; /* VS Code blue for keywords */
+  color: #569cd6 !important; /* VS Code blue for keywords */
 }
 
+.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.function,
+.lc-code-block-wrapper pre.lc-vscode-theme code .token.function,
+.lc-code-block-wrapper .lc-vscode-theme code .token.function,
+.lc-code-block-wrapper .lc-vscode-theme .token.function,
+.lc-code-block-wrapper .lc-vscode-theme .token.class-name,
+.lc-vscode-theme code .token.function,
 .lc-vscode-theme .token.function,
 .lc-vscode-theme .token.class-name {
-  color: #dcdcaa; /* VS Code yellow for functions */
+  color: #dcdcaa !important; /* VS Code yellow for functions */
 }
 
+.lc-code-block-wrapper .lc-vscode-theme .token.regex,
+.lc-code-block-wrapper .lc-vscode-theme .token.important,
+.lc-code-block-wrapper .lc-vscode-theme .token.variable,
 .lc-vscode-theme .token.regex,
 .lc-vscode-theme .token.important,
 .lc-vscode-theme .token.variable {
-  color: #d16969; /* VS Code red for regex */
+  color: #d16969 !important; /* VS Code red for regex */
 }
 
 .lc-vscode-theme .token.important,
 .lc-vscode-theme .token.bold {
-  font-weight: bold;
+  font-weight: var(--fw-semibold);
 }
 
 .lc-vscode-theme .token.italic {
@@ -1003,55 +1532,109 @@
   cursor: help;
 }
 
-/* JSON specific */
+/* JSON specific - VS Code colors */
 .lc-vscode-theme .language-json .token.property {
-  color: #9cdcfe; /* VS Code light blue */
+  color: #9cdcfe !important; /* VS Code light blue */
 }
 
 .lc-vscode-theme .language-json .token.string {
-  color: #ce9178; /* VS Code orange */
+  color: #ce9178 !important; /* VS Code orange */
 }
 
 /* JavaScript/TypeScript specific */
 .lc-vscode-theme .language-javascript .token.function,
 .lc-vscode-theme .language-typescript .token.function {
-  color: #dcdcaa; /* VS Code yellow */
+  color: #dcdcaa !important; /* VS Code yellow */
 }
 
 .lc-vscode-theme .language-javascript .token.keyword,
 .lc-vscode-theme .language-typescript .token.keyword {
-  color: #569cd6; /* VS Code blue */
+  color: #569cd6 !important; /* VS Code blue */
+}
+
+.lc-vscode-theme .language-javascript .token.string,
+.lc-vscode-theme .language-typescript .token.string {
+  color: #ce9178 !important; /* VS Code orange */
 }
 
 /* Python specific */
 .lc-vscode-theme .language-python .token.keyword {
-  color: #569cd6; /* VS Code blue */
+  color: #569cd6 !important; /* VS Code blue */
 }
 
 .lc-vscode-theme .language-python .token.function {
-  color: #dcdcaa; /* VS Code yellow */
+  color: #dcdcaa !important; /* VS Code yellow */
+}
+
+.lc-vscode-theme .language-python .token.string {
+  color: #ce9178 !important; /* VS Code orange */
+}
+
+/* C/C++ specific */
+.lc-code-block-wrapper .lc-vscode-theme .language-c .token.keyword,
+.lc-code-block-wrapper .lc-vscode-theme .language-cpp .token.keyword,
+.lc-vscode-theme .language-c .token.keyword,
+.lc-vscode-theme .language-cpp .token.keyword {
+  color: #569cd6 !important; /* VS Code blue */
+}
+
+.lc-code-block-wrapper .lc-vscode-theme .language-c .token.string,
+.lc-code-block-wrapper .lc-vscode-theme .language-cpp .token.string,
+.lc-vscode-theme .language-c .token.string,
+.lc-vscode-theme .language-cpp .token.string {
+  color: #ce9178 !important; /* VS Code orange */
+}
+
+.lc-code-block-wrapper .lc-vscode-theme .language-c .token.function,
+.lc-code-block-wrapper .lc-vscode-theme .language-cpp .token.function,
+.lc-vscode-theme .language-c .token.function,
+.lc-vscode-theme .language-cpp .token.function {
+  color: #dcdcaa !important; /* VS Code yellow */
+}
+
+/* C preprocessor */
+.lc-code-block-wrapper .lc-vscode-theme .language-c .token.directive,
+.lc-code-block-wrapper .lc-vscode-theme .language-cpp .token.directive,
+.lc-vscode-theme .language-c .token.directive,
+.lc-vscode-theme .language-cpp .token.directive {
+  color: #569cd6 !important; /* VS Code blue for #include */
+}
+
+.lc-code-block-wrapper .lc-vscode-theme .language-c .token.string.language-c,
+.lc-code-block-wrapper .lc-vscode-theme .language-cpp .token.string.language-cpp,
+.lc-vscode-theme .language-c .token.string.language-c,
+.lc-vscode-theme .language-cpp .token.string.language-cpp {
+  color: #ce9178 !important; /* VS Code orange for header files */
 }
 
 /* HTML/XML specific */
 .lc-vscode-theme .language-markup .token.tag {
-  color: #569cd6; /* VS Code blue */
+  color: #569cd6 !important; /* VS Code blue */
 }
 
 .lc-vscode-theme .language-markup .token.attr-name {
-  color: #92c5f7; /* VS Code light blue */
+  color: #92c5f7 !important; /* VS Code light blue */
 }
 
 .lc-vscode-theme .language-markup .token.attr-value {
-  color: #ce9178; /* VS Code orange */
+  color: #ce9178 !important; /* VS Code orange */
+}
+
+.lc-vscode-theme .language-markup .token.string {
+  color: #ce9178 !important; /* VS Code orange */
 }
 
 /* CSS specific */
 .lc-vscode-theme .language-css .token.selector {
-  color: #d7ba7d; /* VS Code yellow-orange */
+  color: #d7ba7d !important; /* VS Code yellow-orange */
 }
 
 .lc-vscode-theme .language-css .token.property {
-  color: #9cdcfe; /* VS Code light blue */
+  color: #9cdcfe !important; /* VS Code light blue */
+}
+
+.lc-vscode-theme .language-css .token.string {
+  color: #ce9178 !important; /* VS Code orange */
 }
 
 .lc-msg-content .lc-md-code-block {
@@ -1060,8 +1643,8 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
   line-height: 1.6;
   overflow-x: auto;
   overflow-y: hidden;
@@ -1093,12 +1676,12 @@
 
 .lc-code-block-wrapper .lc-md-code-block {
   display: block;
-  padding: 1em 1.2em;
+  padding: 0;
   background: transparent;
   border: none;
   border-radius: 0;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
   line-height: 1.6;
   overflow-x: visible; /* Let parent handle scrolling */
   overflow-y: hidden;
@@ -1129,11 +1712,12 @@
 
 .lc-msg-content .lc-md-code-inline {
   padding: 0.2em 0.4em;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
   overflow-wrap: break-word;
   word-wrap: break-word;
@@ -1143,7 +1727,7 @@
 
 /* Text Formatting */
 .lc-msg-content .lc-md-strong {
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   color: var(--text);
 }
 
@@ -1229,8 +1813,8 @@
 .lc-msg-content .lc-md-th {
   padding: 0.75em 1em;
   text-align: left;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.08);
+  font-weight: var(--fw-semibold);
+  background: rgba(255, 255, 255, 0.12);
   border-bottom: 2px solid var(--border);
   color: var(--text);
   white-space: nowrap; /* Prevent header text wrapping */
@@ -1485,7 +2069,7 @@
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.12);
   padding: 10px 16px;
   font-size: 13px;
   font-weight: 500;
@@ -1502,7 +2086,7 @@
 }
 
 .lc-chat-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -1524,23 +2108,31 @@
 }
 
 .lc-composer {
-  border-top: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(11, 11, 15, 0.15), rgba(11, 11, 15, 0.85));
-  padding: 12px 0; /* Remove horizontal padding, let row handle it */
+  border-top: none; /* Remove line above send area */
+  background: var(--bg);
+  padding: 16px 0 12px;
 }
+
 .lc-composer-row {
-  max-width: 768px; /* Match messages max-width */
-  margin: 0 auto;
+  max-width: 880px; /* Match messages max-width - ChatGPT-style readable width */
+  margin: 0 auto; /* Keep centered */
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-end;
   padding: 0 24px;
   box-sizing: border-box;
+  position: relative;
+  /* Ensure only the middle area grows, not affecting sidebar */
+  width: 100%;
+  /* Ensure proper vertical alignment */
+  vertical-align: bottom;
 }
 
-/* On larger screens, add more side padding for better centering */
+/* On larger screens, maintain readable width */
 @media (min-width: 1200px) {
   .lc-composer-row {
+    max-width: 880px; /* Maintain ChatGPT-style readable width */
+    margin: 0 auto; /* Keep centered */
     padding-left: 48px;
     padding-right: 48px;
   }
@@ -1548,32 +2140,193 @@
 
 @media (min-width: 1400px) {
   .lc-composer-row {
+    max-width: 900px; /* Slightly wider on very large screens, still readable */
+    margin: 0 auto; /* Keep centered */
     padding-left: 80px;
     padding-right: 80px;
   }
 }
-.lc-textarea {
+.lc-composer-mic {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  outline: none;
+  /* Keep microphone button aligned at bottom, doesn't grow */
+  align-self: flex-end;
+  margin-bottom: 0;
+}
+
+.lc-composer-mic:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.lc-composer-mic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lc-composer-mic svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lc-textarea-wrapper {
   flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  /* Ensure only this middle area grows */
+  min-width: 0;
+  /* Ensure proper alignment */
+  vertical-align: bottom;
+}
+
+.lc-textarea {
+  width: 100%;
   resize: none;
   min-height: 44px;
-  max-height: 180px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  max-height: 200px;
+  padding: 12px 52px 12px 16px;
+  border-radius: 24px;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--panel);
   color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
   outline: none;
+  transition: height 0.15s ease-out;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Completely hide scrollbar but keep scrolling functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  /* Ensure proper alignment */
+  vertical-align: bottom;
+  display: block;
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.lc-textarea::-webkit-scrollbar {
+  display: none;
+}
+
 .lc-textarea:focus {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
 }
-.lc-footnote {
-  max-width: 768px; /* Match messages max-width */
-  margin: 8px auto 0;
-  font-size: 11px;
-  color: var(--muted2);
+
+.lc-textarea::placeholder {
+  color: var(--muted);
+}
+
+.lc-composer-send {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  cursor: pointer;
+  transition: background-color 0.2s ease,
+              box-shadow 0.2s ease,
+              color 0.2s ease,
+              transform 0.1s ease;
+
+  position: absolute;
+  right: 8px;
+
+  /* 🔑 KEY FIX */
+  top: 50%;
+  transform: translateY(-50%);
+
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+/* Hover - subtle premium glow */
+.lc-composer-send:hover:not(:disabled) {
+  background: #111827;
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Active - tiny press feedback */
+.lc-composer-send:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Disabled - ChatGPT exact behavior */
+.lc-composer-send:disabled {
+  background: #0f172a;
+  color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.04);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Optional: Blue accent on hover */
+.lc-composer-send:hover:not(:disabled) svg,
+.lc-composer-send:hover:not(:disabled) .lc-loading-spinner {
+  color: #60a5fa; /* subtle AI blue */
+}
+
+.lc-composer-send svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: block;
+  /* Perfect centering */
+  margin: 0;
+}
+
+
+.lc-loading-spinner {
+  animation: spin 1s linear infinite;
+  color: #e5e7eb; /* Match button color */
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.lc-composer-disclaimer {
+  max-width: 880px; /* Match messages max-width - ChatGPT-style readable width */
+  margin: 8px auto 0; /* Keep centered */
+  font-size: 12px;
+  color: var(--muted);
   padding: 0 24px;
   box-sizing: border-box;
+  text-align: center;
+}
+
+
+.lc-footnote {
+  display: none; /* Hide old footnote */
 }
 
 /* On larger screens, add more side padding for better centering */
@@ -1607,9 +2360,7 @@
   .lc-empty {
     max-width: 800px;
   }
-  .lc-msg-inner {
-    max-width: 80%;
-  }
+  /* Messages use default styles */
 }
 
 /* Desktop (1025px - 1399px) - Default styles apply */
@@ -1621,13 +2372,14 @@
   }
   
   .lc-messages {
-    max-width: 90%;
+    max-width: 100%;
     width: 100%;
-    padding: 0 12px 24px;
-    overflow-x: hidden; /* Prevent horizontal overflow */
+    padding: 0 16px 24px;
+    gap: 0; /* Use margin-bottom on messages */
+    overflow-x: hidden;
   }
   
-  .lc-msg-inner {
+  .lc-msg.is-user .lc-msg-inner {
     max-width: 85%;
   }
   
@@ -1711,8 +2463,9 @@
     inset: 0 auto 0 0;
     transform: translateX(-100%);
     transition: transform 180ms ease;
-    z-index: 50;
+    z-index: 999;
     width: 280px;
+    height: 100vh;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
   }
   
@@ -1722,12 +2475,18 @@
   
   /* Sidebar overlay/backdrop */
   .lc-sidebar-overlay {
+    display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 49;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 998;
     animation: fadeIn 0.2s ease;
     backdrop-filter: blur(2px);
+  }
+  
+  /* Show mobile close button */
+  .lc-sidebar-close {
+    display: flex;
   }
   
   .mobile-only {
@@ -1739,16 +2498,24 @@
   }
   
   .lc-messages {
-    max-width: 95%;
+    max-width: 100%;
     width: 100%;
-    padding: 0 8px 20px;
-    gap: 12px;
-    overflow-x: hidden; /* Prevent horizontal overflow */
+    padding: 0 16px 20px;
+    gap: 0; /* Use margin-bottom on messages */
+    overflow-x: hidden;
   }
   
-  .lc-msg-inner {
-    max-width: 90%;
-    padding: 8px 10px;
+  .lc-msg.is-assistant {
+    margin-bottom: 16px; /* Slightly reduced on smaller screens */
+  }
+  
+  .lc-msg.is-user {
+    margin-bottom: 14px;
+  }
+  
+  .lc-msg.is-user .lc-msg-inner {
+    max-width: 85%;
+    padding: 10px 14px; /* Maintain padding */
   }
   
   .lc-thread {
@@ -1757,7 +2524,13 @@
   
   .lc-topbar {
     height: 52px;
+    min-height: 52px;
     padding: 0 10px;
+  }
+  
+  .lc-sidebar-header {
+    height: 52px;
+    min-height: 52px;
   }
   
   .lc-topbar-title {
@@ -1998,7 +2771,13 @@
   
   .lc-topbar {
     height: 48px;
+    min-height: 48px;
     padding: 0 8px;
+  }
+  
+  .lc-sidebar-header {
+    height: 48px;
+    min-height: 48px;
   }
   
   .lc-topbar-title {
@@ -2043,15 +2822,23 @@
   .lc-messages {
     max-width: 100%;
     width: 100%;
-    padding: 0 4px 16px;
-    gap: 10px;
-    overflow-x: hidden; /* Prevent horizontal overflow */
+    padding: 0 16px 16px;
+    gap: 0; /* Use margin-bottom on messages */
+    overflow-x: hidden;
   }
   
-  .lc-msg-inner {
-    max-width: 95%;
-    padding: 8px 10px;
-    border-radius: 14px;
+  .lc-msg.is-assistant {
+    margin-bottom: 14px;
+  }
+  
+  .lc-msg.is-user {
+    margin-bottom: 12px;
+  }
+  
+  .lc-msg.is-user .lc-msg-inner {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 16px;
   }
   
   .lc-msg-role {
@@ -2290,9 +3077,9 @@
     font-size: 11px;
   }
   
-  .lc-msg-inner {
-    max-width: 98%;
-    padding: 6px 8px;
+  .lc-msg.is-user .lc-msg-inner {
+    max-width: 85%;
+    padding: 10px 14px;
   }
   
   .lc-msg-content {
@@ -2334,6 +3121,12 @@
 @media (max-width: 900px) and (orientation: landscape) {
   .lc-topbar {
     height: 44px;
+    min-height: 44px;
+  }
+  
+  .lc-sidebar-header {
+    height: 44px;
+    min-height: 44px;
   }
   
   .lc-thread {

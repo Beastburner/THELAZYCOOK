@@ -17,15 +17,16 @@ export default {
           'text-muted': '#6b7280',
           accent: '#3b82f6',
         },
-        // Dark mode colors
+        // Dark mode colors - Darker, Clearer VS Code Dark+ Inspired
         dark: {
-          bg: '#0b0b0f',
-          surface: '#12121a',
-          'surface-2': '#171722',
-          border: 'rgba(255, 255, 255, 0.08)',
-          text: 'rgba(255, 255, 255, 0.92)',
-          'text-muted': 'rgba(255, 255, 255, 0.6)',
-          accent: '#ffffff',
+          bg: '#0d0d0d',
+          surface: '#1a1a1a',
+          'surface-2': '#222222',
+          border: 'rgba(255, 255, 255, 0.18)',
+          text: '#e8e8e8',
+          'text-muted': '#9a9a9a',
+          accent: '#4a9eff',
+          'accent-secondary': '#3dd5c4',
         },
       },
       borderRadius: {

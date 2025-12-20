@@ -17,13 +17,13 @@ html, body {
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji");
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.92);
-  background-color: #0b0b0f;
+  color: #e8e8e8;
+  background-color: #0d0d0d;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -44,6 +44,18 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji");
+  font-weight: var(--fw-regular, 400);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* macOS-only micro-tuning */
+@supports (-webkit-font-smoothing: antialiased) {
+  body {
+    letter-spacing: -0.01em;
+  }
 }
 
 h1 {

@@ -3,6 +3,7 @@ import "./App.css";
 import MarkdownContent from "./MarkdownContent";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { FiArrowRight } from "react-icons/fi";
 
 type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
@@ -572,7 +573,11 @@ export default function App() {
   const [chatCopyStatus, setChatCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const [model, setModel] = useState<Model>("gemini");
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Sidebar starts closed on mobile, open on desktop
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -595,6 +600,23 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [sidebarOpen]);
+
+  // Close model dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setShowModelDropdown(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showModelDropdown || showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showModelDropdown, showUserMenu]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -607,6 +629,7 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   // Check if user is at bottom of chat
@@ -695,6 +718,20 @@ export default function App() {
     if (activeChatId) localStorage.setItem("lazycook_active_chat", activeChatId);
   }, [activeChatId]);
 
+  // Auto-resize textarea like ChatGPT - grows and shrinks with content
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Reset height to get accurate scrollHeight
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      // Set new height, respecting min and max
+      const minHeight = 44;
+      const maxHeight = 200;
+      const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [prompt]);
+
   const saveAuth = (e: string, t: string, p: string) => {
     localStorage.setItem("lazycook_auth", JSON.stringify({ email: e, token: t, plan: p }));
   };
@@ -746,6 +783,11 @@ export default function App() {
     setActiveChatId(c.id);
     setPrompt("");
     setError(null);
+    // Reset textarea height after creating new chat
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = '44px';
+    }
   };
 
   const updateChatMessages = (chatId: string, updater: (m: Message[]) => Message[]) => {
@@ -785,6 +827,11 @@ export default function App() {
 
     updateChatMessages(chatId, (m) => [...m, userMsg, assistantMsg]);
     setPrompt("");
+    // Reset textarea height immediately after sending
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = '44px';
+    }
 
     try {
       const res = await fetch(`${API_BASE}/ai/run`, {
@@ -1314,16 +1361,61 @@ export default function App() {
         />
       )}
       <aside className={`lc-sidebar ${sidebarOpen ? "is-open" : ""}`}>
-        <div className="lc-sidebar-top">
-          <button className="lc-newchat" onClick={newChat}>
-            New chat
+        {/* Logo and Collapse Button */}
+        <div className="lc-sidebar-header">
+          <div className="lc-sidebar-logo">
+            <span className="lc-logo-icon">LC</span>
+          </div>
+          <button 
+            className="lc-sidebar-toggle" 
+            onClick={() => setSidebarOpen((v) => !v)} 
+            aria-label="Toggle sidebar"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 8H12M8 4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
           </button>
-          <button className="lc-iconbtn" onClick={() => setSidebarOpen((v) => !v)} aria-label="Toggle sidebar">
-            ☰
+          <button
+            className="lc-sidebar-close"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar"
+          >
+            ←
           </button>
         </div>
 
-        {/* Search */}
+        {/* Navigation Buttons */}
+        <div className="lc-sidebar-nav">
+          <button className="lc-nav-btn" onClick={newChat}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span>New chat</span>
+          </button>
+          <button 
+            className="lc-nav-btn" 
+            onClick={() => {
+              const searchInput = document.querySelector('.lc-search-input') as HTMLInputElement;
+              searchInput?.focus();
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M10 10L13 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span>Search chats</span>
+          </button>
+          <button className="lc-nav-btn">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M6 8L7 9L10 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Images</span>
+            <span className="lc-badge">NEW</span>
+          </button>
+        </div>
+
+        {/* Search Input */}
         <div className="lc-sidebar-search">
           <input
             type="text"
@@ -1335,7 +1427,9 @@ export default function App() {
           />
         </div>
 
+        {/* Your Chats Section */}
         <div className="lc-chatlist">
+          <div className="lc-chatlist-header">Your chats</div>
           {filteredChats.length === 0 ? (
             <div className="lc-chatlist-empty">
               {searchQuery ? 'No conversations found' : 'No conversations yet'}
@@ -1345,27 +1439,88 @@ export default function App() {
               <button
                 key={c.id}
                 className={`lc-chatitem ${c.id === activeChatId ? "is-active" : ""}`}
-                onClick={() => setActiveChatId(c.id)}
+                onClick={() => {
+                  setActiveChatId(c.id);
+                  if (window.innerWidth <= 900) {
+                    setSidebarOpen(false);
+                  }
+                }}
                 title={c.title}
               >
                 <div className="lc-chatitem-title">{c.title}</div>
-                <div className="lc-chatitem-meta">{new Date(c.createdAt).toLocaleString()}</div>
               </button>
             ))
           )}
         </div>
 
+        {/* User Profile */}
         <div className="lc-sidebar-bottom">
-          <div className="lc-userline">
-            <div className="lc-avatar">{(email || "U").slice(0, 1).toUpperCase()}</div>
-            <div className="lc-usertext">
-              <div className="lc-useremail">{email}</div>
-              <div className="lc-userplan">Plan: {plan}</div>
+          <div className="lc-userline" ref={userMenuRef} onClick={() => setShowUserMenu(!showUserMenu)}>
+            <div className="lc-avatar">
+              {email ? (email.split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
             </div>
+            <div className="lc-usertext">
+              <div className="lc-username">
+                {email ? email.split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
+              </div>
+              <div className="lc-userplan">{plan || 'GO'}</div>
+            </div>
+            {showUserMenu && (
+              <div className="lc-user-menu">
+                <div className="lc-user-menu-header">
+                  <div className="lc-avatar-menu">
+                    {email ? (email.split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
+                  </div>
+                  <div className="lc-user-menu-info">
+                    <div className="lc-user-menu-name">
+                      {email ? email.split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
+                    </div>
+                    <div className="lc-user-menu-username">
+                      @{email ? email.split('@')[0].toLowerCase() : 'user'}
+                    </div>
+                  </div>
+                </div>
+                <div className="lc-user-menu-divider"></div>
+                <button className="lc-user-menu-item">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 2L10 6L14 7L10 8L8 12L6 8L2 7L6 6L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Upgrade plan</span>
+                </button>
+                <button className="lc-user-menu-item">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M8 4V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  <span>Personalization</span>
+                </button>
+                <button className="lc-user-menu-item">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M8 2V4M8 12V14M2 8H4M12 8H14M3.5 3.5L4.9 4.9M11.1 11.1L12.5 12.5M3.5 12.5L4.9 11.1M11.1 4.9L12.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  <span>Settings</span>
+                </button>
+                <div className="lc-user-menu-divider"></div>
+                <button className="lc-user-menu-item">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M8 4V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  <span>Help</span>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-menu-chevron">
+                    <path d="M4 3L8 6L4 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <button className="lc-user-menu-item" onClick={(e) => { e.stopPropagation(); logout(); }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 4L2 8L6 12M2 8H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Log out</span>
+                </button>
+              </div>
+            )}
           </div>
-          <button className="lc-ghost" onClick={logout}>
-            Logout
-          </button>
         </div>
       </aside>
 
@@ -1375,26 +1530,80 @@ export default function App() {
             ☰
           </button>
 
-          <div className="lc-topbar-title">{activeChat?.title || <LazyCookText />}</div>
+          <div className="lc-topbar-left">
+            <div className="lc-topbar-model" ref={modelDropdownRef} onClick={() => setShowModelDropdown(!showModelDropdown)}>
+              <LazyCookText />
+              <span className="lc-model-version">{model === 'gemini' ? 'Gemini' : model === 'grok' ? 'Grok' : 'Mixed'}</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-dropdown-icon">
+                <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {showModelDropdown && (
+                <div className="lc-model-dropdown">
+                  <button
+                    className={`lc-model-option ${model === 'gemini' ? 'is-active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!plan || PLAN_MODELS[plan].includes('gemini')) {
+                        setModel('gemini');
+                        setShowModelDropdown(false);
+                      }
+                    }}
+                    disabled={!!plan && !PLAN_MODELS[plan].includes('gemini')}
+                  >
+                    Gemini{plan && !PLAN_MODELS[plan].includes('gemini') ? ' (locked)' : ''}
+                  </button>
+                  <button
+                    className={`lc-model-option ${model === 'grok' ? 'is-active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!plan || PLAN_MODELS[plan].includes('grok')) {
+                        setModel('grok');
+                        setShowModelDropdown(false);
+                      }
+                    }}
+                    disabled={!!plan && !PLAN_MODELS[plan].includes('grok')}
+                  >
+                    Grok{plan && !PLAN_MODELS[plan].includes('grok') ? ' (locked)' : ''}
+                  </button>
+                  <button
+                    className={`lc-model-option ${model === 'mixed' ? 'is-active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!plan || PLAN_MODELS[plan].includes('mixed')) {
+                        setModel('mixed');
+                        setShowModelDropdown(false);
+                      }
+                    }}
+                    disabled={!!plan && !PLAN_MODELS[plan].includes('mixed')}
+                  >
+                    Mixed{plan && !PLAN_MODELS[plan].includes('mixed') ? ' (locked)' : ''}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="lc-topbar-actions">
-            <select
-              className="lc-select"
-              value={model}
-              onChange={(e) => setModel(e.target.value as Model)}
-              aria-label="Model"
-            >
-              <option value="gemini" disabled={!!plan && !PLAN_MODELS[plan].includes("gemini")}>
-                Gemini{plan && !PLAN_MODELS[plan].includes("gemini") ? " (locked)" : ""}
-              </option>
-              <option value="grok" disabled={!!plan && !PLAN_MODELS[plan].includes("grok")}>
-                Grok{plan && !PLAN_MODELS[plan].includes("grok") ? " (locked)" : ""}
-              </option>
-              <option value="mixed" disabled={!!plan && !PLAN_MODELS[plan].includes("mixed")}>
-                Mixed{plan && !PLAN_MODELS[plan].includes("mixed") ? " (locked)" : ""}
-              </option>
-            </select>
-            <span className="lc-pill">{plan}</span>
+            <button className="lc-topbar-action-btn" aria-label="Share">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 2V10M5 5L8 2L11 5M3 8H13M3 11H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span>Share</span>
+            </button>
+            <button className="lc-topbar-action-btn" aria-label="Add people">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+              <span>Add people</span>
+            </button>
+            <button className="lc-topbar-menu-btn" aria-label="More options">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="4" r="1" fill="currentColor"/>
+                <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                <circle cx="8" cy="12" r="1" fill="currentColor"/>
+              </svg>
+            </button>
           </div>
         </header>
 
@@ -1463,19 +1672,46 @@ export default function App() {
         <footer className="lc-composer">
           {error && <div className="lc-error lc-error-inline">{error}</div>}
           <div className="lc-composer-row">
-            <textarea
-              className="lc-textarea"
-              placeholder="Message LazyCook…"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={onComposerKeyDown}
-              rows={1}
-            />
-            <button className="lc-primary" onClick={runAI} disabled={loading || !prompt.trim()}>
-              Send
+            <button className="lc-composer-mic" aria-label="Voice input" disabled>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 2C8.89543 2 8 2.89543 8 4V10C8 11.1046 8.89543 12 10 12C11.1046 12 12 11.1046 12 10V4C12 2.89543 11.1046 2 10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5 10V11C5 13.7614 7.23858 16 10 16C12.7614 16 15 13.7614 15 11V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 16V18M6 18H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
+            <div className="lc-textarea-wrapper">
+              <textarea
+                ref={textareaRef}
+                className="lc-textarea"
+                placeholder="+ Ask anything"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={onComposerKeyDown}
+                rows={1}
+                spellCheck={true}
+              />
+              <button 
+                className="lc-composer-send" 
+                onClick={runAI} 
+                disabled={loading || !prompt.trim()}
+                aria-label="Send message"
+              >
+                {loading ? (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-loading-spinner">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="9.42" strokeDashoffset="9.42">
+                      <animate attributeName="stroke-dasharray" values="0 25.13;12.57 12.57;0 25.13" dur="1.5s" repeatCount="indefinite"/>
+                      <animate attributeName="stroke-dashoffset" values="0;-12.57;-25.13" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                  </svg>
+                ) : (
+                  <FiArrowRight size={22} />
+                )}
+              </button>
+            </div>
           </div>
-          <div className="lc-footnote">Press Enter to send, Shift+Enter for a new line.</div>
+          <div className="lc-composer-disclaimer">
+            LazyCook can make mistakes. Check important info.
+          </div>
         </footer>
       </main>
     </div>
