@@ -179,19 +179,90 @@ function enhanceWithEmojis(content: string): string {
       sentences.push(text);
     }
     
+    // First, add emojis to numbered steps in the text (not too frequently)
+    // Pattern: "1.", "2.", "3." or "1)", "2)", "3)" at the start of a line or after whitespace
+    const stepEmojis = ['✅', '📝', '🔢', '➡️', '🎯', '💡', '⚡', '🔑'];
+    let stepEmojiIndex = 0;
+    let processedText = text;
+    
+    // Find all numbered steps
+    const stepPattern = /(^|\n|\s)(\d+)([.)])\s+/g;
+    const stepMatches: Array<{ fullMatch: string; number: number; replacement: string }> = [];
+    let stepMatch;
+    
+    while ((stepMatch = stepPattern.exec(text)) !== null) {
+      const stepNumber = parseInt(stepMatch[2], 10);
+      if (stepNumber >= 1 && stepNumber <= 50) { // Reasonable step range
+        stepMatches.push({
+          fullMatch: stepMatch[0],
+          number: stepNumber,
+          replacement: stepMatch[0] // Will be updated if emoji is added
+        });
+      }
+    }
+    
+    // Add emojis to steps, but not too frequently
+    // If there are many steps (5+), add emoji to every 2nd or 3rd step
+    // If there are few steps (1-4), add emoji to all of them
+    const stepEmojiInterval = stepMatches.length > 5 ? 2 : 1;
+    
+    stepMatches.forEach((match) => {
+      // Add emoji to steps: first 3 always get emoji, then every Nth step
+      if (match.number <= 3 || (match.number - 1) % stepEmojiInterval === 0) {
+        const emoji = stepEmojis[stepEmojiIndex % stepEmojis.length];
+        stepEmojiIndex++;
+        // Replace the step pattern with step + emoji
+        match.replacement = match.fullMatch.replace(/(\d+)([.)])\s+/, `$1$2 ${emoji} `);
+        // Replace in processed text
+        processedText = processedText.replace(match.fullMatch, match.replacement);
+      }
+    });
+    
+    // Now process sentences for other emojis (sentiment-based)
     const processedSentences: string[] = [];
     let emojiCount = 0;
     // Calculate max emojis based on text length - more emojis for longer responses
-    const textLength = text.length;
+    const textLength = processedText.length;
     const maxEmojis = Math.min(Math.max(2, Math.floor(textLength / 200)), 8); // 2-8 emojis based on length
     
-    // Distribute emojis evenly throughout the text
-    const emojiInterval = sentences.length > maxEmojis ? Math.floor(sentences.length / maxEmojis) : 1;
+    // Re-split processed text into sentences (since we modified it)
+    const processedSentenceRegex = /([.!?]+\s+|\.\n|\n\n+|\.\s+$)/g;
+    const processedSentencesList: string[] = [];
+    let lastIdx = 0;
+    let procMatch;
     
-    sentences.forEach((sentence, index) => {
+    while ((procMatch = processedSentenceRegex.exec(processedText)) !== null) {
+      const sentence = processedText.substring(lastIdx, procMatch.index + procMatch[0].length);
+      if (sentence.trim().length > 0) {
+        processedSentencesList.push(sentence);
+      }
+      lastIdx = procMatch.index + procMatch[0].length;
+    }
+    
+    if (lastIdx < processedText.length) {
+      const remaining = processedText.substring(lastIdx);
+      if (remaining.trim().length > 0) {
+        processedSentencesList.push(remaining);
+      }
+    }
+    
+    if (processedSentencesList.length === 0) {
+      processedSentencesList.push(processedText);
+    }
+    
+    // Distribute emojis evenly throughout the text
+    const emojiInterval = processedSentencesList.length > maxEmojis ? Math.floor(processedSentencesList.length / maxEmojis) : 1;
+    
+    processedSentencesList.forEach((sentence, index) => {
       const trimmedSentence = sentence.trim();
       
       if (!trimmedSentence || trimmedSentence.length < 5) {
+        processedSentences.push(sentence);
+        return;
+      }
+      
+      // Skip if this sentence already has a step emoji (to avoid double emojis)
+      if (/[\d]+[.)]\s+[✅📝🔢➡️🎯💡⚡🔑]/.test(trimmedSentence)) {
         processedSentences.push(sentence);
         return;
       }
@@ -597,6 +668,8 @@ export default function App() {
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
       let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      // Ensure content is always a string (handle case where response is an object)
+      content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
       // Enhance content with emojis for better engagement
       content = enhanceWithEmojis(content);
       
@@ -665,6 +738,8 @@ export default function App() {
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
       let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      // Ensure content is always a string (handle case where response is an object)
+      content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
       // Enhance content with emojis for better engagement
       content = enhanceWithEmojis(content);
       

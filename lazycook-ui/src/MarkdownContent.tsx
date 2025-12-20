@@ -53,6 +53,34 @@ function splitContentIntoSegments(input: string): Segment[] {
 }
 
 /* ─────────────────────────────
+   Helper: Convert children to string
+───────────────────────────── */
+function childrenToString(children: any): string {
+  if (typeof children === 'string') {
+    return children;
+  }
+  if (typeof children === 'number') {
+    return String(children);
+  }
+  if (Array.isArray(children)) {
+    return children.map(child => childrenToString(child)).join('');
+  }
+  if (children && typeof children === 'object' && 'props' in children) {
+    // React element - extract children recursively
+    return childrenToString(children.props?.children || '');
+  }
+  if (children && typeof children === 'object' && 'toString' in children) {
+    return children.toString();
+  }
+  // Fallback: try to convert to string
+  try {
+    return String(children);
+  } catch {
+    return '';
+  }
+}
+
+/* ─────────────────────────────
    LazyCook branding
 ───────────────────────────── */
 function processLazyCookText(text: string) {
@@ -95,35 +123,100 @@ export default function MarkdownContent({
             key={index}
             remarkPlugins={[remarkGfm]}
             components={{
-              p: ({ children }) => (
-                <p className="lc-md-p">
-                  {processLazyCookText(String(children))}
-                </p>
-              ),
-              h1: ({ children }) => (
-                <h1 className="lc-md-h1">
-                  {processLazyCookText(String(children))}
-                </h1>
-              ),
-              h2: ({ children }) => (
-                <h2 className="lc-md-h2">
-                  {processLazyCookText(String(children))}
-                </h2>
-              ),
-              strong: ({ children }) => (
-                <strong className="lc-md-strong">{children}</strong>
-              ),
-              em: ({ children }) => (
-                <em className="lc-md-em">{children}</em>
-              ),
-              code: ({ children }) => (
-                <code className="lc-md-code-inline">{children}</code>
-              ),
-              blockquote: ({ children }) => (
-                <blockquote className="lc-md-blockquote">
-                  {children}
-                </blockquote>
-              ),
+              p: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <p className="lc-md-p">
+                    {processLazyCookText(text)}
+                  </p>
+                );
+              },
+              h1: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <h1 className="lc-md-h1">
+                    {processLazyCookText(text)}
+                  </h1>
+                );
+              },
+              h2: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <h2 className="lc-md-h2">
+                    {processLazyCookText(text)}
+                  </h2>
+                );
+              },
+              h3: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <h3 className="lc-md-h3">
+                    {processLazyCookText(text)}
+                  </h3>
+                );
+              },
+              h4: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <h4 className="lc-md-h4">
+                    {processLazyCookText(text)}
+                  </h4>
+                );
+              },
+              h5: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <h5 className="lc-md-h5">
+                    {processLazyCookText(text)}
+                  </h5>
+                );
+              },
+              h6: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <h6 className="lc-md-h6">
+                    {processLazyCookText(text)}
+                  </h6>
+                );
+              },
+              strong: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <strong className="lc-md-strong">
+                    {processLazyCookText(text)}
+                  </strong>
+                );
+              },
+              em: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <em className="lc-md-em">
+                    {processLazyCookText(text)}
+                  </em>
+                );
+              },
+              code: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <code className="lc-md-code-inline">{text}</code>
+                );
+              },
+              blockquote: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <blockquote className="lc-md-blockquote">
+                    {processLazyCookText(text)}
+                  </blockquote>
+                );
+              },
+              li: ({ children }) => {
+                const text = childrenToString(children);
+                return (
+                  <li className="lc-md-li">
+                    {processLazyCookText(text)}
+                  </li>
+                );
+              },
             }}
           >
             {seg.value}
