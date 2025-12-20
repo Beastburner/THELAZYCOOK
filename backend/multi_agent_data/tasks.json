@@ -1,5 +1,89 @@
 [
   {
+    "id": "go@lazycook.ai_1766241892_task_1",
+    "conversation_id": "go@lazycook.ai_1766241892",
+    "task_type": "research",
+    "description": "Explain best practices for: give me a hello word code of C",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-20T20:14:52.513031",
+    "scheduled_for": "2025-12-20T20:19:52.513053",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766241892_task_0",
+    "conversation_id": "go@lazycook.ai_1766241892",
+    "task_type": "research",
+    "description": "Find Python code examples related to: give me a hello word code of C",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-20T20:14:52.479552",
+    "scheduled_for": "2025-12-20T20:16:52.479555",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766241786_task_1",
+    "conversation_id": "go@lazycook.ai_1766241786",
+    "task_type": "research",
+    "description": "Explain best practices for: ❌ Error you’re seeing\nTypeError: Cannot read prope",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-20T20:13:06.911795",
+    "scheduled_for": "2025-12-20T20:18:06.911797",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766241786_task_0",
+    "conversation_id": "go@lazycook.ai_1766241786",
+    "task_type": "research",
+    "description": "Find Python code examples related to: ❌ Error you’re seeing\nTypeError: Cannot read prope",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-20T20:13:06.904849",
+    "scheduled_for": "2025-12-20T20:15:06.904853",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766220814_task_1",
+    "conversation_id": "go@lazycook.ai_1766220814",
+    "task_type": "research",
+    "description": "Explain best practices for: how do i show graphs provided by u in chat in fron",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-20T14:23:34.608702",
+    "scheduled_for": "2025-12-20T14:28:34.608705",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766220814_task_0",
+    "conversation_id": "go@lazycook.ai_1766220814",
+    "task_type": "research",
+    "description": "Find Python code examples related to: how do i show graphs provided by u in chat in fron",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-20T14:23:34.602160",
+    "scheduled_for": "2025-12-20T14:25:34.602178",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
     "id": "go@lazycook.ai_1766154086_task_1",
     "conversation_id": "go@lazycook.ai_1766154086",
     "task_type": "research",

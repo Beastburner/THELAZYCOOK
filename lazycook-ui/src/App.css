@@ -274,7 +274,8 @@
   flex-direction: column;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden; /* Prevent overflow */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  overflow-y: hidden; /* Prevent vertical overflow */
   box-sizing: border-box;
 }
 
@@ -359,13 +360,81 @@
 
 .lc-thread {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto; /* Only vertical scrolling */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
   padding: 18px 0 0 0; /* Remove horizontal padding, let messages handle it */
   min-width: 0; /* Allow flex shrinking */
   max-width: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  position: relative; /* For scroll-to-bottom button positioning */
+  /* Modern scrollbar styling - ChatGPT style */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent; /* Hidden by default */
+}
+
+.lc-thread:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent; /* Show on hover */
+}
+
+.lc-thread::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lc-thread::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lc-thread::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.lc-thread:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lc-thread::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Scroll to bottom button */
+.lc-scroll-to-bottom {
+  position: absolute;
+  bottom: 100px; /* Position above input area */
+  right: 24px; /* Position from right edge */
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  z-index: 20;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.lc-scroll-to-bottom:hover {
+  background: var(--panel-2);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.lc-scroll-to-bottom:active {
+  transform: scale(0.95);
+}
+
+.lc-scroll-to-bottom svg {
+  width: 20px;
+  height: 20px;
 }
 
 .lc-empty {
@@ -401,21 +470,25 @@
 }
 
 .lc-messages {
-  max-width: 768px; /* Narrower max-width for better centering */
+  max-width: 768px; /* Fixed max-width for consistent centering */
+  width: 100%;
   margin: 0 auto;
   display: grid;
   gap: 14px;
   padding-bottom: 24px;
-  width: 100%;
   box-sizing: border-box;
   padding-left: 24px;
   padding-right: 24px;
+  /* Prevent horizontal overflow */
+  overflow-x: hidden;
+  min-width: 0; /* Allow flex shrinking */
 }
 
 /* On larger screens, add more side padding for better centering */
 @media (min-width: 1200px) {
   .lc-messages {
-    max-width: 768px;
+    max-width: 768px; /* Keep fixed max-width */
+    width: 100%;
     padding-left: 48px;
     padding-right: 48px;
   }
@@ -423,7 +496,8 @@
 
 @media (min-width: 1400px) {
   .lc-messages {
-    max-width: 768px;
+    max-width: 768px; /* Keep fixed max-width */
+    width: 100%;
     padding-left: 80px;
     padding-right: 80px;
   }
@@ -431,6 +505,10 @@
 
 .lc-msg {
   display: flex;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0; /* Allow flex shrinking */
 }
 .lc-msg.is-user {
   justify-content: flex-end;
@@ -441,6 +519,7 @@
 .lc-msg-inner {
   max-width: 76%;
   min-width: 0; /* Allow flex shrinking */
+  width: fit-content; /* Only take space needed, up to max-width */
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 10px 12px;
@@ -448,6 +527,8 @@
   overflow: hidden; /* Prevent content from breaking out */
   word-wrap: break-word;
   overflow-wrap: break-word;
+  /* Ensure content doesn't overflow */
+  box-sizing: border-box;
 }
 
 .lc-msg.is-user .lc-msg-inner {
@@ -462,6 +543,37 @@
   color: var(--muted2);
   margin-bottom: 6px;
 }
+
+/* Typing indicator in message role area */
+.lc-msg-role .lc-typing-text {
+  font-size: 11px;
+  color: var(--muted2);
+  font-weight: 500;
+  display: inline-block;
+}
+
+.lc-msg-role .lc-typing-dots {
+  display: inline-block;
+  margin-left: 2px;
+}
+
+.lc-msg-role .lc-typing-dot {
+  display: inline-block;
+  animation: typingBlink 1.4s ease-in-out infinite;
+  opacity: 0;
+}
+
+.lc-msg-role .lc-typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.lc-msg-role .lc-typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.lc-msg-role .lc-typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 .lc-msg-content {
   font-size: 14px;
   line-height: 1.5;
@@ -469,10 +581,21 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
   /* Prevent content overflow */
   max-width: 100%;
+  width: 100%; /* Take full width of parent */
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
   overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Markdown response container */
+.lc-response {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  min-width: 0; /* Allow flex shrinking */
 }
 
 .lc-msg-actions {
@@ -629,11 +752,17 @@
   margin: 1.2em 0;
   position: relative;
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto; /* Allow horizontal scrolling for long code */
+  overflow-y: hidden;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border);
   max-width: 100%;
   min-width: 0; /* Allow flex shrinking */
+  width: 100%; /* Take full width of container */
+  box-sizing: border-box;
+  /* Smooth scrolling for long code lines */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .lc-code-block-header {
@@ -800,6 +929,131 @@
   overflow: hidden;
 }
 
+/* VS Code Dark Theme Colors */
+.lc-vscode-theme {
+  color: #d4d4d4; /* VS Code default text color */
+}
+
+.lc-vscode-theme .token.comment,
+.lc-vscode-theme .token.prolog,
+.lc-vscode-theme .token.doctype,
+.lc-vscode-theme .token.cdata {
+  color: #6a9955; /* VS Code green for comments */
+  font-style: italic;
+}
+
+.lc-vscode-theme .token.punctuation {
+  color: #d4d4d4;
+}
+
+.lc-vscode-theme .token.property,
+.lc-vscode-theme .token.tag,
+.lc-vscode-theme .token.boolean,
+.lc-vscode-theme .token.number,
+.lc-vscode-theme .token.constant,
+.lc-vscode-theme .token.symbol,
+.lc-vscode-theme .token.deleted {
+  color: #b5cea8; /* VS Code light green */
+}
+
+.lc-vscode-theme .token.selector,
+.lc-vscode-theme .token.attr-name,
+.lc-vscode-theme .token.string,
+.lc-vscode-theme .token.char,
+.lc-vscode-theme .token.builtin,
+.lc-vscode-theme .token.inserted {
+  color: #ce9178; /* VS Code orange for strings */
+}
+
+.lc-vscode-theme .token.operator,
+.lc-vscode-theme .token.entity,
+.lc-vscode-theme .token.url,
+.lc-vscode-theme .language-css .token.string,
+.lc-vscode-theme .style .token.string {
+  color: #d4d4d4;
+}
+
+.lc-vscode-theme .token.atrule,
+.lc-vscode-theme .token.attr-value,
+.lc-vscode-theme .token.keyword {
+  color: #569cd6; /* VS Code blue for keywords */
+}
+
+.lc-vscode-theme .token.function,
+.lc-vscode-theme .token.class-name {
+  color: #dcdcaa; /* VS Code yellow for functions */
+}
+
+.lc-vscode-theme .token.regex,
+.lc-vscode-theme .token.important,
+.lc-vscode-theme .token.variable {
+  color: #d16969; /* VS Code red for regex */
+}
+
+.lc-vscode-theme .token.important,
+.lc-vscode-theme .token.bold {
+  font-weight: bold;
+}
+
+.lc-vscode-theme .token.italic {
+  font-style: italic;
+}
+
+.lc-vscode-theme .token.entity {
+  cursor: help;
+}
+
+/* JSON specific */
+.lc-vscode-theme .language-json .token.property {
+  color: #9cdcfe; /* VS Code light blue */
+}
+
+.lc-vscode-theme .language-json .token.string {
+  color: #ce9178; /* VS Code orange */
+}
+
+/* JavaScript/TypeScript specific */
+.lc-vscode-theme .language-javascript .token.function,
+.lc-vscode-theme .language-typescript .token.function {
+  color: #dcdcaa; /* VS Code yellow */
+}
+
+.lc-vscode-theme .language-javascript .token.keyword,
+.lc-vscode-theme .language-typescript .token.keyword {
+  color: #569cd6; /* VS Code blue */
+}
+
+/* Python specific */
+.lc-vscode-theme .language-python .token.keyword {
+  color: #569cd6; /* VS Code blue */
+}
+
+.lc-vscode-theme .language-python .token.function {
+  color: #dcdcaa; /* VS Code yellow */
+}
+
+/* HTML/XML specific */
+.lc-vscode-theme .language-markup .token.tag {
+  color: #569cd6; /* VS Code blue */
+}
+
+.lc-vscode-theme .language-markup .token.attr-name {
+  color: #92c5f7; /* VS Code light blue */
+}
+
+.lc-vscode-theme .language-markup .token.attr-value {
+  color: #ce9178; /* VS Code orange */
+}
+
+/* CSS specific */
+.lc-vscode-theme .language-css .token.selector {
+  color: #d7ba7d; /* VS Code yellow-orange */
+}
+
+.lc-vscode-theme .language-css .token.property {
+  color: #9cdcfe; /* VS Code light blue */
+}
+
 .lc-msg-content .lc-md-code-block {
   display: block;
   padding: 1em 1.2em;
@@ -811,7 +1065,7 @@
   line-height: 1.6;
   overflow-x: auto;
   overflow-y: hidden;
-  color: rgba(255, 255, 255, 0.9);
+  color: #d4d4d4; /* VS Code default text color */
   white-space: pre;
   max-width: 100%;
   box-sizing: border-box;
@@ -846,31 +1100,30 @@
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
   line-height: 1.6;
-  overflow-x: auto;
+  overflow-x: visible; /* Let parent handle scrolling */
   overflow-y: hidden;
-  color: rgba(255, 255, 255, 0.9);
+  color: #d4d4d4; /* VS Code default text color */
   white-space: pre;
-  max-width: 100%;
+  min-width: min-content; /* Allow code to be as wide as needed */
+  max-width: none; /* Remove max-width constraint */
   box-sizing: border-box;
-  /* Smooth scrolling for long code lines */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  /* Don't add scrollbar here, parent handles it */
 }
 
-.lc-code-block-wrapper .lc-md-code-block::-webkit-scrollbar {
+.lc-code-block-wrapper::-webkit-scrollbar {
   height: 6px;
 }
 
-.lc-code-block-wrapper .lc-md-code-block::-webkit-scrollbar-track {
+.lc-code-block-wrapper::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.lc-code-block-wrapper .lc-md-code-block::-webkit-scrollbar-thumb {
+.lc-code-block-wrapper::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
-.lc-code-block-wrapper .lc-md-code-block::-webkit-scrollbar-thumb:hover {
+.lc-code-block-wrapper::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
@@ -899,20 +1152,38 @@
   color: var(--text);
 }
 
-/* Links */
-.lc-msg-content .lc-md-a {
-  color: rgba(100, 150, 255, 0.9);
-  text-decoration: underline;
-  text-decoration-color: rgba(100, 150, 255, 0.4);
-  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+/* Links - Ensure blue color and underline (ChatGPT-style) */
+.lc-msg-content .lc-md-a,
+.lc-response .lc-md-a,
+.lc-md-a,
+.lc-msg-content a,
+.lc-response a {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+  text-decoration-color: #2563eb !important;
+  cursor: pointer;
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-all; /* Break long URLs */
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
-.lc-msg-content .lc-md-a:hover {
-  color: rgba(120, 170, 255, 1);
-  text-decoration-color: rgba(120, 170, 255, 0.6);
+.lc-msg-content .lc-md-a:hover,
+.lc-response .lc-md-a:hover,
+.lc-md-a:hover,
+.lc-msg-content a:hover,
+.lc-response a:hover {
+  color: #1d4ed8 !important;
+  text-decoration-color: #1d4ed8 !important;
+  text-decoration-thickness: 2px;
+}
+
+.lc-msg-content .lc-md-a:visited,
+.lc-response .lc-md-a:visited,
+.lc-md-a:visited,
+.lc-msg-content a:visited,
+.lc-response a:visited {
+  color: #2563eb !important; /* Keep blue even when visited */
 }
 
 /* Tables */
@@ -1017,17 +1288,20 @@
 }
 /* Enhanced Typing Indicator */
 .lc-typing-indicator {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  max-width: 768px; /* Match messages max-width */
-  margin: 0 auto;
-  padding: 16px 24px;
+  width: 100%; /* Take full width of parent container */
+  max-width: 100%; /* Don't exceed parent */
+  padding: 16px 0 8px 0; /* Vertical padding, less bottom padding */
   animation: fadeIn 0.3s ease-in;
   box-sizing: border-box;
+  overflow-x: hidden; /* Prevent horizontal overflow only */
+  overflow-y: visible; /* Allow vertical overflow so text isn't cut */
+  min-width: 0; /* Allow flex shrinking */
+  text-align: center; /* Center the text */
+  line-height: 1.5; /* Ensure proper line height */
+  margin-bottom: 0; /* No bottom margin */
 }
 
-/* On larger screens, add more side padding for better centering */
+/* On larger screens, adjust padding */
 @media (min-width: 1200px) {
   .lc-typing-indicator {
     padding-left: 48px;
@@ -1042,45 +1316,28 @@
   }
 }
 
-.lc-typing-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  flex-shrink: 0;
-}
-
-.lc-typing-bubble {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 120px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.lc-typing-text {
+  font-size: 13px;
+  color: var(--muted); /* Use muted color for subtle appearance */
+  font-weight: 500;
+  display: inline-block; /* Allow text to flow naturally */
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: visible; /* Allow text to be fully visible */
+  text-overflow: clip; /* Clip instead of ellipsis if needed */
+  max-width: 100%; /* Don't exceed container */
+  line-height: 1.5; /* Ensure proper line height */
+  vertical-align: baseline; /* Proper vertical alignment */
 }
 
 .lc-typing-dots {
-  display: flex;
-  gap: 4px;
-  align-items: center;
+  display: inline-block;
+  margin-left: 2px;
 }
 
 .lc-typing-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  animation: typingPulse 1.4s ease-in-out infinite;
+  display: inline-block;
+  animation: typingBlink 1.4s ease-in-out infinite;
+  opacity: 0;
 }
 
 .lc-typing-dot:nth-child(1) {
@@ -1095,10 +1352,13 @@
   animation-delay: 0.4s;
 }
 
-.lc-typing-text {
-  font-size: 13px;
-  color: var(--muted);
-  font-weight: 500;
+@keyframes typingBlink {
+  0%, 60%, 100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
 }
 
 /* Animations */
@@ -1127,8 +1387,12 @@
 /* Progress bar for longer responses */
 .lc-typing-progress-container {
   width: 100%;
+  max-width: 100%; /* Don't exceed container */
   margin-top: 12px;
   animation: fadeIn 0.3s ease-in;
+  box-sizing: border-box;
+  overflow: hidden; /* Prevent overflow */
+  min-width: 0; /* Allow flex shrinking */
 }
 
 .lc-typing-progress-bar {
@@ -1167,31 +1431,31 @@
 
 /* Legacy typing class for backward compatibility */
 .lc-typing {
-  max-width: 768px; /* Match messages max-width */
-  margin: 0 auto;
+  width: 100%; /* Take full width of parent container */
+  max-width: 100%; /* Don't exceed parent */
   color: var(--muted);
-  padding: 6px 24px 16px;
+  padding: 6px 0 16px; /* Remove horizontal padding, parent handles it */
   box-sizing: border-box;
 }
 
 /* On larger screens, add more side padding for better centering */
 @media (min-width: 1200px) {
   .lc-typing {
-    padding-left: 48px;
-    padding-right: 48px;
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
 @media (min-width: 1400px) {
   .lc-typing {
-    padding-left: 80px;
-    padding-right: 80px;
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
 .lc-chat-actions {
   max-width: 768px; /* Match messages max-width */
-  margin: 20px auto 0;
+  margin: 0 auto; /* Center and remove top margin - typing indicator handles spacing */
   padding: 12px 24px;
   display: flex;
   gap: 10px;
@@ -1358,7 +1622,9 @@
   
   .lc-messages {
     max-width: 90%;
+    width: 100%;
     padding: 0 12px 24px;
+    overflow-x: hidden; /* Prevent horizontal overflow */
   }
   
   .lc-msg-inner {
@@ -1474,8 +1740,10 @@
   
   .lc-messages {
     max-width: 95%;
+    width: 100%;
     padding: 0 8px 20px;
     gap: 12px;
+    overflow-x: hidden; /* Prevent horizontal overflow */
   }
   
   .lc-msg-inner {
@@ -1525,8 +1793,11 @@
   }
   
   .lc-typing-indicator {
-    max-width: 95%;
-    padding: 12px 0;
+    width: 100%; /* Take full width of parent */
+    max-width: 95%; /* Don't exceed parent */
+    padding: 12px 8px;
+    overflow-x: hidden; /* Prevent horizontal overflow */
+    bottom: 90px; /* Adjust for mobile */
   }
   
   .lc-typing-bubble {
@@ -1771,8 +2042,10 @@
   
   .lc-messages {
     max-width: 100%;
+    width: 100%;
     padding: 0 4px 16px;
     gap: 10px;
+    overflow-x: hidden; /* Prevent horizontal overflow */
   }
   
   .lc-msg-inner {
@@ -1836,10 +2109,25 @@
     height: 12px;
   }
   
+  .lc-scroll-to-bottom {
+    bottom: 85px; /* Adjust for mobile */
+    right: 12px; /* Closer to edge on mobile */
+    width: 36px;
+    height: 36px;
+  }
+  
+  .lc-scroll-to-bottom svg {
+    width: 18px;
+    height: 18px;
+  }
+  
   .lc-typing-indicator {
-    max-width: 100%;
-    padding: 10px 0;
+    width: 100%; /* Take full width of parent */
+    max-width: 100%; /* Don't exceed parent */
+    padding: 10px 4px;
     gap: 8px;
+    overflow-x: hidden; /* Prevent horizontal overflow */
+    bottom: 85px; /* Adjust for small mobile */
   }
   
   .lc-typing-avatar {

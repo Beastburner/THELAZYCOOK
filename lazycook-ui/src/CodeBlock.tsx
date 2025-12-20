@@ -1,4 +1,54 @@
 import { useState, useRef, useEffect } from 'react';
+import Prism from 'prismjs';
+
+// Import base/core languages first (no dependencies)
+import 'prismjs/components/prism-markup'; // Base for HTML/XML
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-clike'; // Base for C, C++, Java, etc.
+import 'prismjs/components/prism-javascript';
+
+// Languages that extend clike
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-csharp';
+
+// Languages that extend javascript
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
+
+// Standalone languages
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-go';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-swift';
+import 'prismjs/components/prism-kotlin';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-powershell';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-yaml';
+import 'prismjs/components/prism-docker';
+import 'prismjs/components/prism-solidity';
+import 'prismjs/components/prism-ruby';
+import 'prismjs/components/prism-perl';
+import 'prismjs/components/prism-r';
+import 'prismjs/components/prism-scala';
+import 'prismjs/components/prism-clojure';
+import 'prismjs/components/prism-lua';
+import 'prismjs/components/prism-dart';
+import 'prismjs/components/prism-haskell';
+import 'prismjs/components/prism-ocaml';
+import 'prismjs/components/prism-fsharp';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-latex';
+import 'prismjs/components/prism-makefile';
+import 'prismjs/components/prism-ini';
+import 'prismjs/components/prism-toml';
+import 'prismjs/components/prism-properties';
+
+// Note: Removed prism-vbnet and prism-xml-doc as they may cause dependency issues
 
 interface CodeBlockProps {
   code: string;
@@ -184,6 +234,105 @@ export default function CodeBlock({
   };
 
   /* ─────────────────────────────
+     Syntax highlighting with Prism
+  ───────────────────────────── */
+  const getHighlightedCode = () => {
+    if (isEditing) return null;
+    
+    const lang = language?.toLowerCase() || '';
+    const prismLang = mapLanguageToPrism(lang);
+    
+    if (prismLang && Prism.languages[prismLang]) {
+      try {
+        const highlighted = Prism.highlight(
+          displayCode,
+          Prism.languages[prismLang],
+          prismLang
+        );
+        return { __html: highlighted };
+      } catch (err) {
+        console.warn('Prism highlighting failed:', err);
+      }
+    }
+    
+    return null;
+  };
+
+  const mapLanguageToPrism = (lang: string): string => {
+    const langMap: Record<string, string> = {
+      js: 'javascript',
+      javascript: 'javascript',
+      ts: 'typescript',
+      typescript: 'typescript',
+      jsx: 'jsx',
+      tsx: 'tsx',
+      py: 'python',
+      python: 'python',
+      java: 'java',
+      c: 'c',
+      cpp: 'cpp',
+      'c++': 'cpp',
+      cs: 'csharp',
+      csharp: 'csharp',
+      php: 'php',
+      go: 'go',
+      rust: 'rust',
+      swift: 'swift',
+      kt: 'kotlin',
+      kotlin: 'kotlin',
+      sh: 'bash',
+      bash: 'bash',
+      shell: 'bash',
+      ps1: 'powershell',
+      powershell: 'powershell',
+      json: 'json',
+      yml: 'yaml',
+      yaml: 'yaml',
+      html: 'markup',
+      xml: 'markup', // Use markup instead of xml-doc
+      css: 'css',
+      dockerfile: 'docker',
+      sol: 'solidity',
+      solidity: 'solidity',
+      rb: 'ruby',
+      ruby: 'ruby',
+      pl: 'perl',
+      perl: 'perl',
+      r: 'r',
+      scala: 'scala',
+      clj: 'clojure',
+      clojure: 'clojure',
+      lua: 'lua',
+      dart: 'dart',
+      hs: 'haskell',
+      haskell: 'haskell',
+      ml: 'ocaml',
+      ocaml: 'ocaml',
+      fs: 'fsharp',
+      fsharp: 'fsharp',
+      vb: 'csharp', // Map VB.NET to C# as fallback (similar syntax)
+      vbnet: 'csharp', // Map VB.NET to C# as fallback
+      md: 'markdown',
+      markdown: 'markdown',
+      tex: 'latex',
+      latex: 'latex',
+      make: 'makefile',
+      makefile: 'makefile',
+      cmake: 'makefile',
+      ini: 'ini',
+      toml: 'toml',
+      properties: 'properties',
+      env: 'properties',
+      config: 'properties',
+      conf: 'properties',
+    };
+    
+    return langMap[lang] || '';
+  };
+
+  const highlightedHtml = getHighlightedCode();
+
+  /* ─────────────────────────────
      Render
   ───────────────────────────── */
   return (
@@ -253,9 +402,12 @@ export default function CodeBlock({
           className="lc-code-block-editable"
         />
       ) : (
-        <pre className="lc-md-pre">
-          <code className={`lc-md-code-block ${className || ''}`}>
-            {displayCode}
+        <pre className="lc-md-pre lc-vscode-theme">
+          <code 
+            className={`lc-md-code-block language-${mapLanguageToPrism(language?.toLowerCase() || '') || 'text'} ${className || ''}`}
+            dangerouslySetInnerHTML={highlightedHtml || undefined}
+          >
+            {!highlightedHtml && displayCode}
           </code>
         </pre>
       )}

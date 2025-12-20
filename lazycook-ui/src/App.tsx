@@ -32,10 +32,112 @@ function uid(prefix = "id") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
-function titleFromPrompt(text: string) {
+function titleFromResponse(text: string): string {
+  // Extract a meaningful title from LazyCook's response
   const t = text.trim().replace(/\s+/g, " ");
   if (!t) return "New chat";
-  return t.length > 28 ? `${t.slice(0, 28)}…` : t;
+  
+  // First, try to extract markdown headers (these are usually the best titles)
+  const headerMatch = t.match(/^#{1,3}\s+(.+)$/m);
+  if (headerMatch && headerMatch[1]) {
+    let headerTitle = headerMatch[1].trim();
+    // Remove emojis and extra formatting
+    headerTitle = headerTitle.replace(/[^\w\s\-():]/g, '').trim();
+    if (headerTitle.length >= 3 && headerTitle.length <= 30) {
+      return headerTitle.length > 28 ? `${headerTitle.slice(0, 28)}…` : headerTitle;
+    }
+  }
+  
+  // Remove markdown code blocks
+  let cleaned = t.replace(/```[\s\S]*?```/g, '');
+  
+  // Extract quoted terms (often important concepts like "God Particle")
+  const quotedMatch = cleaned.match(/"([^"]{3,30})"/);
+  if (quotedMatch && quotedMatch[1]) {
+    const quoted = quotedMatch[1].trim();
+    if (quoted.length >= 3 && quoted.length <= 30) {
+      return quoted.length > 28 ? `${quoted.slice(0, 28)}…` : quoted;
+    }
+  }
+  
+  // Look for important capitalized phrases (proper nouns, key terms)
+  // Pattern: Capitalized word followed by optional capitalized words
+  const capitalizedPhrases = cleaned.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g);
+  if (capitalizedPhrases && capitalizedPhrases.length > 0) {
+    // Filter out common words and find the most meaningful phrase
+    const skipWords = ['The', 'A', 'An', 'This', 'That', 'These', 'Those', 'LazyCook', 'Acknowledged'];
+    for (const phrase of capitalizedPhrases) {
+      const words = phrase.split(' ');
+      const meaningfulWords = words.filter(w => !skipWords.includes(w));
+      if (meaningfulWords.length > 0) {
+        const title = meaningfulWords.join(' ');
+        if (title.length >= 3 && title.length <= 30) {
+          return title.length > 28 ? `${title.slice(0, 28)}…` : title;
+        }
+      }
+    }
+    // If no filtered phrase, use the first meaningful capitalized phrase
+    for (const phrase of capitalizedPhrases) {
+      if (phrase.length >= 3 && phrase.length <= 30 && !skipWords.includes(phrase)) {
+        return phrase.length > 28 ? `${phrase.slice(0, 28)}…` : phrase;
+      }
+    }
+  }
+  
+  // Look for key terms after "known as", "also called", "referred to as"
+  const knownAsMatch = cleaned.match(/(?:known as|also called|referred to as|scientifically known as)\s+["']?([A-Z][^.!?]{3,30})["']?/i);
+  if (knownAsMatch && knownAsMatch[1]) {
+    const term = knownAsMatch[1].trim();
+    if (term.length >= 3 && term.length <= 30) {
+      return term.length > 28 ? `${term.slice(0, 28)}…` : term;
+    }
+  }
+  
+  // Remove markdown formatting
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1'); // Links
+  cleaned = cleaned.replace(/!\[([^\]]*)\]\([^\)]+\)/g, ''); // Images
+  cleaned = cleaned.replace(/\*\*([^\*]+)\*\*/g, '$1'); // Bold
+  cleaned = cleaned.replace(/\*([^\*]+)\*/g, '$1'); // Italic
+  cleaned = cleaned.replace(/`([^`]+)`/g, '$1'); // Inline code
+  cleaned = cleaned.replace(/^#+\s+/gm, ''); // Headers already processed
+  
+  // Split into sentences
+  const sentences = cleaned.split(/[.!?]\s+/).filter(s => s.trim().length > 0);
+  
+  // Look for important patterns in sentences
+  const importantPatterns = [
+    // Questions
+    /(?:what|how|why|when|where|which|who)\s+[^.!?]{5,40}/i,
+    // Definitions with key terms
+    /(?:is|are|means|refers to|describes|explains?)\s+[^.!?]{5,40}/i,
+  ];
+  
+  // Try to find important phrases
+  for (const sentence of sentences) {
+    for (const pattern of importantPatterns) {
+      const match = sentence.match(pattern);
+      if (match && match[0].length >= 10 && match[0].length <= 50) {
+        const title = match[0].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+        return title.length > 28 ? `${title.slice(0, 28)}…` : title;
+      }
+    }
+  }
+  
+  // Fallback: use first meaningful sentence (skip greetings/acknowledgments)
+  const skipWords = ['acknowledged', 'hello', 'hi', 'thanks', 'thank you', 'great', 'sure', 'okay', 'ok'];
+  for (const sentence of sentences) {
+    const lowerSentence = sentence.toLowerCase();
+    const shouldSkip = skipWords.some(word => lowerSentence.startsWith(word));
+    if (!shouldSkip && sentence.length >= 10 && sentence.length <= 50) {
+      const title = sentence.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+      return title.length > 28 ? `${title.slice(0, 28)}…` : title;
+    }
+  }
+  
+  // Last resort: first 30 characters of first sentence
+  const firstSentence = sentences[0] || cleaned.slice(0, 50);
+  const title = firstSentence.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+  return title.length > 28 ? `${title.slice(0, 28)}…` : title || "New chat";
 }
 
 // Component to render LazyCook with red Z
@@ -333,40 +435,6 @@ function enhanceWithEmojis(content: string): string {
   return processedParts.join('');
 }
 
-function TypingIndicator() {
-  const [showProgress, setShowProgress] = useState(false);
-  
-  useEffect(() => {
-    // Show progress bar after 3 seconds to indicate longer processing
-    const timer = setTimeout(() => {
-      setShowProgress(true);
-    }, 3000);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
-  return (
-    <div className="lc-typing-indicator">
-      <div className="lc-typing-avatar">LC</div>
-      <div className="lc-typing-bubble">
-        <div className="lc-typing-dots">
-          <span className="lc-typing-dot"></span>
-          <span className="lc-typing-dot"></span>
-          <span className="lc-typing-dot"></span>
-        </div>
-        <span className="lc-typing-text"><LazyCookText /> is cooking…</span>
-      </div>
-      {showProgress && (
-        <div className="lc-typing-progress-container">
-          <div className="lc-typing-progress-bar">
-            <div className="lc-typing-progress-fill"></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate?: () => void }) {
   const [isHovered, setIsHovered] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -378,15 +446,33 @@ function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="lc-msg-inner">
-        <div className="lc-msg-role">{message.role === "user" ? "You" : <LazyCookText />}</div>
+        <div className="lc-msg-role">
+          {message.role === "user" ? "You" : (
+            // Show loading text in role area if message is empty
+            (!message.content || message.content.trim().length === 0) ? (
+              <span className="lc-typing-text">
+                <LazyCookText /> is cooking
+                <span className="lc-typing-dots">
+                  <span className="lc-typing-dot">.</span>
+                  <span className="lc-typing-dot">.</span>
+                  <span className="lc-typing-dot">.</span>
+                </span>
+              </span>
+            ) : (
+              <LazyCookText />
+            )
+          )}
+        </div>
         <div className="lc-msg-content">
           {message.role === "assistant" ? (
-            <MarkdownContent content={message.content} />
+            message.content && message.content.trim().length > 0 ? (
+              <MarkdownContent content={message.content} />
+            ) : null
           ) : (
             message.content
           )}
         </div>
-        {message.role === "assistant" && isHovered && (
+        {message.role === "assistant" && isHovered && message.content && message.content.trim().length > 0 && (
           <div className="lc-msg-actions">
             <button
               className="lc-msg-action-btn"
@@ -520,10 +606,41 @@ export default function App() {
   );
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // Check if user is at bottom of chat
+  const checkScrollPosition = () => {
+    if (!threadRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
+    setShowScrollToBottom(!isAtBottom);
+  };
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Check scroll position after scrolling
+    setTimeout(checkScrollPosition, 100);
   }, [activeChat?.messages.length, loading]);
+
+  // Add scroll listener to thread
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) return;
+    
+    thread.addEventListener('scroll', checkScrollPosition);
+    // Initial check
+    checkScrollPosition();
+    
+    return () => {
+      thread.removeEventListener('scroll', checkScrollPosition);
+    };
+  }, [activeChat]);
 
   // ---- Persist auth + chats ----
   useEffect(() => {
@@ -538,9 +655,24 @@ export default function App() {
     const savedChats = localStorage.getItem("lazycook_chats");
     const savedActive = localStorage.getItem("lazycook_active_chat");
     if (savedChats) {
-      const parsed = JSON.parse(savedChats) as Chat[];
-      setChats(Array.isArray(parsed) ? parsed : []);
-      setActiveChatId(savedActive || (parsed?.[0]?.id ?? null));
+      try {
+        const parsed = JSON.parse(savedChats) as Chat[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setChats(parsed);
+          setActiveChatId(savedActive || (parsed?.[0]?.id ?? null));
+        } else {
+          // If parsed chats is empty array, create a new chat
+          const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
+          setChats([first]);
+          setActiveChatId(first.id);
+        }
+      } catch (error) {
+        console.error("Error parsing saved chats:", error);
+        // If parsing fails, create a new chat
+        const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
+        setChats([first]);
+        setActiveChatId(first.id);
+      }
     } else {
       const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
       setChats([first]);
@@ -549,7 +681,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("lazycook_chats", JSON.stringify(chats));
+    // Only save if chats array is not empty to prevent overwriting with empty array
+    if (chats.length > 0) {
+      try {
+        localStorage.setItem("lazycook_chats", JSON.stringify(chats));
+      } catch (error) {
+        console.error("Error saving chats to localStorage:", error);
+      }
+    }
   }, [chats]);
 
   useEffect(() => {
@@ -624,12 +763,12 @@ export default function App() {
       return;
     }
 
-    // If no active chat, create a new one based on the prompt
+    // If no active chat, create a new one (title will be set from response)
     let chatId = activeChatId;
     if (!chatId || !chats.find((c) => c.id === chatId)) {
       const newChat: Chat = {
         id: uid("chat"),
-        title: titleFromPrompt(text),
+        title: "New chat", // Will be updated when response arrives
         createdAt: Date.now(),
         messages: [],
       };
@@ -643,13 +782,6 @@ export default function App() {
 
     const userMsg: Message = { id: uid("m"), role: "user", content: text };
     const assistantMsg: Message = { id: uid("m"), role: "assistant", content: "" };
-
-    // If it's a fresh chat, set title from first user message
-    setChats((prev) =>
-      prev.map((c) =>
-        c.id === chatId && c.messages.length === 0 ? { ...c, title: titleFromPrompt(text) } : c
-      )
-    );
 
     updateChatMessages(chatId, (m) => [...m, userMsg, assistantMsg]);
     setPrompt("");
@@ -679,6 +811,16 @@ export default function App() {
         if (idx >= 0) next[idx] = { ...next[idx], content };
         return next;
       });
+      
+      // Update chat title from LazyCook's response (only if it's still "New chat" or first response)
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id === chatId && (c.title === "New chat" || c.messages.length === 2)) {
+            return { ...c, title: titleFromResponse(content) };
+          }
+          return c;
+        })
+      );
     } catch (e) {
       updateChatMessages(chatId, (m) => {
         const next = [...m];
@@ -1256,7 +1398,7 @@ export default function App() {
           </div>
         </header>
 
-        <section className="lc-thread">
+        <section className="lc-thread" ref={threadRef}>
           {(activeChat?.messages || []).length === 0 ? (
             <div className="lc-empty">
               <div className="lc-empty-title">Ask anything</div>
@@ -1271,7 +1413,6 @@ export default function App() {
                   onRegenerate={m.role === 'assistant' ? () => regenerateResponse(m.id) : undefined}
                 />
               ))}
-              {loading && <TypingIndicator />}
               {activeChat && activeChat.messages.length > 0 && (
                 <div className="lc-chat-actions">
                   <button
@@ -1304,6 +1445,18 @@ export default function App() {
               )}
               <div ref={messagesEndRef} />
             </div>
+          )}
+          {showScrollToBottom && (
+            <button
+              className="lc-scroll-to-bottom"
+              onClick={scrollToBottom}
+              aria-label="Scroll to bottom"
+              title="Scroll to bottom"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 7L10 12L15 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           )}
         </section>
 

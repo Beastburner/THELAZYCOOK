@@ -9,3 +9,6 @@ rich
 google-generativeai
 groq
 numpy
+sentence-transformers
+torch
+faiss-cpu

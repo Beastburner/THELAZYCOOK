@@ -81,18 +81,118 @@ function childrenToString(children: any): string {
 }
 
 /* ─────────────────────────────
-   LazyCook branding
+   Convert plain URLs to markdown links
+   Production-safe: protects existing links, handles edge cases
 ───────────────────────────── */
-function processLazyCookText(text: string) {
-  return text.split(/(LazyCook)/gi).map((part, i) =>
-    part.toLowerCase() === 'lazycook' ? (
-      <span key={i}>
-        La<span className="lc-red-z">z</span>yCook
-      </span>
-    ) : (
-      part
-    )
-  );
+function convertUrlsToLinks(text: string): string {
+  // Step 1: Protect existing markdown links [text](url)
+  const protectedLinks: string[] = [];
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match) => {
+    protectedLinks.push(match);
+    return `@@PROTECTED_LINK_${protectedLinks.length - 1}@@`;
+  });
+
+  // Step 2: Protect URLs already in angle brackets <url>
+  const protectedAngles: string[] = [];
+  text = text.replace(/<([^>]+)>/g, (match, url) => {
+    // Only protect if it looks like a URL
+    if (/^https?:\/\//i.test(url) || /^www\./i.test(url)) {
+      protectedAngles.push(match);
+      return `@@PROTECTED_ANGLE_${protectedAngles.length - 1}@@`;
+    }
+    return match;
+  });
+
+  // Step 3: Convert plain URLs to markdown links
+  // Matches: http://..., https://..., www.example.com
+  // Excludes: trailing punctuation (handled separately)
+  const urlRegex = /\b(https?:\/\/[^\s<>"{}|\\^`\[\]()]+(?:\/[^\s<>"{}|\\^`\[\]()]*)?|www\.[^\s<>"{}|\\^`\[\]()]+(?:\/[^\s<>"{}|\\^`\[\]()]*)?)/gi;
+  
+  text = text.replace(urlRegex, (url) => {
+    // Remove trailing punctuation that shouldn't be part of URL
+    const trailingPunct = /[.,;:!?]+$/;
+    let cleanUrl = url;
+    let trailing = '';
+    const punctMatch = url.match(trailingPunct);
+    if (punctMatch && !url.endsWith('/')) {
+      cleanUrl = url.slice(0, -punctMatch[0].length);
+      trailing = punctMatch[0];
+    }
+    
+    const fullUrl = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+    return `[${cleanUrl}](${fullUrl})${trailing}`;
+  });
+
+  // Step 4: Restore protected angle brackets
+  protectedAngles.forEach((angle, i) => {
+    text = text.replace(`@@PROTECTED_ANGLE_${i}@@`, angle);
+  });
+
+  // Step 5: Restore protected markdown links
+  protectedLinks.forEach((link, i) => {
+    text = text.replace(`@@PROTECTED_LINK_${i}@@`, link);
+  });
+
+  return text;
+}
+
+/* ─────────────────────────────
+   SAFE LazyCook branding (keeps links alive)
+   Recursively processes nodes while preserving React elements
+───────────────────────────── */
+function processLazyCookNodes(children: any): any {
+  // Handle strings: apply branding
+  if (typeof children === 'string') {
+    return children.split(/(LazyCook)/gi).map((part, i) =>
+      part.toLowerCase() === 'lazycook' ? (
+        <span key={i}>
+          La<span className="lc-red-z">z</span>yCook
+        </span>
+      ) : (
+        part
+      )
+    );
+  }
+
+  // Handle numbers: convert to string and process
+  if (typeof children === 'number') {
+    return String(children);
+  }
+
+  // Handle arrays: recursively process each child
+  if (Array.isArray(children)) {
+    return children.map((child, i) => {
+      // Preserve keys if child is a React element
+      if (React.isValidElement(child)) {
+        const props = child.props as { children?: any };
+        return React.cloneElement(child as React.ReactElement<any>, {
+          children: processLazyCookNodes(props.children),
+        } as any);
+      }
+      return (
+        <React.Fragment key={i}>
+          {processLazyCookNodes(child)}
+        </React.Fragment>
+      );
+    });
+  }
+
+  // Handle React elements: preserve element, process children recursively
+  if (React.isValidElement(children)) {
+    // 🔥 CRITICAL: Preserve <a>, <strong>, <em> etc. but process their text content
+    const props = children.props as { children?: any };
+    return React.cloneElement(children as React.ReactElement<any>, {
+      children: processLazyCookNodes(props.children),
+    } as any);
+  }
+
+  // Handle null/undefined
+  if (children == null) {
+    return children;
+  }
+
+  // Fallback: return as-is (shouldn't happen in normal flow)
+  return children;
 }
 
 /* ─────────────────────────────
@@ -118,108 +218,88 @@ export default function MarkdownContent({
         }
 
         /* ─────── RESEARCH ─────── */
+        // Convert plain URLs to markdown links before rendering
+        const processedValue = convertUrlsToLinks(seg.value);
+        
         return (
           <ReactMarkdown
             key={index}
             remarkPlugins={[remarkGfm]}
             components={{
-              p: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <p className="lc-md-p">
-                    {processLazyCookText(text)}
-                  </p>
-                );
-              },
-              h1: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <h1 className="lc-md-h1">
-                    {processLazyCookText(text)}
-                  </h1>
-                );
-              },
-              h2: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <h2 className="lc-md-h2">
-                    {processLazyCookText(text)}
-                  </h2>
-                );
-              },
-              h3: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <h3 className="lc-md-h3">
-                    {processLazyCookText(text)}
-                  </h3>
-                );
-              },
-              h4: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <h4 className="lc-md-h4">
-                    {processLazyCookText(text)}
-                  </h4>
-                );
-              },
-              h5: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <h5 className="lc-md-h5">
-                    {processLazyCookText(text)}
-                  </h5>
-                );
-              },
-              h6: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <h6 className="lc-md-h6">
-                    {processLazyCookText(text)}
-                  </h6>
-                );
-              },
-              strong: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <strong className="lc-md-strong">
-                    {processLazyCookText(text)}
-                  </strong>
-                );
-              },
-              em: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <em className="lc-md-em">
-                    {processLazyCookText(text)}
-                  </em>
-                );
-              },
+              p: ({ children }) => (
+                <p className="lc-md-p">
+                  {processLazyCookNodes(children)}
+                </p>
+              ),
+              h1: ({ children }) => (
+                <h1 className="lc-md-h1">
+                  {processLazyCookNodes(children)}
+                </h1>
+              ),
+              h2: ({ children }) => (
+                <h2 className="lc-md-h2">
+                  {processLazyCookNodes(children)}
+                </h2>
+              ),
+              h3: ({ children }) => (
+                <h3 className="lc-md-h3">
+                  {processLazyCookNodes(children)}
+                </h3>
+              ),
+              h4: ({ children }) => (
+                <h4 className="lc-md-h4">
+                  {processLazyCookNodes(children)}
+                </h4>
+              ),
+              h5: ({ children }) => (
+                <h5 className="lc-md-h5">
+                  {processLazyCookNodes(children)}
+                </h5>
+              ),
+              h6: ({ children }) => (
+                <h6 className="lc-md-h6">
+                  {processLazyCookNodes(children)}
+                </h6>
+              ),
+              strong: ({ children }) => (
+                <strong className="lc-md-strong">
+                  {processLazyCookNodes(children)}
+                </strong>
+              ),
+              em: ({ children }) => (
+                <em className="lc-md-em">
+                  {processLazyCookNodes(children)}
+                </em>
+              ),
               code: ({ children }) => {
                 const text = childrenToString(children);
                 return (
                   <code className="lc-md-code-inline">{text}</code>
                 );
               },
-              blockquote: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <blockquote className="lc-md-blockquote">
-                    {processLazyCookText(text)}
-                  </blockquote>
-                );
-              },
-              li: ({ children }) => {
-                const text = childrenToString(children);
-                return (
-                  <li className="lc-md-li">
-                    {processLazyCookText(text)}
-                  </li>
-                );
-              },
+              blockquote: ({ children }) => (
+                <blockquote className="lc-md-blockquote">
+                  {processLazyCookNodes(children)}
+                </blockquote>
+              ),
+              li: ({ children }) => (
+                <li className="lc-md-li">
+                  {processLazyCookNodes(children)}
+                </li>
+              ),
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="lc-md-a"
+                >
+                  {children}
+                </a>
+              ),
             }}
           >
-            {seg.value}
+            {processedValue}
           </ReactMarkdown>
         );
       })}
