@@ -1,0 +1,66 @@
+{
+  "reaction": {
+    "LAUGHTER": "😂",
+    "SKULL": "💀",
+    "CRYING": "😭",
+    "SPARKLES": "✨",
+    "FIRE": "🔥",
+    "HUNDRED": "💯",
+    "CHECK": "✅",
+    "EYES": "👀",
+    "THINKING": "🤔",
+    "NAIL_POLISH": "💅"
+  },
+  "expressive": {
+    "SWEAT": "😅",
+    "PLEADING": "🥺",
+    "SALUTE": "🫡",
+    "FOLDED_HANDS": "🙏",
+    "HANDSHAKE": "🤝",
+    "MELTING": "🫠",
+    "HOLDING_TEARS": "🥹"
+  },
+  "conversational": {
+    "POINT_DOWN": "👇",
+    "ARROW_UP": "⬆️",
+    "ARROW_RIGHT": "➡️",
+    "MICROPHONE": "🎤",
+    "HOT_BEVERAGE": "☕",
+    "SHRUG_WOMAN": "🤷‍♀️",
+    "SHRUG_MAN": "🤷‍♂️"
+  },
+  "professional": {
+    "SUCCESS": "✅",
+    "WARNING": "⚠️",
+    "IMPORTANT": "❗",
+    "RESTRICTION": "🚫",
+    "KEY_POINT": "📌",
+    "EXPLANATION": "🔍",
+    "CONCEPT": "🧠",
+    "NEXT_STEP": "👉",
+    "APPROVAL": "👍"
+  },
+  "categories": {
+    "reaction": ["😂", "💀", "😭", "✨", "🔥", "💯", "✅", "👀", "🤔", "💅"],
+    "expressive": ["😅", "🥺", "🫡", "🙏", "🤝", "🫠", "🥹"],
+    "conversational": ["👇", "⬆️", "➡️", "🎤", "☕", "🤷‍♀️", "🤷‍♂️"],
+    "professional": ["✅", "⚠️", "❗", "🚫", "📌", "🔍", "🧠", "👉", "👍"]
+  },
+  "mappings": {
+    "success": "✅",
+    "warning": "⚠️",
+    "important": "❗",
+    "restriction": "🚫",
+    "key_point": "📌",
+    "explanation": "🔍",
+    "concept": "🧠",
+    "next_step": "👉",
+    "approval": "👍",
+    "laughter": "😂",
+    "fire": "🔥",
+    "sparkles": "✨",
+    "thinking": "🤔",
+    "eyes": "👀"
+  }
+}
+

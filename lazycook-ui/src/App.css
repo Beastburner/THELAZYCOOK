@@ -184,7 +184,7 @@ select {
 .lc-sidebar {
   width: 260px;
   background: var(--panel);
-  border-right: 1px solid var(--border);
+  border-right: none; /* Removed border to match ChatGPT's clean style - relies on spacing, not visible separators */
   display: flex;
   flex-direction: column;
   box-sizing: border-box; /* Ensure border is included in width calculation */
@@ -206,7 +206,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none; /* Removed border to match ChatGPT's clean style */
   box-sizing: border-box; /* Hard alignment guard */
   font-family: var(--font-ui);
   position: relative; /* For mobile close button positioning */
@@ -272,7 +272,7 @@ select {
 /* Navigation Buttons */
 .lc-sidebar-nav {
   padding: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none; /* Removed border to match ChatGPT's clean style */
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -319,7 +319,7 @@ select {
 
 .lc-sidebar-search {
   padding: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none; /* Removed border to match ChatGPT's clean style */
 }
 
 .lc-search-input {
@@ -406,7 +406,7 @@ select {
 }
 
 .lc-sidebar-bottom {
-  border-top: 1px solid var(--border);
+  border-top: none; /* Removed border to match ChatGPT's clean style - uses spacing for separation */
   padding: 12px;
   position: relative;
 }
@@ -592,7 +592,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none; /* Removed border to match ChatGPT's clean style - topbar blends smoothly into content */
   background: var(--bg);
   box-sizing: border-box; /* Hard alignment guard */
   font-family: var(--font-ui);
@@ -740,6 +740,95 @@ select {
   height: 16px;
 }
 
+/* Responsive visibility for topbar actions */
+.lc-topbar-action-direct {
+  display: inline-flex; /* Show on desktop */
+}
+
+.lc-topbar-action-menu {
+  display: none; /* Hide menu items on desktop (they're in direct buttons) */
+}
+
+/* Topbar menu wrapper */
+.lc-topbar-menu-wrapper {
+  position: relative;
+}
+
+/* Topbar menu dropdown */
+.lc-topbar-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.lc-topbar-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+  transition: background 0.15s;
+  outline: none;
+}
+
+.lc-topbar-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lc-topbar-menu-item:focus {
+  background: rgba(255, 255, 255, 0.08);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.lc-topbar-menu-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.lc-topbar-menu-item span {
+  flex: 1;
+}
+
+/* Mobile (≤768px): Hide direct buttons, show menu items */
+@media (max-width: 768px) {
+  .lc-topbar-action-direct {
+    display: none !important; /* Hide direct buttons on mobile */
+  }
+  
+  .lc-topbar-action-menu {
+    display: flex !important; /* Show menu items on mobile */
+  }
+}
+
+/* Desktop (≥1024px): Show direct buttons, hide menu items */
+@media (min-width: 1024px) {
+  .lc-topbar-action-direct {
+    display: inline-flex !important; /* Show direct buttons on desktop */
+  }
+  
+  .lc-topbar-action-menu {
+    display: none !important; /* Hide menu items on desktop */
+  }
+}
+
 .lc-topbar-btn.is-copied {
   background: rgba(76, 175, 80, 0.2);
   border-color: rgba(76, 175, 80, 0.4);
@@ -812,40 +901,62 @@ select {
 }
 
 /* Scroll to bottom button */
+/* Scroll-to-Bottom Arrow - ChatGPT Exact Behavior */
 .lc-scroll-to-bottom {
-  position: absolute;
-  bottom: 100px; /* Position above input area */
-  right: 24px; /* Position from right edge */
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  position: fixed;
+  bottom: 92px; /* 88-96px range: slightly above input box */
+  left: 50%; /* Center horizontally */
+  transform: translateX(-50%) translateY(4px); /* Center and subtle upward position when hidden */
+  width: auto; /* Auto width for arrow */
+  height: auto;
+  padding: 8px; /* Touch-friendly hit area */
+  background: transparent;
+  border: none;
   color: var(--text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
   z-index: 20;
-  animation: fadeIn 0.3s ease-in;
+  
+  /* Hidden by default */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  
+  /* Smooth fade in/out animation */
+  transition: opacity 140ms ease-out, 
+              visibility 140ms ease-out,
+              transform 140ms ease-out;
+}
+
+/* Visible state - fade in with subtle upward motion */
+.lc-scroll-to-bottom.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0); /* Center and no vertical offset when visible */
 }
 
 .lc-scroll-to-bottom:hover {
-  background: var(--panel-2);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  color: var(--accent);
 }
 
 .lc-scroll-to-bottom:active {
-  transform: scale(0.95);
+  color: var(--accent);
+  transform: translateY(1px);
+}
+
+.lc-scroll-to-bottom:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .lc-scroll-to-bottom svg {
   width: 20px;
   height: 20px;
+  display: block;
 }
 
 .lc-empty {
@@ -1071,6 +1182,15 @@ select {
 
 .lc-msg-content .lc-md-p:last-child {
   margin-bottom: 0;
+}
+
+.lc-confidence-score {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: var(--fw-medium);
 }
 
 /* Headings */
@@ -3163,6 +3283,22 @@ code,
   .lc-code-block-btn {
     min-height: 32px;
     padding: 0.4em 0.6em;
+  }
+  
+  .lc-scroll-to-bottom {
+    padding: 10px; /* Larger touch area on mobile */
+    bottom: 88px; /* Adjust for mobile composer */
+    left: 50%; /* Center horizontally on mobile */
+    transform: translateX(-50%) translateY(4px); /* Center and subtle upward position when hidden */
+  }
+  
+  .lc-scroll-to-bottom.is-visible {
+    transform: translateX(-50%) translateY(0); /* Center and no vertical offset when visible */
+  }
+  
+  .lc-scroll-to-bottom svg {
+    width: 22px; /* Slightly larger arrow on mobile */
+    height: 22px;
   }
   
   .lc-chat-action-btn {

@@ -4,6 +4,7 @@ import MarkdownContent from "./MarkdownContent";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { FiArrowRight } from "react-icons/fi";
+import emojisData from "./emojis.json";
 
 type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
@@ -13,6 +14,7 @@ type Message = {
   id: string;
   role: Role;
   content: string;
+  confidenceScore?: number;
 };
 
 type Chat = {
@@ -33,112 +35,86 @@ function uid(prefix = "id") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
-function titleFromResponse(text: string): string {
-  // Extract a meaningful title from LazyCook's response
-  const t = text.trim().replace(/\s+/g, " ");
-  if (!t) return "New chat";
+/**
+ * ChatGPT-Style Title Generation
+ * 
+ * Generates chat titles from user messages following ChatGPT's discipline:
+ * - 3-6 words
+ * - Sentence case
+ * - Verb + Object OR Noun phrase
+ * - Neutral, scannable, predictable
+ */
+function generateChatTitle(userMessage: string): string {
+  if (!userMessage || !userMessage.trim()) return "New chat";
   
-  // First, try to extract markdown headers (these are usually the best titles)
-  const headerMatch = t.match(/^#{1,3}\s+(.+)$/m);
-  if (headerMatch && headerMatch[1]) {
-    let headerTitle = headerMatch[1].trim();
-    // Remove emojis and extra formatting
-    headerTitle = headerTitle.replace(/[^\w\s\-():]/g, '').trim();
-    if (headerTitle.length >= 3 && headerTitle.length <= 30) {
-      return headerTitle.length > 28 ? `${headerTitle.slice(0, 28)}…` : headerTitle;
-    }
-  }
+  // Normalize whitespace
+  let text = userMessage.trim().replace(/\s+/g, " ");
   
-  // Remove markdown code blocks
-  let cleaned = t.replace(/```[\s\S]*?```/g, '');
+  // Remove emojis, quotes, and excessive punctuation (keep hyphens for compound words)
+  text = text.replace(/[^\w\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
   
-  // Extract quoted terms (often important concepts like "God Particle")
-  const quotedMatch = cleaned.match(/"([^"]{3,30})"/);
-  if (quotedMatch && quotedMatch[1]) {
-    const quoted = quotedMatch[1].trim();
-    if (quoted.length >= 3 && quoted.length <= 30) {
-      return quoted.length > 28 ? `${quoted.slice(0, 28)}…` : quoted;
-    }
-  }
-  
-  // Look for important capitalized phrases (proper nouns, key terms)
-  // Pattern: Capitalized word followed by optional capitalized words
-  const capitalizedPhrases = cleaned.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g);
-  if (capitalizedPhrases && capitalizedPhrases.length > 0) {
-    // Filter out common words and find the most meaningful phrase
-    const skipWords = ['The', 'A', 'An', 'This', 'That', 'These', 'Those', 'LazyCook', 'Acknowledged'];
-    for (const phrase of capitalizedPhrases) {
-      const words = phrase.split(' ');
-      const meaningfulWords = words.filter(w => !skipWords.includes(w));
-      if (meaningfulWords.length > 0) {
-        const title = meaningfulWords.join(' ');
-        if (title.length >= 3 && title.length <= 30) {
-          return title.length > 28 ? `${title.slice(0, 28)}…` : title;
-        }
-      }
-    }
-    // If no filtered phrase, use the first meaningful capitalized phrase
-    for (const phrase of capitalizedPhrases) {
-      if (phrase.length >= 3 && phrase.length <= 30 && !skipWords.includes(phrase)) {
-        return phrase.length > 28 ? `${phrase.slice(0, 28)}…` : phrase;
-      }
-    }
-  }
-  
-  // Look for key terms after "known as", "also called", "referred to as"
-  const knownAsMatch = cleaned.match(/(?:known as|also called|referred to as|scientifically known as)\s+["']?([A-Z][^.!?]{3,30})["']?/i);
-  if (knownAsMatch && knownAsMatch[1]) {
-    const term = knownAsMatch[1].trim();
-    if (term.length >= 3 && term.length <= 30) {
-      return term.length > 28 ? `${term.slice(0, 28)}…` : term;
-    }
-  }
-  
-  // Remove markdown formatting
-  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1'); // Links
-  cleaned = cleaned.replace(/!\[([^\]]*)\]\([^\)]+\)/g, ''); // Images
-  cleaned = cleaned.replace(/\*\*([^\*]+)\*\*/g, '$1'); // Bold
-  cleaned = cleaned.replace(/\*([^\*]+)\*/g, '$1'); // Italic
-  cleaned = cleaned.replace(/`([^`]+)`/g, '$1'); // Inline code
-  cleaned = cleaned.replace(/^#+\s+/gm, ''); // Headers already processed
-  
-  // Split into sentences
-  const sentences = cleaned.split(/[.!?]\s+/).filter(s => s.trim().length > 0);
-  
-  // Look for important patterns in sentences
-  const importantPatterns = [
-    // Questions
-    /(?:what|how|why|when|where|which|who)\s+[^.!?]{5,40}/i,
-    // Definitions with key terms
-    /(?:is|are|means|refers to|describes|explains?)\s+[^.!?]{5,40}/i,
+  // Check if message is just a greeting/politeness (hard safety)
+  const greetingPatterns = [
+    /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)\s*$/i,
+    /^(please|thanks|thank you|thx|ty)\s*$/i,
   ];
   
-  // Try to find important phrases
-  for (const sentence of sentences) {
-    for (const pattern of importantPatterns) {
-      const match = sentence.match(pattern);
-      if (match && match[0].length >= 10 && match[0].length <= 50) {
-        const title = match[0].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
-        return title.length > 28 ? `${title.slice(0, 28)}…` : title;
+  if (greetingPatterns.some(pattern => pattern.test(text))) {
+    return "New chat";
+  }
+  
+  // Remove greeting/politeness prefixes (but keep the rest)
+  text = text.replace(/^(hi|hello|hey|greetings|good morning|good afternoon|good evening)[\s,]+/i, '');
+  text = text.replace(/^(please|thanks|thank you|thx|ty)[\s,]+/i, '');
+  text = text.replace(/^(i want|i need|i would like|i\'d like|can you|could you|would you|help me|help with|assist|please help)[\s,]+/i, '');
+  text = text.trim();
+  
+  // Remove question words at start (convert questions to statements)
+  text = text.replace(/^(what|how|why|when|where|which|who|can|could|would|should|is|are|do|does|did)\s+/i, '');
+  text = text.replace(/\?+$/, '').trim();
+  
+  if (!text || text.length < 3) return "New chat";
+  
+  // Split into words
+  const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+  
+  // Remove only the most common filler words (be selective)
+  const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just'];
+  let meaningfulWords = words.filter(w => !fillerWords.includes(w) && w.length > 1);
+  
+  // If we removed too many words, use original words but skip obvious fillers
+  if (meaningfulWords.length < 3) {
+    meaningfulWords = words.filter(w => !['i', 'me', 'my', 'you', 'your', 'the', 'a', 'an'].includes(w) && w.length > 1);
+  }
+  
+  if (meaningfulWords.length === 0) return "New chat";
+  
+  // Extract 3-6 meaningful words (ChatGPT rule: 3-6 words)
+  const titleWords = meaningfulWords.slice(0, 6);
+  
+  // Ensure we have at least 3 words (hard safety)
+  if (titleWords.length < 3) {
+    // Try to include more words from original if needed
+    const additionalWords = words.filter(w => !titleWords.includes(w) && w.length > 1).slice(0, 3 - titleWords.length);
+    titleWords.push(...additionalWords);
+    
+    if (titleWords.length < 3) {
+      return "New chat";
+    }
+  }
+  
+  // Convert to sentence case (first letter uppercase, rest lowercase)
+  const title = titleWords
+    .map((word, index) => {
+      if (index === 0) {
+        // First word: capitalize first letter
+        return word.charAt(0).toUpperCase() + word.slice(1);
       }
-    }
-  }
+      return word;
+    })
+    .join(' ');
   
-  // Fallback: use first meaningful sentence (skip greetings/acknowledgments)
-  const skipWords = ['acknowledged', 'hello', 'hi', 'thanks', 'thank you', 'great', 'sure', 'okay', 'ok'];
-  for (const sentence of sentences) {
-    const lowerSentence = sentence.toLowerCase();
-    const shouldSkip = skipWords.some(word => lowerSentence.startsWith(word));
-    if (!shouldSkip && sentence.length >= 10 && sentence.length <= 50) {
-      const title = sentence.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
-      return title.length > 28 ? `${title.slice(0, 28)}…` : title;
-    }
-  }
-  
-  // Last resort: first 30 characters of first sentence
-  const firstSentence = sentences[0] || cleaned.slice(0, 50);
-  const title = firstSentence.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
-  return title.length > 28 ? `${title.slice(0, 28)}…` : title || "New chat";
+  return title || "New chat";
 }
 
 // Component to render LazyCook with red Z
@@ -223,6 +199,18 @@ function analyzeSentiment(text: string): { sentiment: 'positive' | 'neutral' | '
 }
 
 function enhanceWithEmojis(content: string): string {
+  // Load emojis from JSON
+  const stepEmojisFromJSON = [
+    emojisData.professional.SUCCESS,
+    emojisData.professional.KEY_POINT,
+    emojisData.conversational.ARROW_RIGHT,
+    emojisData.professional.NEXT_STEP,
+    emojisData.reaction.SPARKLES,
+    emojisData.reaction.THINKING,
+    emojisData.reaction.FIRE,
+    emojisData.professional.CONCEPT
+  ];
+  
   // Split content by code blocks to preserve them
   const codeBlockRegex = /(```[\s\S]*?```|`[^`]+`)/g;
   const parts: Array<{ type: 'code' | 'text'; content: string }> = [];
@@ -284,7 +272,7 @@ function enhanceWithEmojis(content: string): string {
     
     // First, add emojis to numbered steps in the text (not too frequently)
     // Pattern: "1.", "2.", "3." or "1)", "2)", "3)" at the start of a line or after whitespace
-    const stepEmojis = ['✅', '📝', '🔢', '➡️', '🎯', '💡', '⚡', '🔑'];
+    const stepEmojis = stepEmojisFromJSON;
     let stepEmojiIndex = 0;
     let processedText = text;
     
@@ -365,7 +353,8 @@ function enhanceWithEmojis(content: string): string {
       }
       
       // Skip if this sentence already has a step emoji (to avoid double emojis)
-      if (/[\d]+[.)]\s+[✅📝🔢➡️🎯💡⚡🔑]/.test(trimmedSentence)) {
+      const stepEmojiPattern = new RegExp(`[\\d]+[.)]\\s+[${stepEmojis.join('')}]`, 'g');
+      if (stepEmojiPattern.test(trimmedSentence)) {
         processedSentences.push(sentence);
         return;
       }
@@ -387,29 +376,51 @@ function enhanceWithEmojis(content: string): string {
         if (sentimentResult.score > 0) {
           switch (sentimentResult.sentiment) {
             case 'positive':
-              emoji = ['😊', '✨', '👍', '🎉'][Math.floor(Math.random() * 4)];
+              emoji = [
+                emojisData.reaction.SPARKLES,
+                emojisData.professional.APPROVAL,
+                emojisData.reaction.FIRE,
+                emojisData.reaction.HUNDRED
+              ][Math.floor(Math.random() * 4)];
               break;
             case 'excited':
-              emoji = ['🚀', '🎉', '✨', '🌟'][Math.floor(Math.random() * 4)];
+              emoji = [
+                emojisData.reaction.FIRE,
+                emojisData.reaction.SPARKLES,
+                emojisData.reaction.HUNDRED,
+                emojisData.reaction.LAUGHTER
+              ][Math.floor(Math.random() * 4)];
               break;
             case 'question':
-              emoji = ['🤔', '❓', '💭'][Math.floor(Math.random() * 3)];
+              emoji = [
+                emojisData.reaction.THINKING,
+                emojisData.reaction.EYES,
+                emojisData.professional.EXPLANATION
+              ][Math.floor(Math.random() * 3)];
               break;
             case 'negative':
-              emoji = ['😔', '🔧', '⚠️'][Math.floor(Math.random() * 3)];
+              emoji = [
+                emojisData.professional.WARNING,
+                emojisData.expressive.MELTING,
+                emojisData.professional.IMPORTANT
+              ][Math.floor(Math.random() * 3)];
               break;
             case 'neutral':
               // For neutral, only add if it's a greeting or helpful phrase
               if (/^(hello|hi|hey|greetings)\b/gi.test(trimmedSentence)) {
-                emoji = '👋';
+                emoji = emojisData.expressive.FOLDED_HANDS;
               } else if (/\b(how can i|what can i|let me know)\b/gi.test(trimmedSentence)) {
-                emoji = '😊';
+                emoji = emojisData.reaction.SPARKLES;
               }
               break;
           }
         } else {
           // For sentences without strong sentiment, add subtle emojis at intervals
-          const subtleEmojis = ['✨', '💡', '🎯'];
+          const subtleEmojis = [
+            emojisData.reaction.SPARKLES,
+            emojisData.professional.CONCEPT,
+            emojisData.professional.KEY_POINT
+          ];
           emoji = subtleEmojis[Math.floor(Math.random() * subtleEmojis.length)];
         }
         
@@ -467,7 +478,14 @@ function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate
         <div className="lc-msg-content">
           {message.role === "assistant" ? (
             message.content && message.content.trim().length > 0 ? (
-              <MarkdownContent content={message.content} />
+              <>
+                <MarkdownContent content={message.content} />
+                {message.confidenceScore !== undefined && (
+                  <div className="lc-confidence-score">
+                    Confidence Score: {message.confidenceScore.toFixed(2)}
+                  </div>
+                )}
+              </>
             ) : null
           ) : (
             message.content
@@ -575,9 +593,11 @@ export default function App() {
   const [model, setModel] = useState<Model>("gemini");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showTopbarMenu, setShowTopbarMenu] = useState(false);
   const [prompt, setPrompt] = useState("");
   const modelDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const topbarMenuRef = useRef<HTMLDivElement>(null);
 
   // Sidebar starts closed on mobile, open on desktop
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -610,13 +630,28 @@ export default function App() {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
+      if (topbarMenuRef.current && !topbarMenuRef.current.contains(event.target as Node)) {
+        setShowTopbarMenu(false);
+      }
     };
 
-    if (showModelDropdown || showUserMenu) {
+    if (showModelDropdown || showUserMenu || showTopbarMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showModelDropdown, showUserMenu]);
+  }, [showModelDropdown, showUserMenu, showTopbarMenu]);
+
+  // Escape key to close topbar menu
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showTopbarMenu) {
+        setShowTopbarMenu(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showTopbarMenu]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -632,23 +667,43 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
-  // Check if user is at bottom of chat
+  // Check if user is at bottom of chat - ChatGPT exact behavior
   const checkScrollPosition = () => {
     if (!threadRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100; // 100px threshold
-    setShowScrollToBottom(!isAtBottom);
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    // Show arrow ONLY when distance from bottom ≥ 120px
+    // Hide when at bottom (distance < 120px)
+    setShowScrollToBottom(distanceFromBottom >= 120);
   };
 
-  // Scroll to bottom function
+  // Scroll to bottom function - ChatGPT exact behavior
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      // Hide arrow after scrolling starts
+      setTimeout(() => {
+        checkScrollPosition();
+      }, 100);
+    }
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Check scroll position after scrolling
-    setTimeout(checkScrollPosition, 100);
+    if (!threadRef.current || !messagesEndRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isNearBottom = distanceFromBottom < 120; // User is near bottom
+    
+    // Only auto-scroll if user is already near bottom
+    // Hide arrow when new message arrives AND user is near bottom
+    if (isNearBottom) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      setShowScrollToBottom(false); // Hide arrow when at bottom
+    } else {
+      // User scrolled up - show arrow after a brief delay
+      setTimeout(checkScrollPosition, 100);
+    }
   }, [activeChat?.messages.length, loading]);
 
   // Add scroll listener to thread
@@ -852,18 +907,23 @@ export default function App() {
       // Enhance content with emojis for better engagement
       content = enhanceWithEmojis(content);
       
+      // Extract confidence score from API response
+      const confidenceScore = data.quality_score || data.quality_metrics?.combined || undefined;
+      
       updateChatMessages(chatId, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMsg.id);
-        if (idx >= 0) next[idx] = { ...next[idx], content };
+        if (idx >= 0) next[idx] = { ...next[idx], content, confidenceScore };
         return next;
       });
       
-      // Update chat title from LazyCook's response (only if it's still "New chat" or first response)
+      // Update chat title from user message (ChatGPT-style: generate from first meaningful user prompt)
+      // Use the user message that was just sent (text variable)
       setChats((prev) =>
         prev.map((c) => {
           if (c.id === chatId && (c.title === "New chat" || c.messages.length === 2)) {
-            return { ...c, title: titleFromResponse(content) };
+            const title = generateChatTitle(text);
+            return { ...c, title };
           }
           return c;
         })
@@ -932,11 +992,14 @@ export default function App() {
       // Enhance content with emojis for better engagement
       content = enhanceWithEmojis(content);
       
+      // Extract confidence score from API response
+      const confidenceScore = data.quality_score || data.quality_metrics?.combined || undefined;
+      
       // Update the assistant message with new content
       updateChatMessages(activeChat.id, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMessageId);
-        if (idx >= 0) next[idx] = { ...next[idx], content };
+        if (idx >= 0) next[idx] = { ...next[idx], content, confidenceScore };
         return next;
       });
     } catch (e) {
@@ -1584,26 +1647,68 @@ export default function App() {
           </div>
 
           <div className="lc-topbar-actions">
-            <button className="lc-topbar-action-btn" aria-label="Share">
+            {/* Desktop: Direct buttons (≥1024px) */}
+            <button className="lc-topbar-action-btn lc-topbar-action-direct" aria-label="Share">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8 2V10M5 5L8 2L11 5M3 8H13M3 11H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span>Share</span>
             </button>
-            <button className="lc-topbar-action-btn" aria-label="Add people">
+            <button className="lc-topbar-action-btn lc-topbar-action-direct" aria-label="Add people">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
               <span>Add people</span>
             </button>
-            <button className="lc-topbar-menu-btn" aria-label="More options">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="8" cy="4" r="1" fill="currentColor"/>
-                <circle cx="8" cy="8" r="1" fill="currentColor"/>
-                <circle cx="8" cy="12" r="1" fill="currentColor"/>
-              </svg>
-            </button>
+            
+            {/* Three-dot menu button - always visible */}
+            <div className="lc-topbar-menu-wrapper" ref={topbarMenuRef}>
+              <button 
+                className="lc-topbar-menu-btn" 
+                aria-label="More options"
+                onClick={() => setShowTopbarMenu(!showTopbarMenu)}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="8" cy="4" r="1" fill="currentColor"/>
+                  <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                  <circle cx="8" cy="12" r="1" fill="currentColor"/>
+                </svg>
+              </button>
+              
+              {/* Dropdown menu - visible on mobile, contains Share and Add people */}
+              {showTopbarMenu && (
+                <div className="lc-topbar-menu-dropdown">
+                  <button 
+                    className="lc-topbar-menu-item lc-topbar-action-menu" 
+                    aria-label="Share"
+                    onClick={() => {
+                      setShowTopbarMenu(false);
+                      // Add Share functionality here if needed
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 2V10M5 5L8 2L11 5M3 8H13M3 11H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Share</span>
+                  </button>
+                  <button 
+                    className="lc-topbar-menu-item lc-topbar-action-menu" 
+                    aria-label="Add people"
+                    onClick={() => {
+                      setShowTopbarMenu(false);
+                      // Add Add people functionality here if needed
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                    <span>Add people</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -1655,18 +1760,23 @@ export default function App() {
               <div ref={messagesEndRef} />
             </div>
           )}
-          {showScrollToBottom && (
-            <button
-              className="lc-scroll-to-bottom"
-              onClick={scrollToBottom}
-              aria-label="Scroll to bottom"
-              title="Scroll to bottom"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 7L10 12L15 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
+          {/* Scroll to bottom arrow - ChatGPT exact behavior */}
+          <button
+            className={`lc-scroll-to-bottom ${showScrollToBottom ? 'is-visible' : ''}`}
+            onClick={scrollToBottom}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                scrollToBottom();
+              }
+            }}
+            aria-label="Scroll to bottom"
+            tabIndex={showScrollToBottom ? 0 : -1}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </section>
 
         <footer className="lc-composer">
