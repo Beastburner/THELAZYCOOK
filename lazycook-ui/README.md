@@ -1,73 +1,180 @@
-# React + TypeScript + Vite
+📦 Installation
+1. Clone the Repository
+git clone <your-repository-url>
+cd lazycook-ui
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+2. Install Dependencies
+npm install
 
-Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This installs all required dependencies including React, TypeScript, Vite, Tailwind CSS v4, Markdown support, and PDF generation libraries.
 
-## React Compiler
+🔐 Environment Variables
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Create a .env file in the root of the project:
 
-## Expanding the ESLint configuration
+VITE_API_BASE=http://localhost:8000
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Note:
+VITE_API_BASE should point to your backend API URL.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+▶️ Running the App
+Start Development Server
+npm run dev
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+http://localhost:5173
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+
+(Vite will auto-select another port if this one is busy.)
+
+🛠️ Available Scripts
+Development
+npm run dev
+
+
+Starts the development server with Hot Module Replacement (HMR).
+
+Build for Production
+npm run build
+
+
+Creates an optimized production build in the dist/ directory.
+
+Preview Production Build
+npm run preview
+
+
+Preview the production build locally.
+
+Linting
+npm run lint
+
+
+Runs ESLint for code quality checks.
+
+📁 Project Structure
+lazycook-ui/
+├── src/
+│   ├── App.tsx              # Main app component
+│   ├── App.css              # Global styles
+│   ├── MarkdownContent.tsx  # Markdown renderer
+│   ├── CodeBlock.tsx        # Code block (copy/edit/download)
+│   └── components/          # Reusable components
+├── public/                  # Static assets
+├── index.html               # HTML template
+├── package.json             # Scripts & dependencies
+├── tsconfig.json            # TypeScript config
+├── vite.config.ts           # Vite config
+├── postcss.config.js        # PostCSS (Tailwind v4)
+└── tailwind.config.js       # Tailwind theme
+
+⚙️ Configuration
+Tailwind CSS v4
+
+Uses the new PostCSS plugin
+
+Config files:
+
+postcss.config.js
+
+tailwind.config.js
+
+TypeScript
+
+Strict type checking enabled
+
+Configured in tsconfig.json
+
+Vite
+
+Uses rolldown-vite for faster builds
+
+Config in vite.config.ts
+
+🌐 Backend Connection
+
+Make sure your backend is running before starting the frontend.
+
+Backend URL: http://localhost:8000
+
+Update VITE_API_BASE if backend runs elsewhere
+
+Backend must allow CORS requests from the frontend
+
+🐛 Troubleshooting
+Port Already in Use
+
+Vite will automatically use the next available port.
+
+Module Not Found Errors
+rm -rf node_modules package-lock.json
+npm install
+
+Tailwind CSS Not Working
+npm install -D @tailwindcss/postcss
+
+Build Errors
+rm -rf dist node_modules/.vite
+npm run build
+
+TypeScript Errors
+npx tsc --noEmit
+
+📦 Production Deployment
+Build
+npm run build
+
+Deploy the dist/ Folder To:
+
+Vercel
+
+Netlify
+
+AWS S3
+
+Nginx
+
+Production Environment Variables
+
+Set VITE_API_BASE in your hosting provider’s environment settings.
+
+✨ Features
+
+💬 Real-time AI chat interface
+
+📝 Markdown rendering with syntax highlighting
+
+📄 Export chat to PDF
+
+🎯 Editable & downloadable code blocks
+
+😊 Emoji-enhanced responses
+
+🔄 Regenerate AI responses
+
+📱 Fully responsive design
+
+🤝 Contributing
+
+Fork the repository
+
+Create a feature branch
+
+git checkout -b feature/awesome-feature
+
+
+Commit changes
+
+git commit -m "Add awesome feature"
+
+
+Push to branch
+
+git push origin feature/awesome-feature
+
+
+Open a Pull Request
