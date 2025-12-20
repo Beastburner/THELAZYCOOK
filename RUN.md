@@ -1,22 +1,25 @@
-# How to Run Frontend and Backend
-
-## Quick Start
-
-### Backend (FastAPI)
+Steps:
 1. Navigate to the backend directory:
-   ```powershell
-   cd backend
-   ```
+cd backend
 
 2. Activate the virtual environment:
-   ```powershell
-   .\venv\Scripts\Activate.ps1
-   ```
+.\venv\Scripts\Activate.ps1
 
-3. Start the server:
-   ```powershell
-   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-   ```
+If you get an execution policy error, run this first:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+3. Install dependencies:
+python -m pip install -r requirements.txt
+
+Or if pip is available after activation:
+pip install -r requirements.txt
+
+4. Run the server:
+uvicorn main:app --reload
+
+Complete sequence (copy-paste):
+cd backend.\venv\Scripts\Activate.ps1python -m pip install -r requirements.txtuvicorn main:app --reload
+
 
    The backend will be available at: **http://localhost:8000**
    - API docs: http://localhost:8000/docs
