@@ -5,6 +5,8 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { FiArrowRight } from "react-icons/fi";
 import emojisData from "./emojis.json";
+import logoImg from "./assets/logo.png";
+import logoTextImg from "./assets/logo-text.png";
 
 type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
@@ -1398,7 +1400,7 @@ export default function App() {
       <div className="lc-login">
         <div className="lc-login-card">
           <div className="lc-brand">
-            <div className="lc-logo">LC</div>
+            <img src={logoImg} alt="LazyCook" className="lc-logo" />
             <div>
               <div className="lc-title"><LazyCookText /></div>
               <div className="lc-subtitle">Sign in to continue</div>
@@ -1450,7 +1452,7 @@ export default function App() {
         {/* Logo and Collapse Button */}
         <div className="lc-sidebar-header">
           <div className="lc-sidebar-logo">
-            <span className="lc-logo-icon">LC</span>
+            <img src={logoImg} alt="LazyCook" className="lc-logo-icon" />
           </div>
           <button 
             className="lc-sidebar-toggle" 
@@ -1618,7 +1620,7 @@ export default function App() {
 
           <div className="lc-topbar-left">
             <div className="lc-topbar-model" ref={modelDropdownRef} onClick={() => setShowModelDropdown(!showModelDropdown)}>
-              <LazyCookText />
+              <img src={logoTextImg} alt="LazyCook" className="lc-logo-text" />
               <span className="lc-model-version">{model === 'gemini' ? 'Gemini' : model === 'grok' ? 'Grok' : 'Mixed'}</span>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-dropdown-icon">
                 <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1796,8 +1798,8 @@ export default function App() {
             aria-label="Scroll to bottom"
             tabIndex={showScrollToBottom ? 0 : -1}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </section>

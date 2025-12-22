@@ -1,18 +1,34 @@
 :root {
-  /* Darker, Clearer VS Code Dark+ Inspired Palette */
-  --bg: #0d0d0d; /* Near-black - darker than VS Code */
-  --panel: #1a1a1a; /* Dark surface - clear contrast */
-  --panel-2: #222222; /* Secondary panel - distinct from panel */
-  --border: rgba(255, 255, 255, 0.18); /* Clearer borders - better visibility */
-  --text: #e8e8e8; /* Brighter off-white - clearer text */
-  --muted: #9a9a9a; /* Clearer muted - better readability */
-  --muted2: #7a7a7a; /* More visible secondary muted */
-  --accent: #4a9eff; /* Brighter tech blue - clearer accent */
-  --accentText: #0d0d0d; /* Dark background for accent text */
-  --accent-secondary: #3dd5c4; /* Brighter cyan/teal - clearer highlights */
-  --red-z: #ff6b6b; /* Clearer red - more visible */
-  --error: #ff6b6b; /* Clearer red for errors */
-  --success: #6bcf7f; /* Clearer green for success */
+  /* Premium Beige/Black/Red Brand Palette */
+  --black: #1c1c1c;
+  --black-soft: #2a2a2a;
+  
+  --red: #e6392f;
+  --red-hover: #cc2f26;
+  --red-subtle: rgba(230, 57, 47, 0.12);
+  
+  --white: #ffffff;
+  --beige: #f7efe4;
+  --beige-soft: #fbf6ee;
+  
+  --border-light: rgba(0, 0, 0, 0.08);
+  --border-medium: rgba(0, 0, 0, 0.14);
+  
+  /* Semantic color mappings */
+  --bg: var(--beige); /* Page background */
+  --panel: var(--beige-soft); /* Cards / panels */
+  --panel-2: var(--white); /* Secondary panels / modals */
+  --border: var(--border-medium); /* Borders */
+  --text: var(--black); /* Primary text */
+  --muted: #7a7a7a; /* Muted text */
+  --muted2: #7a7a7a; /* Secondary muted */
+  --accent: var(--red); /* Primary accent (buttons, active states) */
+  --accentText: var(--white); /* Text on red buttons */
+  --accent-secondary: var(--red); /* Secondary accent */
+  --red-z: var(--red); /* Red Z in LazyCook */
+  --error: var(--red); /* Error color */
+  --success: #4a9e4a; /* Success color (green) */
+  
   /* Shared header height for perfect alignment */
   --lc-header-height: 60px;
   
@@ -47,7 +63,7 @@ select {
 
 /* Red Z styling for LazyCook */
 .lc-red-z {
-  color: var(--red-z);
+  color: var(--red);
   font-weight: var(--fw-semibold);
 }
 
@@ -55,7 +71,7 @@ select {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(1200px 600px at 50% 0%, rgba(74, 158, 255, 0.12), transparent 55%), var(--bg);
+  background: var(--bg);
   color: var(--text);
   padding: 24px;
 }
@@ -63,11 +79,11 @@ select {
 .lc-login-card {
   width: 100%;
   max-width: 420px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--border);
+  background: var(--white);
+  border: 1px solid var(--border-light);
   border-radius: 18px;
   padding: 18px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
 .lc-brand {
@@ -79,13 +95,8 @@ select {
 .lc-logo {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
-  background: rgba(74, 158, 255, 0.2);
-  border: 1px solid var(--border);
-  display: grid;
-  place-items: center;
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.5px;
+  object-fit: contain;
+  display: block;
 }
 .lc-title {
   font-size: 18px;
@@ -106,32 +117,36 @@ select {
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-light);
+  background: var(--white);
   color: var(--text);
   font-family: var(--font-ui);
   outline: none;
 }
 .lc-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.3);
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px var(--red-subtle);
 }
 
 .lc-primary {
   border: 0;
   border-radius: 12px;
   padding: 10px 12px;
-  background: var(--accent);
-  color: white; /* Ensure white color for arrow visibility */
+  background: var(--red);
+  color: var(--white);
   font-weight: var(--fw-medium);
   cursor: pointer;
+  transition: background 0.2s;
+}
+.lc-primary:hover:not(:disabled) {
+  background: var(--red-hover);
 }
 .lc-primary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 .lc-ghost {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 10px 12px;
   background: transparent;
@@ -139,8 +154,8 @@ select {
   cursor: pointer;
 }
 .lc-iconbtn {
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-light);
+  background: var(--beige-soft);
   color: var(--text);
   border-radius: 12px;
   padding: 10px 12px;
@@ -151,9 +166,9 @@ select {
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 107, 107, 0.5);
-  background: rgba(255, 107, 107, 0.18);
-  color: var(--error);
+  border: 1px solid var(--red);
+  background: var(--red-subtle);
+  color: var(--red);
   font-size: 13px;
 }
 .lc-error-inline {
@@ -165,8 +180,8 @@ select {
   color: var(--muted);
 }
 .lc-hint code {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid var(--border);
+  background: var(--beige-soft);
+  border: 1px solid var(--border-light);
   padding: 2px 6px;
   border-radius: 8px;
 }
@@ -218,10 +233,10 @@ select {
 }
 
 .lc-logo-icon {
-  font-size: 18px;
-  font-weight: var(--fw-semibold);
-  color: var(--text);
-  letter-spacing: 0.5px;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
 }
 
 .lc-sidebar-toggle {
@@ -239,7 +254,7 @@ select {
 }
 
 .lc-sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--beige-soft);
 }
 
 /* Mobile close button (sidebar header) */
@@ -266,7 +281,7 @@ select {
 }
 
 .lc-sidebar-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--beige-soft);
 }
 
 /* Navigation Buttons */
@@ -296,7 +311,7 @@ select {
 }
 
 .lc-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--beige-soft);
 }
 
 .lc-nav-btn svg {
@@ -308,8 +323,8 @@ select {
 .lc-badge {
   margin-left: auto;
   padding: 2px 6px;
-  background: var(--accent);
-  color: white; /* Ensure white color for arrow visibility */
+  background: var(--red);
+  color: var(--white);
   border-radius: 10px;
   font-size: 10px;
   font-weight: 600;
@@ -326,16 +341,16 @@ select {
   width: 100%;
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-light);
+  background: var(--white);
   color: var(--text);
   font-size: 12px;
   outline: none;
 }
 
 .lc-search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.3);
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px var(--red-subtle);
 }
 
 .lc-search-input::placeholder {
@@ -384,10 +399,10 @@ select {
   transition: background 0.2s;
 }
 .lc-chatitem:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
 }
 .lc-chatitem.is-active {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--beige-soft);
 }
 
 .lc-chatitem.is-active .lc-chatitem-title {
@@ -424,14 +439,14 @@ select {
 }
 
 .lc-userline:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
 }
 
 .lc-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--red);
   color: white; /* Ensure white color for arrow visibility */
   display: flex;
   align-items: center;
@@ -473,11 +488,11 @@ select {
   bottom: calc(100% + 8px);
   left: 12px;
   right: 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--white);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   z-index: 1000;
   min-width: 240px;
 }
@@ -494,7 +509,7 @@ select {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--red);
   color: white; /* Ensure white color for arrow visibility */
   display: flex;
   align-items: center;
@@ -553,7 +568,7 @@ select {
 }
 
 .lc-user-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
 }
 
 .lc-user-menu-item svg:first-child {
@@ -613,24 +628,36 @@ select {
   padding: 6px 12px;
   border-radius: 8px;
   transition: background 0.2s;
+  position: relative; /* Required for dropdown positioning */
+  font-weight: var(--fw-semibold);
+}
+
+.lc-logo-text {
+  height: 2.8125rem; /* 45px / 16px = 2.8125rem */
+  object-fit: contain;
+  display: block;
+  cursor: pointer;
+  padding: 0.375rem 0.75rem; /* 6px 12px */
+  border-radius: 0.5rem; /* 8px */
+  transition: background 0.2s;
   position: relative;
   font-weight: var(--fw-semibold);
 }
 
 .lc-topbar-model:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
 }
 
 .lc-model-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--white);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 4px;
   min-width: 160px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -651,12 +678,12 @@ select {
 }
 
 .lc-model-option:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
 }
 
 .lc-model-option.is-active {
-  background: rgba(74, 158, 255, 0.15);
-  color: var(--accent);
+  background: var(--red-subtle);
+  color: var(--red);
 }
 
 .lc-model-option:disabled {
@@ -665,7 +692,7 @@ select {
 }
 
 .lc-topbar-model .lc-red-z {
-  color: var(--red-z);
+  color: var(--red);
 }
 
 .lc-model-version {
@@ -760,10 +787,10 @@ select {
   top: calc(100% + 8px);
   right: 0;
   min-width: 180px;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--white);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   padding: 4px;
   z-index: 1000;
   animation: fadeIn 0.15s ease-out;
@@ -788,12 +815,12 @@ select {
 }
 
 .lc-topbar-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
 }
 
 .lc-topbar-menu-item:focus {
-  background: rgba(255, 255, 255, 0.08);
-  outline: 2px solid var(--accent);
+  background: var(--beige-soft);
+  outline: 2px solid var(--red);
   outline-offset: -2px;
 }
 
@@ -842,9 +869,9 @@ select {
 }
 
 .lc-select {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--white);
   color: var(--text);
   padding: 8px 10px;
 }
@@ -852,8 +879,8 @@ select {
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-light);
+  background: var(--beige-soft);
   color: var(--muted);
 }
 
@@ -905,19 +932,22 @@ select {
 .lc-scroll-to-bottom {
   position: fixed;
   bottom: 92px; /* 88-96px range: slightly above input box */
-  left: 50%; /* Center horizontally */
+  left: calc(260px + (100vw - 260px) / 2); /* Center in main content area: sidebar width + half of remaining viewport */
   transform: translateX(-50%) translateY(4px); /* Center and subtle upward position when hidden */
-  width: auto; /* Auto width for arrow */
-  height: auto;
-  padding: 8px; /* Touch-friendly hit area */
-  background: transparent;
+  width: 40px; /* Fixed circular button size */
+  height: 40px;
+  padding: 0; /* No padding needed for fixed size */
+  margin: 0; /* Remove any margins */
+  background: var(--black-soft);
   border: none;
-  color: var(--text);
+  border-radius: 50%;
+  color: var(--white);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 20;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   
   /* Hidden by default */
   opacity: 0;
@@ -927,7 +957,9 @@ select {
   /* Smooth fade in/out animation */
   transition: opacity 140ms ease-out, 
               visibility 140ms ease-out,
-              transform 140ms ease-out;
+              transform 140ms ease-out,
+              background 0.2s ease,
+              box-shadow 0.2s ease;
 }
 
 /* Visible state - fade in with subtle upward motion */
@@ -938,25 +970,30 @@ select {
   transform: translateX(-50%) translateY(0); /* Center and no vertical offset when visible */
 }
 
+.lc-scroll-to-bottom.is-visible:active {
+  transform: translateX(-50%) translateY(1px); /* Maintain centering on active */
+}
+
 .lc-scroll-to-bottom:hover {
-  color: var(--accent);
+  background: var(--black);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .lc-scroll-to-bottom:active {
-  color: var(--accent);
-  transform: translateY(1px);
+  transform: translateX(-50%) translateY(1px); /* Maintain centering on active */
 }
 
 .lc-scroll-to-bottom:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--red);
   outline-offset: 4px;
-  border-radius: 4px;
+  border-radius: 50%;
 }
 
 .lc-scroll-to-bottom svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: block;
+  stroke-width: 2;
 }
 
 .lc-empty {
@@ -1040,19 +1077,15 @@ select {
 .lc-msg.is-user .lc-msg-inner {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: linear-gradient(
-    180deg,
-    rgba(90, 168, 255, 0.25),
-    rgba(90, 168, 255, 0.12)
-  );
-  border: 1px solid rgba(90, 168, 255, 0.45);
+  background: var(--red-subtle);
+  border: 1px solid var(--border-light);
   border-radius: 16px;
   padding: 10px 14px; /* Exact padding */
   max-width: 85%; /* Never allow full width */
   width: fit-content;
   font-size: 14.5px; /* Match assistant text */
   line-height: 1.6;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
 /* Assistant messages: Full readable width, plain text */
@@ -1060,6 +1093,10 @@ select {
   max-width: 100%;
   overflow-wrap: break-word;
   box-sizing: border-box;
+  background: var(--white);
+  border-radius: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-light);
 }
 .lc-msg-role {
   font-size: 11px; /* Exact size */
@@ -1134,7 +1171,7 @@ select {
   gap: 6px; /* Exact gap */
   margin-top: 10px; /* Exact spacing */
   padding-top: 6px; /* Exact padding */
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--border-light);
 }
 
 .lc-msg-action-btn {
@@ -1146,7 +1183,7 @@ select {
   padding: 0;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s ease;
@@ -1154,13 +1191,13 @@ select {
 }
 
 .lc-msg-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--beige-soft);
+  color: var(--text);
 }
 
 .lc-msg-action-btn.is-active {
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.95);
+  background: var(--red-subtle);
+  color: var(--red);
 }
 
 .lc-msg-action-btn svg {
@@ -1822,23 +1859,23 @@ code,
 }
 
 .lc-code-block-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--border-medium);
   border-radius: 3px;
 }
 
 .lc-code-block-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--black-soft);
 }
 
 .lc-msg-content .lc-md-code-inline {
   padding: 0.2em 0.4em;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid var(--border);
+  background: var(--beige-soft);
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 13.5px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text);
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-all; /* Break long inline code */
@@ -2287,7 +2324,7 @@ code,
 }
 
 .lc-composer-mic:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--beige-soft);
   color: var(--text);
 }
 
@@ -2319,8 +2356,8 @@ code,
   max-height: 200px;
   padding: 12px 52px 12px 16px;
   border-radius: 24px;
-  border: 1px solid var(--border);
-  background: var(--panel);
+  border: 1px solid var(--border-light);
+  background: var(--white);
   color: var(--text);
   font-family: var(--font-ui);
   font-size: 15px;
@@ -2347,8 +2384,8 @@ code,
 }
 
 .lc-textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px var(--red-subtle);
 }
 
 .lc-textarea::placeholder {
@@ -2365,9 +2402,9 @@ code,
   align-items: center;
   justify-content: center;
 
-  background: #1f2937;
-  color: #e5e7eb;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--red);
+  color: var(--white);
+  border: 1px solid var(--red);
 
   cursor: pointer;
   transition: background-color 0.2s ease,
@@ -2388,11 +2425,9 @@ code,
 
 /* Hover - subtle premium glow */
 .lc-composer-send:hover:not(:disabled) {
-  background: #111827;
-  color: #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.4);
+  background: var(--red-hover);
+  color: var(--white);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
 /* Active - tiny press feedback */
@@ -2402,17 +2437,17 @@ code,
 
 /* Disabled - ChatGPT exact behavior */
 .lc-composer-send:disabled {
-  background: #0f172a;
-  color: rgba(255, 255, 255, 0.35);
-  border-color: rgba(255, 255, 255, 0.04);
+  background: var(--beige-soft);
+  color: var(--muted);
+  border-color: var(--border-light);
   cursor: not-allowed;
   box-shadow: none;
 }
 
-/* Optional: Blue accent on hover */
+/* Optional: Red accent on hover */
 .lc-composer-send:hover:not(:disabled) svg,
 .lc-composer-send:hover:not(:disabled) .lc-loading-spinner {
-  color: #60a5fa; /* subtle AI blue */
+  color: var(--white);
 }
 
 .lc-composer-send svg {
@@ -2427,7 +2462,7 @@ code,
 
 .lc-loading-spinner {
   animation: spin 1s linear infinite;
-  color: #e5e7eb; /* Match button color */
+  color: var(--white);
 }
 
 @keyframes spin {
@@ -2586,7 +2621,7 @@ code,
     z-index: 999;
     width: 280px;
     height: 100vh;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
   }
   
   .lc-sidebar.is-open {
@@ -2598,7 +2633,7 @@ code,
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.2);
     z-index: 998;
     animation: fadeIn 0.2s ease;
     backdrop-filter: blur(2px);
@@ -3018,9 +3053,18 @@ code,
   
   .lc-scroll-to-bottom {
     bottom: 85px; /* Adjust for mobile */
-    right: 12px; /* Closer to edge on mobile */
+    left: 50%; /* Center horizontally on mobile */
+    transform: translateX(-50%) translateY(4px); /* Center and subtle upward position when hidden */
     width: 36px;
     height: 36px;
+  }
+  
+  .lc-scroll-to-bottom.is-visible {
+    transform: translateX(-50%) translateY(0); /* Center and no vertical offset when visible */
+  }
+  
+  .lc-scroll-to-bottom:active {
+    transform: translateX(-50%) translateY(1px); /* Maintain centering on active */
   }
   
   .lc-scroll-to-bottom svg {
