@@ -2172,7 +2172,8 @@ class AutonomousMultiAgentAssistant:
         context = self.file_manager.get_conversation_context(user_id)  # ✅ No hardcoded limit!
 
         # Debug: Print context being used (remove in production)
-        print(f"DEBUG: Using context with {len(context.split())} words")
+        # Safe debug print - commented out to avoid I/O errors in worker threads
+        # print(f"DEBUG: Using context with {len(context.split())} words")
 
         multi_agent_session = await self.multi_agent_system.process_query(
             message,

@@ -1,5 +1,61 @@
 [
   {
+    "id": "go@lazycook.ai_1766404931_task_1",
+    "conversation_id": "go@lazycook.ai_1766404931",
+    "task_type": "research",
+    "description": "Explain best practices for: Generating Code: I can generate Python snippets fo",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-22T17:32:11.391961",
+    "scheduled_for": "2025-12-22T17:37:11.391972",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766404931_task_0",
+    "conversation_id": "go@lazycook.ai_1766404931",
+    "task_type": "research",
+    "description": "Find Python code examples related to: Generating Code: I can generate Python snippets fo",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-22T17:32:11.343178",
+    "scheduled_for": "2025-12-22T17:34:11.343193",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766404802_task_1",
+    "conversation_id": "go@lazycook.ai_1766404802",
+    "task_type": "research",
+    "description": "Explain best practices for: Generating Code",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-22T17:30:02.977018",
+    "scheduled_for": "2025-12-22T17:35:02.977028",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
+    "id": "go@lazycook.ai_1766404802_task_0",
+    "conversation_id": "go@lazycook.ai_1766404802",
+    "task_type": "research",
+    "description": "Find Python code examples related to: Generating Code",
+    "priority": 2,
+    "status": "pending",
+    "created_at": "2025-12-22T17:30:02.970518",
+    "scheduled_for": "2025-12-22T17:32:02.970540",
+    "result": null,
+    "metadata": {
+      "user_id": "go@lazycook.ai"
+    }
+  },
+  {
     "id": "go@lazycook.ai_1766243928_task_1",
     "conversation_id": "go@lazycook.ai_1766243928",
     "task_type": "research",
