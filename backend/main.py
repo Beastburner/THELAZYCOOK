@@ -15,8 +15,8 @@ from plans import FUNCTIONS, allowed_function_for_plan, normalize_requested_func
 load_dotenv()
 
 # IMPORTANT:
-# `lazycook_caller.py` already implements the full AI logic. We only ROUTE to it.
-# DO NOT MODIFY `lazycook_caller.py`.
+# `baby_final.py` implements the full AI logic with plan-based routing.
+# It uses lazy imports to only load the needed module based on plan selection.
 # We import it lazily inside the request handler so the API can still boot even if
 # the AI module's optional dependencies aren't installed yet.
 
@@ -74,29 +74,38 @@ def ai_run(
     x_user_id: Optional[str] = Header(default=None, alias="X-User-ID"),
 ) -> Any:
     try:
-        lazycook_caller = importlib.import_module("lazycook_caller")
+        baby_final = importlib.import_module("baby_final")
     except ModuleNotFoundError as e:
         raise HTTPException(status_code=500, detail=f"AI module import failed: {e}") from e
 
-    # Strict plan -> function routing
-    allowed_fn_name = allowed_function_for_plan(user["plan"])  # gemini | grok | mixed
-
+    # Get user's plan and validate
+    user_plan = user.get("plan", "GO").upper().strip()
+    
     # If client provides a model, validate it strictly (no frontend choosing higher tiers)
     if payload.model is not None:
         requested = normalize_requested_function(payload.model)
         if requested not in FUNCTIONS:
             raise HTTPException(status_code=400, detail="Invalid model")
+        # Check if requested model matches the plan's allowed model
+        allowed_fn_name = allowed_function_for_plan(user_plan)
         if requested != allowed_fn_name:
             raise HTTPException(status_code=403, detail="Upgrade plan to access this AI")
 
-    fn = getattr(lazycook_caller, allowed_fn_name, None)
-    if not callable(fn):
-        raise HTTPException(status_code=500, detail=f"AI function not available: {allowed_fn_name}()")
-
     user_id = (x_user_id or user["user_id"]).strip() or user["user_id"]
 
-    # Route to the existing AI implementation. Pass user_id as required.
-    result = fn(payload.prompt, user_id=user_id)
+    # Route to the plan-based AI implementation using the main entry function
+    try:
+        result = baby_final.run_assistant_by_plan(
+            plan=user_plan,
+            prompt=payload.prompt,
+            user_id=user_id,
+            conversation_limit=70,
+            document_limit=2
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI processing failed: {str(e)}") from e
 
     # AWS-ready integration points (NOT IMPLEMENTED YET):
     # - Store conversation history (user prompt + assistant response)

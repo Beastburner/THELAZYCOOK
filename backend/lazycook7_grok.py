@@ -949,10 +949,24 @@ class AIAgent:
         self.temperature = temperature
         self.max_tokens =4000
 
+    file_path = "generate_instruct.txt"
+
+    try:
+        with open(file_path, "r") as f:
+            instruct = f.read()
+
+    except FileNotFoundError:
+        # File does not exist → create it
+        with open(file_path, "w") as f:
+            f.write("")  # you can put default instructions here
+
+        # Now read it
+        with open(file_path, "r") as f:
+            instruct = f.read()
     @log_errors
-    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None) -> AgentResponse:
+    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None, instruct: str) -> AgentResponse:
         if self.role == AgentRole.GENERATOR:
-            return await self._generate_solution(user_query, context)
+            return await self._generate_solution(user_query, context,instruct)
         elif self.role == AgentRole.ANALYZER:
             return await self._analyze_solution(user_query, context, previous_iteration)
         elif self.role == AgentRole.OPTIMIZER:
@@ -960,8 +974,10 @@ class AIAgent:
         elif self.role == AgentRole.VALIDATOR:
             return await self._validate_solution(user_query, context, previous_iteration)
 
+
+
     @log_errors
-    async def _generate_solution(self, user_query: str, context: str) -> AgentResponse:
+    async def _generate_solution(self, user_query: str, context: str,instruct: str) -> AgentResponse:
         prompt = f"""
         Role: Solution Generator Agent
         Task: Provide a comprehensive initial solution to the user's query using conversation history.
@@ -974,18 +990,8 @@ class AIAgent:
 
         👤 USER QUERY: {user_query}
 
-        Instructions:
-        1. FIRST: Review the conversation history above to understand what was previously discussed
-        2. If the current query refers to something mentioned before (like "another way" or "indian style"), connect it to the previous topic
-        3. Provide a detailed response that builds on the conversation history
-        4. Reference specific points from previous exchanges when relevant
-        5. Provide a detailed, well-structured response that naturally incorporates relevant context
-        6. Reference specific points from the context when relevant
-        7. Make the response feel complete and self-contained
-        8. Include practical examples where relevant
-        9. Consider multiple approaches if applicable
-        10. Be thorough but clear
-        11. Rate your confidence in this solution (0-1)
+        Instructions: {instruct}
+        
         """
         try:
             response = self.client.chat.completions.create(

@@ -889,6 +889,10 @@ export default function App() {
     }
 
     try {
+      // Create AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+      
       const res = await fetch(`${API_BASE}/ai/run`, {
         method: "POST",
         headers: {
@@ -897,18 +901,24 @@ export default function App() {
           "X-User-ID": email || "anon",
         },
         body: JSON.stringify({ prompt: text, model }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
+      // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
+      // All models (GO, PRO, ULTRA) now return data.response with unified content
       let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
-      // Ensure content is always a string (handle case where response is an object)
+      // Ensure content is always a string
       content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      // Enhance content with emojis for better engagement
-      content = enhanceWithEmojis(content);
       
       // Extract confidence score from API response
-      const confidenceScore = data.quality_score || data.quality_metrics?.combined || undefined;
+      const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
+      
+      // Enhance content with emojis for better engagement
+      content = enhanceWithEmojis(content);
       
       updateChatMessages(chatId, (m) => {
         const next = [...m];
@@ -929,13 +939,23 @@ export default function App() {
         })
       );
     } catch (e) {
+      const errorMessage = (e as Error).message;
+      const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout');
+      
       updateChatMessages(chatId, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMsg.id);
-        if (idx >= 0) next[idx] = { ...next[idx], content: `Error: ${(e as Error).message}` };
+        if (idx >= 0) {
+          next[idx] = { 
+            ...next[idx], 
+            content: isTimeout 
+              ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection." 
+              : `Error: ${errorMessage}` 
+          };
+        }
         return next;
       });
-      setError((e as Error).message);
+      setError(isTimeout ? "Request timed out. Please try again." : errorMessage);
     } finally {
       setLoading(false);
     }
@@ -986,14 +1006,17 @@ export default function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
+      // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
+      // All models (GO, PRO, ULTRA) now return data.response with unified content
       let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
-      // Ensure content is always a string (handle case where response is an object)
+      // Ensure content is always a string
       content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      // Enhance content with emojis for better engagement
-      content = enhanceWithEmojis(content);
       
       // Extract confidence score from API response
-      const confidenceScore = data.quality_score || data.quality_metrics?.combined || undefined;
+      const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
+      
+      // Enhance content with emojis for better engagement
+      content = enhanceWithEmojis(content);
       
       // Update the assistant message with new content
       updateChatMessages(activeChat.id, (m) => {
