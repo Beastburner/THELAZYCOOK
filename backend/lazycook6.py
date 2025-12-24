@@ -333,11 +333,11 @@ class AnimatedProgressBar(ProgressBar):
 
 # --- File Manager ---
 class TextFileManager:
-    def __init__(self, data_dir: str = "multi_agent_data", conversation_limit: int = 70):
+    def __init__(self, data_dir: str = "multi_agent_data", conversation_limit: int = 70,document_limit: int = 2):
         self.conversation_limit = conversation_limit
         self.data_dir = Path(data_dir)
         self.file_lock = Lock()
-
+        self.document_limit = document_limit
         # FIX 1: Initialize missing cached_context
         self._cached_context = {}
         self._context_cache_time = {}
@@ -411,7 +411,8 @@ class TextFileManager:
                 context_parts.append(f"[Topics: {', '.join(conv.topics)}]")
 
         # Add document context
-        docs_context = self.get_documents_context(user_id, 50, full_content=True)
+        docs_context = self.get_documents_context(user_id, self.document_limit,
+                                                  full_content=False)
         if docs_context:
             context_parts.append(f"\n--- 📄 RELEVANT DOCUMENTS ---")
             context_parts.append(docs_context)
@@ -551,8 +552,7 @@ class TextFileManager:
 
     @log_errors
     def get_recent_conversations(self, user_id: str, limit: int = None) -> List[Conversation]:
-        if limit is None:
-            limit = getattr(self, 'conversation_limit', 70)
+        limit = self._get_effective_limit(limit)
         conversations_data = self._read_json_file(self.conversations_file)
         user_conversations = [c for c in conversations_data if c.get('user_id') == user_id]
         user_conversations.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -969,8 +969,9 @@ class AIAgent:
         Role: Solution Generator Agent
         Task: Provide a comprehensive initial solution to the user's query using conversation history.
 
-        IMPORTANT: Read the context carefully and refer to previous conversations to understand what the user is asking about.
-                   Your name is LAZYCOOK an AI that is specially designed to minimize user interaction by performing 4 tasks alltogether(genrating->analyzing->optimizing->validating) so that user has to do the least work.
+        IMPORTANT: -Read the context carefully and refer to previous conversations to understand what the user is asking about.
+                   
+                   -THIS INFORMATIONS SHOULD BE PROVIDED ONLY IF YOU ARE ASKED :Your name is LAZYCOOK an AI that is specially designed to minimize user interaction by performing 4 tasks alltogether(genrating->analyzing->optimizing->validating) so that user has to do the least work.
 
         📜 CONTEXT:
         {context}
@@ -979,6 +980,8 @@ class AIAgent:
 
         Instructions:
         1. FIRST: Review the conversation history above to understand what was previously discussed
+        -You dont have to always write Acknowledged before giving any output.
+        -If you are given any name of the user from the context do include in the answer for manking it sound more friendly.
         2. If the current query refers to something mentioned before (like "another way" or "indian style"), connect it to the previous topic
         3. Provide a detailed response that builds on the conversation history
         4. Reference specific points from previous exchanges when relevant
@@ -1910,7 +1913,7 @@ class AutonomousMultiAgentAssistant:
 
     def get_cached_context(self, user_id: str) -> str:
         # Always get fresh context to include latest session conversations
-        return self.file_manager.get_conversation_context(user_id, 70)
+        return self.file_manager.get_conversation_context(user_id)
 
     def clear_cached_context(self, user_id: str):
         """Clear cached context for a user"""
@@ -1923,7 +1926,7 @@ class AutonomousMultiAgentAssistant:
             self.clear_cached_context(user_id)
 
         # Always get fresh context instead of cached for session conversations
-        context = self.file_manager.get_conversation_context(user_id, 70)
+        context = self.file_manager.get_conversation_context(user_id)
 
         # Debug: Print context being used (remove in production)
         # Safe debug print - commented out to avoid I/O errors in worker threads
@@ -2032,7 +2035,7 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     def get_user_insights(self, user_id: str) -> Dict[str, Any]:
-        conversations = self.file_manager.get_recent_conversations(user_id, 70)
+        conversations = self.file_manager.get_recent_conversations(user_id)
         if not conversations:
             return {"message": "No conversation history found"}
 
@@ -4075,16 +4078,17 @@ class RichMultiAgentCLI:
 class MultiAgentAssistantConfig:
     """Configuration class for external usage of the Multi-Agent Assistant"""
 
-    def __init__(self, api_key: str, conversation_limit: int = 70):
+    def __init__(self, api_key: str, conversation_limit: int=None,document_limit: int = 2):
         self.api_key = api_key
         self.conversation_limit = conversation_limit
-
+        self.document_limit = document_limit
     def create_assistant(self):
         """Create assistant with properly configured file manager"""
         assistant = AutonomousMultiAgentAssistant(self.api_key)
         # Replace the file manager with configured one
         assistant.file_manager = TextFileManager(
-            conversation_limit=self.conversation_limit
+            conversation_limit=self.conversation_limit,
+            document_limit = self.document_limit
         )
         return assistant
 
@@ -4093,7 +4097,8 @@ class MultiAgentAssistantConfig:
         cli = RichMultiAgentCLI(self.api_key)
         # Replace the file manager in the assistant
         cli.assistant.file_manager = TextFileManager(
-            conversation_limit=self.conversation_limit
+            conversation_limit=self.conversation_limit,
+            document_limit = self.document_limit
         )
         return cli
 
@@ -4141,9 +4146,9 @@ def main():
         console.print(traceback.format_exc())
 
 
-def create_assistant(api_key: str, conversation_limit: int = 70):
+def create_assistant(api_key: str, conversation_limit: int ,document_limit: int):
     """Factory function to create a configured assistant for external use"""
-    return MultiAgentAssistantConfig(api_key, conversation_limit)
+    return MultiAgentAssistantConfig(api_key, conversation_limit,document_limit)
 
 if __name__ == "__main__":
     main()

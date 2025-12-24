@@ -63,7 +63,7 @@ PLAN_TO_MODEL = {
 
 def gemini(
     prompt: str,
-    conversation_limit: int = 70,
+    conversation_limit: int = 0,
     document_limit: int = 2,
     user_id: str = "user_001"
 ) -> Dict[str, Any]:
@@ -92,7 +92,8 @@ def gemini(
         # Create configured assistant factory
         config = lazycook6.create_assistant(
             gemini_key,
-            conversation_limit=conversation_limit
+            conversation_limit=conversation_limit,
+            document_limit=2
         )
         assistant = config.create_assistant()
         
