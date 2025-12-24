@@ -1,0 +1,23 @@
+1. Review the conversation history to understand the full context
+                    2. Check if the solution properly addresses the user's query in context of previous conversations
+                    3. Identify factual errors or inaccuracies
+                    4. Find logical inconsistencies
+                    5. Spot missing information or gaps
+                    6. Check if the solution maintains conversational continuity
+                    7. Verify if previous relevant information was properly considered
+                    8. Suggest areas for improvement
+                    9. Rate the overall quality (0-1)
+                    10. Be thorough but constructive
+
+        Format your response as JSON:
+        {
+            "analysis": "Your detailed analysis",
+            "errors_found": ["error1", "error2"],
+            "gaps_identified": ["gap1", "gap2"],
+            "improvements_needed": ["improvement1", "improvement2"],
+            "quality_score": 0.75,
+            "strengths": ["strength1", "strength2"],
+            "recommendations": ["rec1", "rec2"],
+            "context_adherence": 0.8,
+            "continuity_score": 0.7
+        }

@@ -952,6 +952,95 @@ class AIAgent:
             }
         )
 
+        self.prompts_dir = Path("prompts")
+        self.prompts_dir.mkdir(exist_ok=True)
+        self._create_default_instructions()
+
+
+    def _create_default_instructions(self):
+        """Create default instruction files if they don't exist"""
+        defaults = {
+            'generator_instructions.txt': """1. FIRST: Review the conversation history above to understand what was previously discussed
+            2. If the current query refers to something mentioned before (like "another way" or "indian style"), connect it to the previous topic
+            3. Provide a detailed response that builds on the conversation history
+            4. Reference specific points from previous exchanges when relevant
+            5. Provide a detailed, well-structured response that naturally incorporates relevant context
+            6. Reference specific points from the context when relevant
+            7. Make the response feel complete and self-contained
+            8. Include practical examples where relevant
+            9. Consider multiple approaches if applicable
+            10. Be thorough but clear
+            11. Rate your confidence in this solution (0-1)""",
+
+        'analyzer_instructions.txt': """1. Review the conversation history to understand the full context
+                    2. Check if the solution properly addresses the user's query in context of previous conversations
+                    3. Identify factual errors or inaccuracies
+                    4. Find logical inconsistencies
+                    5. Spot missing information or gaps
+                    6. Check if the solution maintains conversational continuity
+                    7. Verify if previous relevant information was properly considered
+                    8. Suggest areas for improvement
+                    9. Rate the overall quality (0-1)
+                    10. Be thorough but constructive
+
+        Format your response as JSON:
+        {
+            "analysis": "Your detailed analysis",
+            "errors_found": ["error1", "error2"],
+            "gaps_identified": ["gap1", "gap2"],
+            "improvements_needed": ["improvement1", "improvement2"],
+            "quality_score": 0.75,
+            "strengths": ["strength1", "strength2"],
+            "recommendations": ["rec1", "rec2"],
+            "context_adherence": 0.8,
+            "continuity_score": 0.7
+        }""",
+
+        'optimizer_instructions.txt': """1. Review the conversation history to maintain context and continuity
+        2. Fix all identified errors
+        3. Address the gaps and improvements
+        4. Enhance clarity and completeness
+        5. Provide a significantly improved solution
+        6. Reference specific improvements made
+
+        Format your response as JSON:
+    {
+        "optimized_solution": "Your improved solution here",
+        "changes_made": ["change1", "change2"],
+        "errors_fixed": ["fix1", "fix2"],
+        "enhancements": ["enhancement1", "enhancement2"],
+        "confidence": 0.95,
+        "context_integration": "How previous conversations were integrated"
+    }
+
+        """,
+
+        'validator_instructions.txt': """1. Check for factual accuracy
+        2. Ensure the solution fully addresses the user query
+        3. Verify all claims can be supported by the context
+        4. Check for logical consistency
+        5. Rate confidence (0-1)
+        6. Provide specific validation feedback"""
+    }
+
+        for filename, content in defaults.items():
+            filepath = self.prompts_dir / filename
+            if not filepath.exists():
+                filepath.write_text(content.strip(), encoding='utf-8')
+
+
+    def _load_instructions(self, instruction_file: str) -> str:
+        """Load instructions from file, with fallback"""
+        try:
+            filepath = self.prompts_dir / instruction_file
+            if filepath.exists():
+                return filepath.read_text(encoding='utf-8').strip()
+        except Exception as e:
+            logger.error(f"Error loading {instruction_file}: {e}")
+
+    # Return empty string as fallback (prompt will still work)
+        return ""
+
     @log_errors
     async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None) -> AgentResponse:
         if self.role == AgentRole.GENERATOR:
@@ -965,6 +1054,7 @@ class AIAgent:
 
     @log_errors
     async def _generate_solution(self, user_query: str, context: str) -> AgentResponse:
+        instruct=self._load_instructions('generator_instructions.txt')
         prompt = f"""
         Role: Solution Generator Agent
         Task: Provide a comprehensive initial solution to the user's query using conversation history.
@@ -979,19 +1069,7 @@ class AIAgent:
         👤 USER QUERY: {user_query}
 
         Instructions:
-        1. FIRST: Review the conversation history above to understand what was previously discussed
-        -You dont have to always write Acknowledged before giving any output.
-        -If you are given any name of the user from the context do include in the answer for manking it sound more friendly.
-        2. If the current query refers to something mentioned before (like "another way" or "indian style"), connect it to the previous topic
-        3. Provide a detailed response that builds on the conversation history
-        4. Reference specific points from previous exchanges when relevant
-        5. Provide a detailed, well-structured response that naturally incorporates relevant context
-        6. Reference specific points from the context when relevant
-        7. Make the response feel complete and self-contained
-        8. Include practical examples where relevant
-        9. Consider multiple approaches if applicable
-        10. Be thorough but clear
-        11. Rate your confidence in this solution (0-1)
+        {instruct}
         """
         try:
             response = await self.model.generate_content_async(prompt)
@@ -1022,7 +1100,7 @@ class AIAgent:
     async def _analyze_solution(self, user_query: str, context: str, previous_iteration: Dict) -> AgentResponse:
         generator_response = previous_iteration.get("generator_response", {})
         solution = generator_response.get("content", "")
-
+        instruct = self._load_instructions('analyzer_instructions.txt')
         # Simple heuristic checks instead of LLM judgment
         word_count = len(solution.split())
         has_structure = '\n' in solution
@@ -1055,29 +1133,7 @@ class AIAgent:
                 {solution}
 
                 Instructions:
-                1. Review the conversation history to understand the full context
-                2. Check if the solution properly addresses the user's query in context of previous conversations
-                3. Identify factual errors or inaccuracies
-                4. Find logical inconsistencies
-                5. Spot missing information or gaps
-                6. Check if the solution maintains conversational continuity
-                7. Verify if previous relevant information was properly considered
-                8. Suggest areas for improvement
-                9. Rate the overall quality (0-1)
-                10. Be thorough but constructive
-
-                Format your response as JSON:
-                {{
-                    "analysis": "Your detailed analysis",
-                    "errors_found": ["error1", "error2"],
-                    "gaps_identified": ["gap1", "gap2"],
-                    "improvements_needed": ["improvement1", "improvement2"],
-                    "quality_score": 0.75,
-                    "strengths": ["strength1", "strength2"],
-                    "recommendations": ["rec1", "rec2"],
-                    "context_adherence": 0.8,
-                    "continuity_score": 0.7
-                }}
+                {instruct}
                 """
 
         try:
@@ -1129,7 +1185,7 @@ class AIAgent:
         analysis = analyzer_response.get("content", "")
         errors = analyzer_response.get("errors_found", [])
         improvements = analyzer_response.get("improvements", [])
-
+        instruct = self._load_instructions('optimizer_instructions.txt')
         prompt = f"""
         Role: Solution Optimizer Agent
         Task: Create an improved solution based on analysis feedback and conversation history.
@@ -1152,22 +1208,7 @@ class AIAgent:
         {improvements}
 
         Instructions:
-        1. Review the conversation history to maintain context and continuity
-        2. Fix all identified errors
-        3. Address the gaps and improvements
-        4. Enhance clarity and completeness
-        5. Provide a significantly improved solution
-        6. Reference specific improvements made
-
-        Format your response as JSON:
-        {{
-            "optimized_solution": "Your improved solution here",
-            "changes_made": ["change1", "change2"],
-            "errors_fixed": ["fix1", "fix2"],
-            "enhancements": ["enhancement1", "enhancement2"],
-            "confidence": 0.95,
-            "context_integration": "How previous conversations were integrated"
-        }}
+        {instruct}
         """
         try:
             response = await self.model.generate_content_async(prompt)
@@ -1200,7 +1241,7 @@ class AIAgent:
     async def _validate_solution(self, user_query: str, context: str, previous_iteration: Dict) -> AgentResponse:
         optimizer_response = previous_iteration.get("optimizer_response", {})
         solution = optimizer_response.get("content", "")
-
+        instruct = self._load_instructions('validator_instructions.txt')
         prompt = f"""
         Role: Validator Agent
         Task: Validate the final solution for accuracy and completeness.
@@ -1214,12 +1255,7 @@ class AIAgent:
         {solution}
 
         Instructions:
-        1. Check for factual accuracy
-        2. Ensure the solution fully addresses the user query
-        3. Verify all claims can be supported by the context
-        4. Check for logical consistency
-        5. Rate confidence (0-1)
-        6. Provide specific validation feedback
+        {instruct}
         """
         try:
             response = await self.model.generate_content_async(prompt)

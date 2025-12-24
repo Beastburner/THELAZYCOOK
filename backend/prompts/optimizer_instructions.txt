@@ -1,0 +1,16 @@
+1. Review the conversation history to maintain context and continuity
+        2. Fix all identified errors
+        3. Address the gaps and improvements
+        4. Enhance clarity and completeness
+        5. Provide a significantly improved solution
+        6. Reference specific improvements made
+
+        Format your response as JSON:
+    {
+        "optimized_solution": "Your improved solution here",
+        "changes_made": ["change1", "change2"],
+        "errors_fixed": ["fix1", "fix2"],
+        "enhancements": ["enhancement1", "enhancement2"],
+        "confidence": 0.95,
+        "context_integration": "How previous conversations were integrated"
+    }
