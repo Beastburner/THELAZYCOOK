@@ -589,6 +589,38 @@ select {
   margin-left: auto;
 }
 
+/* Toggle Switch for Highlight Feature */
+.lc-toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: var(--border-light);
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s ease;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.lc-toggle-switch.is-active {
+  background: var(--red);
+}
+
+.lc-toggle-slider {
+  width: 16px;
+  height: 16px;
+  background: var(--white);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.lc-toggle-switch.is-active .lc-toggle-slider {
+  transform: translateX(16px);
+}
+
 .lc-main {
   flex: 1;
   display: flex;
@@ -3203,6 +3235,628 @@ code,
   .lc-msg-action-btn:nth-child(n+5) {
     display: none;
   }
+}
+
+/* ─────────────────────────────
+   Highlight Feature Styles
+───────────────────────────── */
+
+/* Highlight Toolbar */
+.lc-highlight-toolbar {
+  position: fixed;
+  display: flex;
+  gap: 10px;
+  background: var(--white);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.lc-highlight-color-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.lc-highlight-color-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--border-medium);
+}
+
+.lc-highlight-color-btn:active {
+  transform: scale(0.95);
+}
+
+/* Highlight Color Variants */
+.lc-highlight-color-yellow {
+  background: rgba(255, 230, 150, 0.9);
+}
+
+.lc-highlight-color-blue {
+  background: rgba(160, 210, 255, 0.9);
+}
+
+.lc-highlight-color-green {
+  background: rgba(180, 240, 200, 0.9);
+}
+
+.lc-highlight-color-pink {
+  background: rgba(255, 200, 220, 0.9);
+}
+
+.lc-highlight-color-purple {
+  background: rgba(220, 190, 255, 0.9);
+}
+
+/* Remove Highlight Button */
+.lc-highlight-remove-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid var(--border-medium);
+  background: var(--white);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+}
+
+.lc-highlight-remove-btn:hover {
+  background: var(--red-subtle);
+  border-color: var(--red);
+  color: var(--red);
+  transform: scale(1.1);
+}
+
+.lc-highlight-remove-btn:active {
+  transform: scale(0.95);
+}
+
+.lc-highlight-remove-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Note Button in Toolbar */
+/* BIG note button */
+.lc-highlight-note-btn {
+  width: 44px;              /* ⬅ bigger */
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--beige-soft);
+  border: 1.5px solid var(--border-light);
+  color: var(--text);
+  cursor: pointer;
+  transition: 
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+  margin-left: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  position: relative;
+  order: -1; /* Push to front */
+}
+
+/* Bigger icon */
+.lc-highlight-note-btn svg {
+  width: 24px;   /* ⬅ bigger icon */
+  height: 24px;
+  stroke-width: 2.2;
+}
+
+/* Hover effect */
+.lc-highlight-note-btn:hover {
+  background: var(--red-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.08);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* Active / click */
+.lc-highlight-note-btn:active {
+  transform: scale(0.95);
+}
+
+/* Optional glow when active */
+.lc-highlight-note-btn.is-active {
+  background: var(--red);
+  color: white;
+  box-shadow: 0 0 0 3px rgba(230, 57, 47, 0.25);
+}
+
+/* Tooltip label */
+.lc-highlight-note-btn::after {
+  content: "Add note";
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--white);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+}
+
+.lc-highlight-note-btn:hover::after {
+  opacity: 1;
+}
+
+/* Subtle pulse animation */
+@keyframes pulseNote {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.lc-highlight-note-btn.pulse {
+  animation: pulseNote 1.2s ease-in-out infinite;
+}
+
+/* Help Modal */
+.lc-help-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+  padding: 20px;
+}
+
+.lc-help-modal {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lc-help-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.lc-help-modal-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.lc-help-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.lc-help-modal-close:hover {
+  background: var(--beige-soft);
+  color: var(--text);
+}
+
+.lc-help-modal-content {
+  padding: 24px;
+}
+
+.lc-help-section {
+  margin-bottom: 32px;
+}
+
+.lc-help-section:last-child {
+  margin-bottom: 0;
+}
+
+.lc-help-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 16px 0;
+}
+
+.lc-help-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step-counter;
+}
+
+.lc-help-steps li {
+  counter-increment: step-counter;
+  padding: 12px 0 12px 40px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.lc-help-steps li:last-child {
+  border-bottom: none;
+}
+
+.lc-help-steps li::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 0;
+  top: 12px;
+  width: 24px;
+  height: 24px;
+  background: var(--red);
+  color: var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lc-help-steps li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.lc-help-colors {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.lc-help-color-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc-help-color-demo {
+  width: 48px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid var(--border-light);
+}
+
+.lc-help-color-item span {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.lc-help-tips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lc-help-tips li {
+  padding: 10px 0 10px 24px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.lc-help-tips li:last-child {
+  border-bottom: none;
+}
+
+.lc-help-tips li::before {
+  content: "💡";
+  position: absolute;
+  left: 0;
+  top: 10px;
+}
+
+.lc-help-modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.lc-help-modal-button {
+  padding: 10px 24px;
+  background: var(--red);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lc-help-modal-button:hover {
+  background: var(--red-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(230, 57, 47, 0.3);
+}
+
+.lc-help-modal-button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .lc-help-modal {
+    max-width: 100%;
+    margin: 10px;
+    max-height: 95vh;
+  }
+
+  .lc-help-modal-header,
+  .lc-help-modal-content,
+  .lc-help-modal-footer {
+    padding: 20px;
+  }
+
+  .lc-help-colors {
+    gap: 12px;
+  }
+
+  .lc-help-color-demo {
+    width: 40px;
+    height: 28px;
+  }
+}
+
+/* Highlight Note Editor */
+.lc-highlight-note-editor {
+  position: fixed;
+  background: var(--white);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  z-index: 10001;
+  min-width: 280px;
+  max-width: 400px;
+  transform: translate(-50%, 0);
+}
+
+.lc-highlight-note-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.lc-highlight-note-icon {
+  font-size: 16px;
+}
+
+.lc-highlight-note-title {
+  flex: 1;
+}
+
+.lc-highlight-note-text {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: var(--beige-soft);
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+.lc-highlight-note-input {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+  margin-bottom: 10px;
+}
+
+.lc-highlight-note-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--red-subtle);
+}
+
+.lc-highlight-note-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lc-highlight-note-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lc-highlight-note-save {
+  background: var(--accent);
+  color: var(--accentText);
+}
+
+.lc-highlight-note-save:hover {
+  background: var(--red-hover);
+}
+
+.lc-highlight-note-delete {
+  background: var(--beige-soft);
+  color: var(--text);
+  border: 1px solid var(--border-light);
+}
+
+.lc-highlight-note-delete:hover {
+  background: var(--border-light);
+}
+
+.lc-highlight-note-hint {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Applied Highlights */
+.lc-highlight {
+  padding: 0 3px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.lc-highlight:hover {
+  opacity: 0.8;
+}
+
+/* Highlight with note - show tooltip on hover */
+.lc-highlight.has-note {
+  position: relative;
+}
+
+.lc-highlight.has-note::after {
+  content: attr(data-highlight-note);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: var(--text);
+  color: var(--white);
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  max-width: 300px;
+  word-wrap: break-word;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateX(-50%) translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.lc-highlight.has-note:hover::after {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Arrow for tooltip */
+.lc-highlight.has-note::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10001;
+}
+
+.lc-highlight.has-note:hover::before {
+  opacity: 1;
+}
+
+.lc-highlight-yellow {
+  background: rgba(255, 230, 150, 0.65);
+}
+
+.lc-highlight-blue {
+  background: rgba(160, 210, 255, 0.6);
+}
+
+.lc-highlight-green {
+  background: rgba(180, 240, 200, 0.6);
+}
+
+.lc-highlight-pink {
+  background: rgba(255, 200, 220, 0.6);
+}
+
+.lc-highlight-purple {
+  background: rgba(220, 190, 255, 0.6);
+}
+
+/* Ensure highlights don't break markdown rendering */
+.lc-msg-content .lc-highlight {
+  display: inline;
+  text-decoration: none;
+  word-break: normal;
+  white-space: normal;
+}
+
+.lc-msg-content mark.lc-highlight {
+  /* Don't override background-color - let the color classes work */
+  color: inherit;
 }
 
 /* Extra Small Mobile (320px - 480px) */

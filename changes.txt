@@ -1,0 +1,299 @@
+we can might apply this chanegs
+
+
+================================================================================
+CODE CHANGES MADE TODAY - EXACT CODE TO REAPPLY ()
+================================================================================
+Date: Today
+Total Files Modified: 4 files (3 backend, 1 frontend)
+
+================================================================================
+FILE 1: backend/lazycook6.py
+================================================================================
+
+--- CHANGE 1: Context Prioritization Fix ---
+Location: get_conversation_context() method (around line 378-401)
+
+REPLACE THIS CODE:
+        # Build fresh context
+        session_conversations = self.get_session_conversations(user_id, limit // 2)
+        historical_conversations = self.get_recent_conversations(user_id, limit // 2)
+
+        # Remove duplicates
+        historical_ids = {conv.id for conv in historical_conversations}
+        unique_session_convs = [conv for conv in session_conversations
+                                if conv.id not in historical_ids]
+
+        # Combine and sort
+        all_conversations = unique_session_convs + historical_conversations
+        all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+        conversations = all_conversations[:limit]  # Apply final limit
+
+WITH THIS CODE:
+        # Build fresh context
+        # FIX: Prioritize session conversations - get ALL session conversations first
+        # Then fill remaining slots from historical conversations
+        # Use a large limit to effectively get all session conversations
+        session_conversations = self.get_session_conversations(user_id, limit=10000)
+        
+        # Calculate how many historical conversations we need to fill remaining slots
+        session_count = len(session_conversations)
+        historical_limit = max(0, limit - session_count)
+        historical_conversations = self.get_recent_conversations(user_id, historical_limit)
+
+        # Remove duplicates (keep session version if duplicate exists in both)
+        historical_ids = {conv.id for conv in historical_conversations}
+        unique_session_convs = [conv for conv in session_conversations
+                                if conv.id not in historical_ids]
+
+        # Combine: session conversations first (most recent/current), then historical
+        all_conversations = unique_session_convs + historical_conversations
+        
+        # Sort by timestamp (newest first) to ensure chronological order
+        all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+        
+        # Take top N conversations (session conversations are prioritized)
+        conversations = all_conversations[:limit]
+
+
+--- CHANGE 2: new_convo.json Reset Fix ---
+Location: _initialize_session_file() method (around line 493-499)
+
+REPLACE THIS CODE:
+    def _initialize_session_file(self):
+        """Initialize or clear the session conversation file"""
+        try:
+            self.session_conversations_file.write_text("[]")
+            logger.info("Session conversation file initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session file: {e}")
+
+WITH THIS CODE:
+    def _initialize_session_file(self):
+        """Initialize session conversation file only if it doesn't exist or is empty"""
+        try:
+            # Only initialize if file doesn't exist or is empty
+            if not self.session_conversations_file.exists() or self.session_conversations_file.stat().st_size == 0:
+                self.session_conversations_file.write_text("[]")
+                logger.info("Session conversation file initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session file: {e}")
+
+
+================================================================================
+FILE 2: backend/lazycook7_grok.py
+================================================================================
+
+--- CHANGE 1: Context Prioritization Fix ---
+Location: get_conversation_context() method (around line 379-402)
+
+REPLACE THIS CODE:
+        # Build fresh context
+        session_conversations = self.get_session_conversations(user_id, limit // 2)
+        historical_conversations = self.get_recent_conversations(user_id, limit // 2)
+
+        # Remove duplicates
+        historical_ids = {conv.id for conv in historical_conversations}
+        unique_session_convs = [conv for conv in session_conversations
+                                if conv.id not in historical_ids]
+
+        # Combine and sort
+        all_conversations = unique_session_convs + historical_conversations
+        all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+        conversations = all_conversations[:limit]  # Apply final limit
+
+WITH THIS CODE:
+        # Build fresh context
+        # FIX: Prioritize session conversations - get ALL session conversations first
+        # Then fill remaining slots from historical conversations
+        # Use a large limit to effectively get all session conversations
+        session_conversations = self.get_session_conversations(user_id, limit=10000)
+        
+        # Calculate how many historical conversations we need to fill remaining slots
+        session_count = len(session_conversations)
+        historical_limit = max(0, limit - session_count)
+        historical_conversations = self.get_recent_conversations(user_id, historical_limit)
+
+        # Remove duplicates (keep session version if duplicate exists in both)
+        historical_ids = {conv.id for conv in historical_conversations}
+        unique_session_convs = [conv for conv in session_conversations
+                                if conv.id not in historical_ids]
+
+        # Combine: session conversations first (most recent/current), then historical
+        all_conversations = unique_session_convs + historical_conversations
+        
+        # Sort by timestamp (newest first) to ensure chronological order
+        all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+        
+        # Take top N conversations (session conversations are prioritized)
+        conversations = all_conversations[:limit]
+
+
+--- CHANGE 2: new_convo.json Reset Fix ---
+Location: _initialize_session_file() method (around line 496-502)
+
+REPLACE THIS CODE:
+    def _initialize_session_file(self):
+        """Initialize or clear the session conversation file"""
+        try:
+            self.session_conversations_file.write_text("[]")
+            logger.info("Session conversation file initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session file: {e}")
+
+WITH THIS CODE:
+    def _initialize_session_file(self):
+        """Initialize session conversation file only if it doesn't exist or is empty"""
+        try:
+            # Only initialize if file doesn't exist or is empty
+            if not self.session_conversations_file.exists() or self.session_conversations_file.stat().st_size == 0:
+                self.session_conversations_file.write_text("[]")
+                logger.info("Session conversation file initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session file: {e}")
+
+
+================================================================================
+FILE 3: backend/lazycook_grok_gemini_2.py
+================================================================================
+
+--- CHANGE 1: Context Prioritization Fix ---
+Location: get_conversation_context() method (around line 387-410)
+
+REPLACE THIS CODE:
+        # Build fresh context
+        half_limit = max(1, limit // 2) if limit > 0 else 0  # Ensure at least 1 if limit > 0
+        session_conversations = self.get_session_conversations(user_id, half_limit)
+        historical_conversations = self.get_recent_conversations(user_id, half_limit)
+
+        # Remove duplicates
+        historical_ids = {conv.id for conv in historical_conversations}
+        unique_session_convs = [conv for conv in session_conversations
+                                if conv.id not in historical_ids]
+
+        # Combine and sort
+        all_conversations = unique_session_convs + historical_conversations
+        all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+        conversations = all_conversations[:limit]  # Apply final limit
+
+WITH THIS CODE:
+        # Build fresh context
+        # FIX: Prioritize session conversations - get ALL session conversations first
+        # Then fill remaining slots from historical conversations
+        # Use a large limit to effectively get all session conversations
+        session_conversations = self.get_session_conversations(user_id, limit=10000)
+        
+        # Calculate how many historical conversations we need to fill remaining slots
+        session_count = len(session_conversations)
+        historical_limit = max(0, limit - session_count)
+        historical_conversations = self.get_recent_conversations(user_id, historical_limit)
+
+        # Remove duplicates (keep session version if duplicate exists in both)
+        historical_ids = {conv.id for conv in historical_conversations}
+        unique_session_convs = [conv for conv in session_conversations
+                                if conv.id not in historical_ids]
+
+        # Combine: session conversations first (most recent/current), then historical
+        all_conversations = unique_session_convs + historical_conversations
+        
+        # Sort by timestamp (newest first) to ensure chronological order
+        all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+        
+        # Take top N conversations (session conversations are prioritized)
+        conversations = all_conversations[:limit]
+
+
+--- CHANGE 2: new_convo.json Reset Fix ---
+Location: _initialize_session_file() method (around line 494-500)
+
+REPLACE THIS CODE:
+    def _initialize_session_file(self):
+        """Initialize or clear the session conversation file"""
+        try:
+            self.session_conversations_file.write_text("[]")
+            logger.info("Session conversation file initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session file: {e}")
+
+WITH THIS CODE:
+    def _initialize_session_file(self):
+        """Initialize session conversation file only if it doesn't exist or is empty"""
+        try:
+            # Only initialize if file doesn't exist or is empty
+            if not self.session_conversations_file.exists() or self.session_conversations_file.stat().st_size == 0:
+                self.session_conversations_file.write_text("[]")
+                logger.info("Session conversation file initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session file: {e}")
+
+
+================================================================================
+FILE 4: lazycook-ui/src/App.tsx
+================================================================================
+
+--- CHANGE: Chat Title Generation Enhancement ---
+Location: Inside runAI() function (around line 932-957)
+
+REPLACE THIS CODE:
+      // Update chat title from user message (ChatGPT-style: generate from first meaningful user prompt)
+      // Use the user message that was just sent (text variable)
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id === chatId && (c.title === "New chat" || c.messages.length === 2)) {
+            const title = generateChatTitle(text);
+            return { ...c, title };
+          }
+          return c;
+        })
+      );
+
+WITH THIS CODE:
+      // Update chat title from conversation context (ChatGPT-style: generate from first meaningful user prompt)
+      // Prioritize using conversation context from the same chat (user message + AI response)
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id === chatId && (c.title === "New chat" || c.messages.length === 2)) {
+            // Get conversation context from the same chat
+            // Use user message first, then AI response if available
+            let titleText = text; // Start with user message
+            
+            // If AI response is available, use it to enhance title generation
+            // Extract key phrases from AI response to create a better title
+            if (content && content.length > 0) {
+              // Try to extract a meaningful phrase from AI response (first 200 chars)
+              const aiPreview = content.substring(0, 200).replace(/[#*`\[\]()]/g, '').trim();
+              // If AI response contains key terms, use combination of user message + AI context
+              if (aiPreview.length > 20) {
+                // Use user message as primary, but AI response can help if user message is too short
+                if (text.length < 30) {
+                  // Combine user message with key terms from AI response
+                  const aiWords = aiPreview.split(/\s+/).filter((w: string) => w.length > 4).slice(0, 3).join(' ');
+                  titleText = `${text} ${aiWords}`.trim();
+                }
+              }
+            }
+            
+            const title = generateChatTitle(titleText);
+            return { ...c, title };
+          }
+          return c;
+        })
+      );
+
+
+================================================================================
+SUMMARY
+================================================================================
+Total Changes: 7 modifications across 4 files
+
+Backend Files (3):
+- backend/lazycook6.py (2 changes)
+- backend/lazycook7_grok.py (2 changes)
+- backend/lazycook_grok_gemini_2.py (2 changes)
+
+Frontend Files (1):
+- lazycook-ui/src/App.tsx (1 change)
+
+================================================================================
+END OF CHANGES
+================================================================================

@@ -1002,7 +1002,7 @@ class AIAgent:
         Format your response as JSON:
     {
         "optimized_solution": "Your improved solution here",
-        "changes_made": ["change1", "change2"],
+        "changes_made": ["change1", "change2"],image.png
         "errors_fixed": ["fix1", "fix2"],
         "enhancements": ["enhancement1", "enhancement2"],
         "confidence": 0.95,

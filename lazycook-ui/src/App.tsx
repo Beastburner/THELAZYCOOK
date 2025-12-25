@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import MarkdownContent from "./MarkdownContent";
+import HighlightToolbar from "./components/HighlightToolbar";
+import HighlightNoteEditor from "./components/HighlightNoteEditor";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { FiArrowRight } from "react-icons/fi";
@@ -12,11 +14,20 @@ type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
 type Role = "user" | "assistant";
 
+type Highlight = {
+  id: string;
+  text: string;
+  color: "yellow" | "blue" | "green" | "pink" | "purple";
+  note?: string;
+  createdAt: number;
+};
+
 type Message = {
   id: string;
   role: Role;
   content: string;
   confidenceScore?: number;
+  highlights?: Highlight[];
 };
 
 type Chat = {
@@ -198,6 +209,103 @@ function analyzeSentiment(text: string): { sentiment: 'positive' | 'neutral' | '
   }
   
   return { sentiment: 'neutral', score: 0 };
+}
+
+function cleanProResponse(content: string): string {
+  /**
+   * Clean PRO version responses by removing JSON artifacts and metadata
+   * while PRESERVING markdown formatting for proper rendering
+   */
+  let cleaned = content;
+
+  // Step 1: Only remove JSON code blocks (not regular markdown code blocks)
+  // Check if content is wrapped in ```json blocks (which should be removed)
+  if (cleaned.trim().startsWith('```json') && cleaned.includes('```')) {
+    const start = cleaned.indexOf('```json') + 7;
+    const end = cleaned.lastIndexOf('```');
+    if (end > start) {
+      cleaned = cleaned.substring(start, end).trim();
+    }
+  }
+
+  // Step 2: Try to extract from JSON if it's still JSON (but preserve markdown in the content)
+  try {
+    const data = JSON.parse(cleaned);
+    if (typeof data === 'object' && data !== null) {
+      // Try multiple possible field names from PRO optimizer responses
+      cleaned = data.optimized_solution || 
+                data.optimization || 
+                data.content || 
+                data.response || 
+                (typeof data === 'string' ? data : JSON.stringify(data));
+      // If extracted content is still JSON, try to get the actual text
+      if (typeof cleaned === 'object') {
+        cleaned = JSON.stringify(cleaned);
+      }
+      // Ensure it's a string
+      if (typeof cleaned !== 'string') {
+        cleaned = String(cleaned);
+      }
+    }
+  } catch {
+    // Not JSON, continue with text cleaning
+  }
+
+  // Step 3: Remove JSON field names if they leaked through (but preserve markdown syntax)
+  // Only remove if they appear at the start of lines or in specific JSON patterns
+  cleaned = cleaned.replace(/^"optimized_solution":\s*"?/gm, '');
+  cleaned = cleaned.replace(/^"optimization":\s*"?/gm, '');
+  cleaned = cleaned.replace(/^"content":\s*"?/gm, '');
+  cleaned = cleaned.replace(/^"response":\s*"?/gm, '');
+  cleaned = cleaned.replace(/^"changes_made":\s*\[/gm, '');
+  cleaned = cleaned.replace(/^"errors_fixed":\s*\[/gm, '');
+  cleaned = cleaned.replace(/^"enhancements":\s*\[/gm, '');
+  // Also remove inline patterns
+  cleaned = cleaned.replace(/"optimized_solution":\s*"?/g, '');
+  cleaned = cleaned.replace(/"optimization":\s*"?/g, '');
+  cleaned = cleaned.replace(/"content":\s*"?/g, '');
+
+  // Step 4: Remove trailing quotes/commas from JSON artifacts (only at start/end of content)
+  cleaned = cleaned.replace(/^["']+/g, ''); // Remove leading quotes
+  cleaned = cleaned.replace(/["']+$/g, ''); // Remove trailing quotes
+  cleaned = cleaned.replace(/^[,}\]]+/g, ''); // Remove leading JSON punctuation
+  cleaned = cleaned.replace(/[,}\]]+$/g, ''); // Remove trailing JSON punctuation
+
+  // Step 5: Fix escaped characters (but preserve actual newlines)
+  cleaned = cleaned.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+
+  // Step 6: Remove confidence ratings and metadata at the end (preserve markdown)
+  // Remove patterns like "Confidence Rating: 0.92" at the end
+  cleaned = cleaned.replace(/\n\s*Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/i, '');
+  cleaned = cleaned.replace(/\n\s*Rating\s*:?\s*[\d.]+\s*$/i, '');
+  cleaned = cleaned.replace(/\n\s*Score\s*:?\s*[\d.]+\s*$/i, '');
+  // Remove standalone confidence lines (but not if part of markdown)
+  cleaned = cleaned.replace(/^Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/gim, '');
+  
+  // Step 7: Remove other metadata patterns
+  cleaned = cleaned.replace(/\n\s*Quality\s*Score\s*:?\s*[\d.]+\s*$/i, '');
+  cleaned = cleaned.replace(/\n\s*Iterations\s*:?\s*\d+\s*$/i, '');
+  cleaned = cleaned.replace(/\n\s*Processing\s*Time\s*:?\s*[\d.]+s?\s*$/i, '');
+
+  // Step 8: Normalize excessive line breaks (but preserve markdown double newlines)
+  cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n'); // Max 3 newlines
+
+  // Step 9: Remove any remaining JSON array syntax at the very end
+  cleaned = cleaned.replace(/\s*\],?\s*$/g, '');
+
+  // Step 10: Ensure proper paragraph breaks for better readability
+  // Only add double newlines between sentences if there's a single newline
+  // This helps with readability without breaking markdown lists/code blocks
+  cleaned = cleaned.replace(/([.!?])\s*\n([A-Z][a-z])/g, '$1\n\n$2');
+
+  // Step 11: Clean up excessive whitespace (but preserve markdown indentation)
+  // Only clean up multiple spaces in the middle of lines, not at line starts (for markdown lists)
+  cleaned = cleaned.replace(/([^\n])[ \t]{2,}([^\n])/g, '$1 $2'); // Multiple spaces to single space (not at line start)
+  
+  // Step 12: Final trim
+  cleaned = cleaned.trim();
+
+  return cleaned;
 }
 
 function enhanceWithEmojis(content: string): string {
@@ -449,9 +557,201 @@ function enhanceWithEmojis(content: string): string {
   return processedParts.join('');
 }
 
-function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate?: () => void }) {
+function MessageItem({ 
+  message, 
+  onRegenerate,
+  onUpdateHighlights,
+  highlightEnabled = true
+}: { 
+  message: Message; 
+  onRegenerate?: () => void;
+  onUpdateHighlights?: (highlights: Highlight[]) => void;
+  highlightEnabled?: boolean;
+}) {
   const [isHovered, setIsHovered] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
+  const [selectedText, setSelectedText] = useState("");
+  const [selectedHighlightId, setSelectedHighlightId] = useState("");
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [noteEditorPosition, setNoteEditorPosition] = useState({ x: 0, y: 0 });
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicks on highlighted text and text selection
+  useEffect(() => {
+    if (message.role !== "assistant" || !contentRef.current || !highlightEnabled) return;
+
+    // Handle clicks on highlighted text using event delegation
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const highlightElement = target.closest('.lc-highlight');
+      
+      if (highlightElement) {
+        // Clicked on a highlight - show toolbar with delete option
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const highlightText = highlightElement.getAttribute('data-highlight-text') || highlightElement.textContent?.trim() || '';
+        const highlightId = highlightElement.getAttribute('data-highlight-id') || '';
+        
+        if (highlightText && onUpdateHighlights) {
+          const rect = highlightElement.getBoundingClientRect();
+          setToolbarPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top,
+          });
+          setSelectedText(highlightText);
+          setSelectedHighlightId(highlightId);
+          setShowToolbar(true);
+          window.getSelection()?.removeAllRanges();
+        }
+        return;
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      // Don't show toolbar if clicking on a highlight (that's handled by handleClick)
+      const target = e.target as HTMLElement;
+      if (target?.closest('.lc-highlight')) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        setShowToolbar(false);
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const selectedText = range.toString().trim();
+
+      // Only show toolbar if text is selected and it's within this message
+      if (selectedText.length > 0 && contentRef.current?.contains(range.commonAncestorContainer)) {
+        // Check if selection is inside code blocks (don't allow highlighting code)
+        let node: Node | null = range.commonAncestorContainer;
+        while (node && node !== contentRef.current) {
+          if (
+            node.nodeType === Node.ELEMENT_NODE &&
+            ((node as Element).tagName === 'CODE' || 
+             (node as Element).closest('.lc-code-block-wrapper') ||
+             (node as Element).closest('pre'))
+          ) {
+            setShowToolbar(false);
+            return;
+          }
+          node = node.parentNode;
+        }
+
+        const rect = range.getBoundingClientRect();
+        setToolbarPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        });
+        setSelectedText(selectedText);
+        setShowToolbar(true);
+      } else {
+        setShowToolbar(false);
+      }
+    };
+
+    const contentElement = contentRef.current;
+    contentElement?.addEventListener('click', handleClick, true); // Use capture phase
+    contentElement?.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      contentElement?.removeEventListener('click', handleClick, true);
+      contentElement?.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [message.role, message.content, highlightEnabled, onUpdateHighlights]);
+
+  const handleColorSelect = (color: Highlight["color"]) => {
+    if (!selectedText || !onUpdateHighlights) return;
+
+    const currentHighlights = message.highlights || [];
+    
+    // Check if this exact text is already highlighted (by text or ID)
+    const existingIndex = currentHighlights.findIndex(
+      (h) => selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
+    );
+
+    let newHighlights: Highlight[];
+
+    if (existingIndex >= 0) {
+      // If same color, remove highlight (toggle off)
+      if (currentHighlights[existingIndex].color === color) {
+        newHighlights = currentHighlights.filter((_, i) => i !== existingIndex);
+      } else {
+        // If different color, update to new color (preserve id, note, createdAt)
+        newHighlights = [...currentHighlights];
+        newHighlights[existingIndex] = { 
+          ...currentHighlights[existingIndex],
+          color 
+        };
+      }
+    } else {
+      // Add new highlight with id and createdAt
+      newHighlights = [...currentHighlights, { 
+        id: uid("highlight"),
+        text: selectedText, 
+        color,
+        createdAt: Date.now()
+      }];
+    }
+
+    onUpdateHighlights(newHighlights);
+    setShowToolbar(false);
+    
+    // Clear selection
+    window.getSelection()?.removeAllRanges();
+  };
+
+  const handleRemoveHighlight = () => {
+    if (!selectedText || !onUpdateHighlights) return;
+
+    const currentHighlights = message.highlights || [];
+    const newHighlights = currentHighlights.filter(
+      (h) => selectedHighlightId ? h.id !== selectedHighlightId : h.text !== selectedText
+    );
+
+    onUpdateHighlights(newHighlights);
+    setShowToolbar(false);
+    setShowNoteEditor(false);
+    
+    // Clear selection
+    window.getSelection()?.removeAllRanges();
+  };
+
+  const handleNoteSave = (note: string) => {
+    if (!selectedHighlightId && !selectedText || !onUpdateHighlights) return;
+
+    const currentHighlights = message.highlights || [];
+    const newHighlights = currentHighlights.map(h => {
+      const matches = selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText;
+      return matches ? { ...h, note: note || undefined } : h;
+    });
+
+    onUpdateHighlights(newHighlights);
+    setShowNoteEditor(false);
+  };
+
+  const handleOpenNoteEditor = () => {
+    const currentHighlight = message.highlights?.find(
+      h => selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
+    );
+    
+    if (currentHighlight) {
+      setNoteEditorPosition(toolbarPosition);
+      setShowNoteEditor(true);
+      setShowToolbar(false);
+    }
+  };
+
+  // Check if selected text is already highlighted
+  const currentHighlight = message.highlights?.find(
+    h => selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
+  );
+  const isAlreadyHighlighted = !!currentHighlight;
 
   return (
     <div 
@@ -477,11 +777,31 @@ function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate
             )
           )}
         </div>
-        <div className="lc-msg-content">
+        <div className="lc-msg-content" ref={contentRef}>
           {message.role === "assistant" ? (
             message.content && message.content.trim().length > 0 ? (
               <>
-                <MarkdownContent content={message.content} />
+                <MarkdownContent 
+                  content={message.content} 
+                  highlights={message.highlights}
+                  onHighlightClick={(text, event) => {
+                    // This is a fallback - main handling is done via event delegation in handleClick
+                    if (!highlightEnabled || !onUpdateHighlights) return;
+                    
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const target = event.target as HTMLElement;
+                    const rect = target.getBoundingClientRect();
+                    setToolbarPosition({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                    });
+                    setSelectedText(text);
+                    setShowToolbar(true);
+                    window.getSelection()?.removeAllRanges();
+                  }}
+                />
                 {message.confidenceScore !== undefined && (
                   <div className="lc-confidence-score">
                     Confidence Score: {message.confidenceScore.toFixed(2)}
@@ -493,6 +813,28 @@ function MessageItem({ message, onRegenerate }: { message: Message; onRegenerate
             message.content
           )}
         </div>
+        {showToolbar && message.role === "assistant" && highlightEnabled && (
+          <HighlightToolbar
+            position={toolbarPosition}
+            onColorSelect={handleColorSelect}
+            onClose={() => setShowToolbar(false)}
+            onRemove={handleRemoveHighlight}
+            onNote={handleOpenNoteEditor}
+            showRemove={isAlreadyHighlighted}
+            showNote={isAlreadyHighlighted}
+            currentHighlight={currentHighlight}
+          />
+        )}
+        {showNoteEditor && message.role === "assistant" && highlightEnabled && currentHighlight && (
+          <HighlightNoteEditor
+            position={noteEditorPosition}
+            highlightText={currentHighlight.text}
+            currentNote={currentHighlight.note}
+            onSave={handleNoteSave}
+            onDelete={handleRemoveHighlight}
+            onClose={() => setShowNoteEditor(false)}
+          />
+        )}
         {message.role === "assistant" && isHovered && message.content && message.content.trim().length > 0 && (
           <div className="lc-msg-actions">
             <button
@@ -596,7 +938,17 @@ export default function App() {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showTopbarMenu, setShowTopbarMenu] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [prompt, setPrompt] = useState("");
+  
+  // Highlight feature toggle (default: enabled)
+  const [highlightEnabled, setHighlightEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem("lazycook_highlight_enabled");
+      return saved !== null ? saved === 'true' : true; // Default to enabled
+    }
+    return true;
+  });
   const modelDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const topbarMenuRef = useRef<HTMLDivElement>(null);
@@ -775,6 +1127,11 @@ export default function App() {
     if (activeChatId) localStorage.setItem("lazycook_active_chat", activeChatId);
   }, [activeChatId]);
 
+  // Persist highlight setting
+  useEffect(() => {
+    localStorage.setItem("lazycook_highlight_enabled", String(highlightEnabled));
+  }, [highlightEnabled]);
+
   // Auto-resize textarea like ChatGPT - grows and shrinks with content
   useEffect(() => {
     if (textareaRef.current) {
@@ -791,6 +1148,147 @@ export default function App() {
 
   const saveAuth = (e: string, t: string, p: string) => {
     localStorage.setItem("lazycook_auth", JSON.stringify({ email: e, token: t, plan: p }));
+  };
+
+  // Highlight Analytics
+  type HighlightAnalytics = {
+    totalHighlights: number;
+    byColor: Record<string, number>;
+    mostHighlightedWords: string[];
+    avgHighlightsPerMessage: number;
+    messagesWithHighlights: number;
+  };
+
+  const analyzeHighlights = (messages: Message[]): HighlightAnalytics => {
+    const highlights = messages.flatMap(m => m.highlights || []);
+    
+    const wordFrequency: Record<string, number> = {};
+    highlights.forEach(h => {
+      h.text.split(/\s+/).forEach(word => {
+        const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
+        if (cleanWord.length > 2) { // Ignore very short words
+          wordFrequency[cleanWord] = (wordFrequency[cleanWord] || 0) + 1;
+        }
+      });
+    });
+
+    return {
+      totalHighlights: highlights.length,
+      byColor: highlights.reduce((acc, h) => {
+        acc[h.color] = (acc[h.color] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      mostHighlightedWords: Object.entries(wordFrequency)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([word]) => word),
+      avgHighlightsPerMessage: highlights.length / Math.max(1, messages.length),
+      messagesWithHighlights: messages.filter(m => m.highlights?.length).length
+    };
+  };
+
+  // Export Highlights Functions
+  const exportHighlights = (chat: Chat) => {
+    return chat.messages.flatMap((msg, index) =>
+      (msg.highlights || []).map(h => ({
+        text: h.text,
+        color: h.color,
+        note: h.note,
+        messageIndex: index,
+        createdAt: h.createdAt
+      }))
+    );
+  };
+
+  const exportHighlightsAsJSON = (chat: Chat) => {
+    const highlights = exportHighlights(chat);
+    return JSON.stringify({
+      chatTitle: chat.title,
+      createdAt: new Date(chat.createdAt).toISOString(),
+      highlights: highlights,
+      analytics: analyzeHighlights(chat.messages)
+    }, null, 2);
+  };
+
+  const exportHighlightsAsMarkdown = (chat: Chat) => {
+    const highlights = exportHighlights(chat);
+    const analytics = analyzeHighlights(chat.messages);
+    
+    let markdown = `# Highlights – ${chat.title}\n\n`;
+    markdown += `**Created:** ${new Date(chat.createdAt).toLocaleDateString()}\n\n`;
+    markdown += `**Total Highlights:** ${analytics.totalHighlights}\n\n`;
+    markdown += `---\n\n`;
+
+    if (highlights.length === 0) {
+      markdown += `*No highlights in this chat.*\n`;
+      return markdown;
+    }
+
+    const colorEmojis: Record<string, string> = {
+      yellow: '🟡',
+      blue: '🔵',
+      green: '🟢',
+      pink: '🩷',
+      purple: '🟣'
+    };
+
+    highlights.forEach((h, idx) => {
+      const emoji = colorEmojis[h.color] || '📌';
+      markdown += `## ${emoji} Highlight ${idx + 1}\n\n`;
+      markdown += `**Text:** ${h.text}\n\n`;
+      if (h.note) {
+        markdown += `**Note:** ${h.note}\n\n`;
+      }
+      markdown += `**Color:** ${h.color}\n\n`;
+      markdown += `**Message Index:** ${h.messageIndex}\n\n`;
+      markdown += `---\n\n`;
+    });
+
+    markdown += `## Analytics\n\n`;
+    markdown += `- **Total Highlights:** ${analytics.totalHighlights}\n`;
+    markdown += `- **By Color:** ${Object.entries(analytics.byColor).map(([c, n]) => `${c}: ${n}`).join(', ')}\n`;
+    markdown += `- **Most Highlighted Words:** ${analytics.mostHighlightedWords.join(', ')}\n`;
+    markdown += `- **Avg Highlights per Message:** ${analytics.avgHighlightsPerMessage.toFixed(2)}\n`;
+    markdown += `- **Messages with Highlights:** ${analytics.messagesWithHighlights}\n`;
+
+    return markdown;
+  };
+
+  const copyHighlightsToClipboard = async (chat: Chat) => {
+    try {
+      const json = exportHighlightsAsJSON(chat);
+      await navigator.clipboard.writeText(json);
+      return true;
+    } catch (error) {
+      console.error('Failed to copy highlights:', error);
+      return false;
+    }
+  };
+
+  const downloadHighlightsAsJSON = (chat: Chat) => {
+    const json = exportHighlightsAsJSON(chat);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `highlights-${chat.title.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadHighlightsAsMarkdown = (chat: Chat) => {
+    const markdown = exportHighlightsAsMarkdown(chat);
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `highlights-${chat.title.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const logout = () => {
@@ -912,14 +1410,21 @@ export default function App() {
 
       // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
       // All models (GO, PRO, ULTRA) now return data.response with unified content
-      let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      // PRO version might also have data.optimization field
+      let content = data.response || data.optimization || JSON.stringify(data.responses ?? data, null, 2);
       // Ensure content is always a string
       content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+      
+      // Clean PRO version responses to remove JSON artifacts and extract content properly
+      if (plan === 'PRO') {
+        content = cleanProResponse(content);
+      }
       
       // Extract confidence score from API response
       const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
       
-      // Enhance content with emojis for better engagement
+      // Enhance content with emojis for better engagement (applies to all plans including PRO)
+      // This ensures PRO responses get emojis just like GO responses
       content = enhanceWithEmojis(content);
       
       updateChatMessages(chatId, (m) => {
@@ -1010,14 +1515,21 @@ export default function App() {
 
       // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
       // All models (GO, PRO, ULTRA) now return data.response with unified content
-      let content = data.response || JSON.stringify(data.responses ?? data, null, 2);
+      // PRO version might also have data.optimization field
+      let content = data.response || data.optimization || JSON.stringify(data.responses ?? data, null, 2);
       // Ensure content is always a string
       content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+      
+      // Clean PRO version responses to remove JSON artifacts and extract content properly
+      if (plan === 'PRO') {
+        content = cleanProResponse(content);
+      }
       
       // Extract confidence score from API response
       const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
       
-      // Enhance content with emojis for better engagement
+      // Enhance content with emojis for better engagement (applies to all plans including PRO)
+      // This ensures PRO responses get emojis just like GO responses
       content = enhanceWithEmojis(content);
       
       // Update the assistant message with new content
@@ -1493,13 +2005,33 @@ export default function App() {
             </svg>
             <span>Search chats</span>
           </button>
-          <button className="lc-nav-btn">
+          <button className="lc-nav-btn" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.5"/>
               <path d="M6 8L7 9L10 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <span>Images</span>
-            <span className="lc-badge">NEW</span>
+            <span className="lc-badge" style={{ background: 'var(--muted)', color: 'var(--white)' }}>Coming Soon</span>
+          </button>
+          <button 
+            className="lc-nav-btn"
+            onClick={() => {
+              setShowHelpModal(true);
+              if (window.innerWidth <= 900) {
+                setSidebarOpen(false);
+              }
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="2.5" width="10" height="10" rx="0.5" fill="#FFEB3B" stroke="currentColor" strokeWidth="1"/>
+              <path d="M11.5 12L12.5 13L11.5 13Z" fill="#FFC107"/>
+              <path d="M12 12L13 13L12.5 13Z" fill="#FFC107"/>
+              <line x1="4" y1="5.5" x2="10.5" y2="5.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="4" y1="7.5" x2="10.5" y2="7.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="4" y1="9.5" x2="10.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <circle cx="8" cy="4" r="1.2" fill="#FF4081" stroke="currentColor" strokeWidth="0.3"/>
+            </svg>
+            <span>Highlights & Notes</span>
           </button>
         </div>
 
@@ -1590,7 +2122,31 @@ export default function App() {
                   <span>Settings</span>
                 </button>
                 <div className="lc-user-menu-divider"></div>
-                <button className="lc-user-menu-item">
+                <button 
+                  className="lc-user-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHighlightEnabled(!highlightEnabled);
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 4L6 8L14 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: highlightEnabled ? 1 : 0.3 }}/>
+                    <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" fill={highlightEnabled ? "currentColor" : "none"} style={{ opacity: highlightEnabled ? 0.1 : 0.3 }}/>
+                  </svg>
+                  <span>Enable Text Highlighting</span>
+                  <div className={`lc-toggle-switch ${highlightEnabled ? 'is-active' : ''}`}>
+                    <div className="lc-toggle-slider"></div>
+                  </div>
+                </button>
+                <div className="lc-user-menu-divider"></div>
+                <button 
+                  className="lc-user-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHelpModal(true);
+                    setShowUserMenu(false);
+                  }}
+                >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
                     <path d="M8 4V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1750,6 +2306,16 @@ export default function App() {
                   key={m.id} 
                   message={m} 
                   onRegenerate={m.role === 'assistant' ? () => regenerateResponse(m.id) : undefined}
+                  onUpdateHighlights={m.role === 'assistant' && activeChat ? (highlights: Highlight[]) => {
+                    updateChatMessages(activeChat.id, (messages) => {
+                      const next = [...messages];
+                      const idx = next.findIndex((msg) => msg.id === m.id);
+                      if (idx >= 0) {
+                        next[idx] = { ...next[idx], highlights };
+                      }
+                      return next;
+                    });
+                  } : undefined}
                 />
               ))}
               {activeChat && activeChat.messages.length > 0 && (
@@ -1807,18 +2373,11 @@ export default function App() {
         <footer className="lc-composer">
           {error && <div className="lc-error lc-error-inline">{error}</div>}
           <div className="lc-composer-row">
-            <button className="lc-composer-mic" aria-label="Voice input" disabled>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 2C8.89543 2 8 2.89543 8 4V10C8 11.1046 8.89543 12 10 12C11.1046 12 12 11.1046 12 10V4C12 2.89543 11.1046 2 10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M5 10V11C5 13.7614 7.23858 16 10 16C12.7614 16 15 13.7614 15 11V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10 16V18M6 18H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
             <div className="lc-textarea-wrapper">
               <textarea
                 ref={textareaRef}
                 className="lc-textarea"
-                placeholder="+ Ask anything"
+                placeholder="Ask anything"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={onComposerKeyDown}
@@ -1849,6 +2408,117 @@ export default function App() {
           </div>
         </footer>
       </main>
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <div className="lc-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
+          <div className="lc-help-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="lc-help-modal-header">
+              <h2>How to Use Highlights & Notes</h2>
+              <button 
+                className="lc-help-modal-close"
+                onClick={() => setShowHelpModal(false)}
+                aria-label="Close help"
+              >
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="lc-help-modal-content">
+              <div className="lc-help-section">
+                <h3>📝 Highlighting Text</h3>
+                <ol className="lc-help-steps">
+                  <li>
+                    <strong>Select text</strong> in any assistant message by clicking and dragging
+                  </li>
+                  <li>
+                    A <strong>color toolbar</strong> will appear with 5 color options
+                  </li>
+                  <li>
+                    <strong>Click a color</strong> to highlight the selected text
+                  </li>
+                  <li>
+                    You can <strong>re-highlight</strong> the same text with a different color
+                  </li>
+                  <li>
+                    <strong>Click a highlight</strong> to edit or remove it
+                  </li>
+                </ol>
+              </div>
+
+              <div className="lc-help-section">
+                <h3>📌 Adding Notes</h3>
+                <ol className="lc-help-steps">
+                  <li>
+                    <strong>Click on highlighted text</strong> to open the toolbar
+                  </li>
+                  <li>
+                    Click the <strong>📌 note icon</strong> (sticky note with thumbtack)
+                  </li>
+                  <li>
+                    A <strong>note editor</strong> will appear
+                  </li>
+                  <li>
+                    <strong>Type your note</strong> and click "Save"
+                  </li>
+                  <li>
+                    <strong>Hover over highlighted text</strong> with notes to see them in a tooltip
+                  </li>
+                  <li>
+                    Press <strong>Ctrl+Enter</strong> (or Cmd+Enter on Mac) to save quickly
+                  </li>
+                </ol>
+              </div>
+
+              <div className="lc-help-section">
+                <h3>🎨 Color Options</h3>
+                <div className="lc-help-colors">
+                  <div className="lc-help-color-item">
+                    <div className="lc-help-color-demo lc-highlight-yellow"></div>
+                    <span>Yellow</span>
+                  </div>
+                  <div className="lc-help-color-item">
+                    <div className="lc-help-color-demo lc-highlight-blue"></div>
+                    <span>Blue</span>
+                  </div>
+                  <div className="lc-help-color-item">
+                    <div className="lc-help-color-demo lc-highlight-green"></div>
+                    <span>Green</span>
+                  </div>
+                  <div className="lc-help-color-item">
+                    <div className="lc-help-color-demo lc-highlight-pink"></div>
+                    <span>Pink</span>
+                  </div>
+                  <div className="lc-help-color-item">
+                    <div className="lc-help-color-demo lc-highlight-purple"></div>
+                    <span>Purple</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lc-help-section">
+                <h3>💡 Tips</h3>
+                <ul className="lc-help-tips">
+                  <li>Highlights are saved per message and persist across sessions</li>
+                  <li>You can have multiple highlights with different colors in the same message</li>
+                  <li>Notes are optional - you can highlight without adding a note</li>
+                  <li>Click the X button in the toolbar to remove a highlight</li>
+                  <li>Highlights work only in assistant messages, not in code blocks</li>
+                </ul>
+              </div>
+            </div>
+            <div className="lc-help-modal-footer">
+              <button 
+                className="lc-help-modal-button"
+                onClick={() => setShowHelpModal(false)}
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

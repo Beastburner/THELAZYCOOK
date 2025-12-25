@@ -6,8 +6,18 @@ import CodeBlock from './CodeBlock';
 /* ─────────────────────────────
    Types
 ───────────────────────────── */
+type Highlight = {
+  id: string;
+  text: string;
+  color: "yellow" | "blue" | "green" | "pink" | "purple";
+  note?: string;
+  createdAt: number;
+};
+
 interface MarkdownContentProps {
   content: string;
+  highlights?: Highlight[];
+  onHighlightClick?: (text: string, event: React.MouseEvent) => void;
 }
 
 type Segment =
@@ -137,6 +147,162 @@ function convertUrlsToLinks(text: string): string {
 }
 
 /* ─────────────────────────────
+   Process text nodes to apply highlights
+   Returns React nodes with highlighted text wrapped in <mark> elements
+───────────────────────────── */
+function processTextWithHighlights(text: string, highlights: Highlight[] = [], onHighlightClick?: (text: string, event: React.MouseEvent) => void): React.ReactNode {
+  if (!highlights || highlights.length === 0) {
+    return text;
+  }
+
+  // Sort highlights by length (longest first) to handle overlapping highlights correctly
+  const sortedHighlights = [...highlights].sort((a, b) => b.text.length - a.text.length);
+  
+  let result: React.ReactNode[] = [text];
+  let keyCounter = 0;
+
+  sortedHighlights.forEach(({ id, text: highlightText, color, note }) => {
+    const newResult: React.ReactNode[] = [];
+    
+    result.forEach((node) => {
+      if (typeof node === 'string') {
+        // Use case-insensitive matching for better UX
+        const regex = new RegExp(`(${highlightText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const matches = [...node.matchAll(regex)];
+        
+        if (matches.length > 0) {
+          // We found matches, split and wrap them
+          let lastIndex = 0;
+          let partIndex = 0;
+          matches.forEach((match) => {
+            const matchIndex = match.index!;
+            const matchText = match[0];
+            
+            // Add text before match (as string, will be handled properly)
+            if (matchIndex > lastIndex) {
+              const beforeText = node.substring(lastIndex, matchIndex);
+              if (beforeText) {
+                newResult.push(beforeText);
+              }
+            }
+            
+            // Add highlighted match (preserve original case from the text)
+            newResult.push(
+              <mark 
+                key={`highlight-${keyCounter++}`} 
+                className={`lc-highlight lc-highlight-${color} ${note ? 'has-note' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onHighlightClick) {
+                    onHighlightClick(highlightText, e);
+                  }
+                }}
+                data-highlight-text={highlightText}
+                data-highlight-id={id}
+                data-highlight-note={note || ''}
+                title={note || ''}
+              >
+                {matchText}
+              </mark>
+            );
+            
+            lastIndex = matchIndex + matchText.length;
+            partIndex++;
+          });
+          
+          // Add remaining text after last match
+          if (lastIndex < node.length) {
+            const afterText = node.substring(lastIndex);
+            if (afterText) {
+              newResult.push(afterText);
+            }
+          }
+        } else {
+          // No match, keep as is
+          newResult.push(node);
+        }
+      } else {
+        // Already a React node, keep as is
+        newResult.push(node);
+      }
+    });
+    
+    result = newResult;
+  });
+
+  // React can render arrays directly, but we need to ensure proper keys
+  if (result.length === 0) {
+    return null;
+  }
+  if (result.length === 1) {
+    return result[0];
+  }
+  // Return array with keys for React elements
+  return result.map((node, idx) => {
+    // If it's already a React element with a key, return as-is
+    if (React.isValidElement(node) && node.key != null) {
+      return node;
+    }
+    // If it's a string, return as-is (React handles strings in arrays)
+    if (typeof node === 'string') {
+      return node;
+    }
+    // For React elements without keys, add a key
+    if (React.isValidElement(node)) {
+      return React.cloneElement(node, { key: `highlight-${idx}` } as any);
+    }
+    // Fallback: wrap in fragment with key
+    return <React.Fragment key={`frag-${idx}`}>{node}</React.Fragment>;
+  });
+}
+
+/* ─────────────────────────────
+   Process React children to apply highlights to text nodes
+───────────────────────────── */
+function processChildrenWithHighlights(children: any, highlights: Highlight[] = [], onHighlightClick?: (text: string, event: React.MouseEvent) => void): React.ReactNode {
+  if (!highlights || highlights.length === 0) {
+    return processLazyCookNodes(children);
+  }
+
+  // Process children recursively
+  if (typeof children === 'string') {
+    return processTextWithHighlights(children, highlights, onHighlightClick);
+  }
+
+  if (Array.isArray(children)) {
+    const processed = children.map((child, i) => {
+      if (typeof child === 'string') {
+        const highlighted = processTextWithHighlights(child, highlights, onHighlightClick);
+        // If it's already a fragment or element, return as-is, otherwise wrap
+        if (React.isValidElement(highlighted) || (highlighted && typeof highlighted === 'object' && 'type' in highlighted)) {
+          return highlighted;
+        }
+        return <React.Fragment key={`text-${i}`}>{highlighted}</React.Fragment>;
+      }
+      if (React.isValidElement(child)) {
+        // For React elements, process their children
+        const props = child.props as { children?: any };
+        return React.cloneElement(child, {
+          key: child.key || `elem-${i}`,
+          children: processChildrenWithHighlights(props.children, highlights, onHighlightClick),
+        } as any);
+      }
+      return <React.Fragment key={`other-${i}`}>{child}</React.Fragment>;
+    });
+    return processed;
+  }
+
+  if (React.isValidElement(children)) {
+    const props = children.props as { children?: any };
+    return React.cloneElement(children, {
+      children: processChildrenWithHighlights(props.children, highlights, onHighlightClick),
+    } as any);
+  }
+
+  return processLazyCookNodes(children);
+}
+
+/* ─────────────────────────────
    SAFE LazyCook branding (keeps links alive)
    Recursively processes nodes while preserving React elements
 ───────────────────────────── */
@@ -233,6 +399,8 @@ function processLazyCookNodes(children: any, parentKey?: string): any {
 ───────────────────────────── */
 export default function MarkdownContent({
   content,
+  highlights = [],
+  onHighlightClick,
 }: MarkdownContentProps) {
   const segments = splitContentIntoSegments(content);
 
@@ -251,7 +419,7 @@ export default function MarkdownContent({
         }
 
         /* ─────── RESEARCH ─────── */
-        // Convert plain URLs to markdown links before rendering
+        // Convert plain URLs to markdown links
         const processedValue = convertUrlsToLinks(seg.value);
         
         return (
@@ -259,23 +427,43 @@ export default function MarkdownContent({
             key={index}
             remarkPlugins={[remarkGfm]}
             components={{
-              p: ({ children }) => (
-                <p className="lc-md-p">
-                  {processLazyCookNodes(children)}
-                </p>
-              ),
-              h1: ({ children, ...props }) => (
-                <h1 className="lc-md-h1" {...props}>
-                  {processLazyCookNodes(children)}
-                </h1>
-              ),
-              h2: ({ children, ...props }) => (
-                <h2 className="lc-md-h2" {...props}>
-                  {processLazyCookNodes(children)}
-                </h2>
-              ),
+              p: ({ children, ...props }) => {
+                // Process children to apply highlights to text nodes
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <p className="lc-md-p" {...props}>{processed}</p>;
+              },
+              mark: ({ children, className, ...props }) => {
+                // Preserve highlight marks and add click handler if it's a highlight
+                if (className?.includes('lc-highlight')) {
+                  // Get highlight text and note from data attributes or children
+                  const highlightText = (props as any)['data-highlight-text'] || childrenToString(children);
+                  const highlightNote = (props as any)['data-highlight-note'] || '';
+                  const hasNote = highlightNote && highlightNote.trim().length > 0;
+                  return (
+                    <mark 
+                      className={`${className} ${hasNote ? 'has-note' : ''}`}
+                      {...(props as any)}
+                      data-highlight-text={highlightText}
+                      data-highlight-note={highlightNote}
+                      title={hasNote ? highlightNote : ''}
+                      style={{ cursor: 'pointer', ...((props as any).style || {}) }}
+                    >
+                      {children}
+                    </mark>
+                  );
+                }
+                return <mark {...props}>{children}</mark>;
+              },
+              h1: ({ children, ...props }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <h1 className="lc-md-h1" {...props}>{processed}</h1>;
+              },
+              h2: ({ children, ...props }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <h2 className="lc-md-h2" {...props}>{processed}</h2>;
+              },
               h3: ({ children, ...props }) => {
-                const processed = processLazyCookNodes(children);
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
                 // If processed is an array, ensure all elements have keys
                 if (Array.isArray(processed)) {
                   return (
@@ -298,47 +486,40 @@ export default function MarkdownContent({
                   </h3>
                 );
               },
-              h4: ({ children, ...props }) => (
-                <h4 className="lc-md-h4" {...props}>
-                  {processLazyCookNodes(children)}
-                </h4>
-              ),
-              h5: ({ children, ...props }) => (
-                <h5 className="lc-md-h5" {...props}>
-                  {processLazyCookNodes(children)}
-                </h5>
-              ),
-              h6: ({ children, ...props }) => (
-                <h6 className="lc-md-h6" {...props}>
-                  {processLazyCookNodes(children)}
-                </h6>
-              ),
-              strong: ({ children }) => (
-                <strong className="lc-md-strong">
-                  {processLazyCookNodes(children)}
-                </strong>
-              ),
-              em: ({ children }) => (
-                <em className="lc-md-em">
-                  {processLazyCookNodes(children)}
-                </em>
-              ),
+              h4: ({ children, ...props }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <h4 className="lc-md-h4" {...props}>{processed}</h4>;
+              },
+              h5: ({ children, ...props }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <h5 className="lc-md-h5" {...props}>{processed}</h5>;
+              },
+              h6: ({ children, ...props }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <h6 className="lc-md-h6" {...props}>{processed}</h6>;
+              },
+              strong: ({ children }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <strong className="lc-md-strong">{processed}</strong>;
+              },
+              em: ({ children }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <em className="lc-md-em">{processed}</em>;
+              },
               code: ({ children }) => {
                 const text = childrenToString(children);
                 return (
                   <code className="lc-md-code-inline">{text}</code>
                 );
               },
-              blockquote: ({ children }) => (
-                <blockquote className="lc-md-blockquote">
-                  {processLazyCookNodes(children)}
-                </blockquote>
-              ),
-              li: ({ children }) => (
-                <li className="lc-md-li">
-                  {processLazyCookNodes(children)}
-                </li>
-              ),
+              blockquote: ({ children }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <blockquote className="lc-md-blockquote">{processed}</blockquote>;
+              },
+              li: ({ children }) => {
+                const processed = processChildrenWithHighlights(children, highlights, onHighlightClick);
+                return <li className="lc-md-li">{processed}</li>;
+              },
               a: ({ href, children }) => (
                 <a
                   href={href}
