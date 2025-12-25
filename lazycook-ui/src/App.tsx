@@ -3,6 +3,7 @@ import "./App.css";
 import MarkdownContent from "./MarkdownContent";
 import HighlightToolbar from "./components/HighlightToolbar";
 import HighlightNoteEditor from "./components/HighlightNoteEditor";
+import AskChatGPTButton from "./components/AskChatGPTButton";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { FiArrowRight } from "react-icons/fi";
@@ -561,12 +562,14 @@ function MessageItem({
   message, 
   onRegenerate,
   onUpdateHighlights,
-  highlightEnabled = true
+  highlightEnabled = true,
+  onAskChatGPT
 }: { 
   message: Message; 
   onRegenerate?: () => void;
   onUpdateHighlights?: (highlights: Highlight[]) => void;
   highlightEnabled?: boolean;
+  onAskChatGPT?: (text: string) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -576,6 +579,9 @@ function MessageItem({
   const [selectedHighlightId, setSelectedHighlightId] = useState("");
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [noteEditorPosition, setNoteEditorPosition] = useState({ x: 0, y: 0 });
+  const [showAskChatGPT, setShowAskChatGPT] = useState(false);
+  const [askChatGPTPosition, setAskChatGPTPosition] = useState({ x: 0, y: 0 });
+  const [askChatGPTText, setAskChatGPTText] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Handle clicks on highlighted text and text selection
@@ -611,25 +617,27 @@ function MessageItem({
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      // Don't show toolbar if clicking on a highlight (that's handled by handleClick)
+      // Don't show toolbar if clicking on a highlight or Ask ChatGPT button (that's handled by handleClick)
       const target = e.target as HTMLElement;
-      if (target?.closest('.lc-highlight')) {
+      if (target?.closest('.lc-highlight') || target?.closest('.lc-ask-chatgpt-btn')) {
         return;
       }
 
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) {
         setShowToolbar(false);
+        setShowAskChatGPT(false);
         return;
       }
 
       const range = selection.getRangeAt(0);
       const selectedText = range.toString().trim();
 
-      // Only show toolbar if text is selected and it's within this message
+      // Only show toolbar/Ask ChatGPT if text is selected and it's within this message
       if (selectedText.length > 0 && contentRef.current?.contains(range.commonAncestorContainer)) {
-        // Check if selection is inside code blocks (don't allow highlighting code)
+        // Check if selection is inside code blocks (don't allow highlighting code or asking about code)
         let node: Node | null = range.commonAncestorContainer;
+        let isInCodeBlock = false;
         while (node && node !== contentRef.current) {
           if (
             node.nodeType === Node.ELEMENT_NODE &&
@@ -637,21 +645,40 @@ function MessageItem({
              (node as Element).closest('.lc-code-block-wrapper') ||
              (node as Element).closest('pre'))
           ) {
-            setShowToolbar(false);
-            return;
+            isInCodeBlock = true;
+            break;
           }
           node = node.parentNode;
         }
 
+        if (isInCodeBlock) {
+          setShowToolbar(false);
+          setShowAskChatGPT(false);
+          return;
+        }
+
         const rect = range.getBoundingClientRect();
-        setToolbarPosition({
+        const position = {
           x: rect.left + rect.width / 2,
           y: rect.top,
-        });
-        setSelectedText(selectedText);
-        setShowToolbar(true);
+        };
+
+        // Show highlight toolbar if highlighting is enabled
+        if (highlightEnabled) {
+          setToolbarPosition(position);
+          setSelectedText(selectedText);
+          setShowToolbar(true);
+        }
+
+        // Always show Ask ChatGPT button (independent of highlight feature)
+        if (onAskChatGPT) {
+          setAskChatGPTPosition(position);
+          setAskChatGPTText(selectedText);
+          setShowAskChatGPT(true);
+        }
       } else {
         setShowToolbar(false);
+        setShowAskChatGPT(false);
       }
     };
 
@@ -659,11 +686,22 @@ function MessageItem({
     contentElement?.addEventListener('click', handleClick, true); // Use capture phase
     contentElement?.addEventListener('mouseup', handleMouseUp);
 
+    // Hide Ask ChatGPT when selection is cleared
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.toString().trim().length === 0) {
+        setShowAskChatGPT(false);
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+
     return () => {
       contentElement?.removeEventListener('click', handleClick, true);
       contentElement?.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, [message.role, message.content, highlightEnabled, onUpdateHighlights]);
+  }, [message.role, message.content, highlightEnabled, onUpdateHighlights, onAskChatGPT]);
 
   const handleColorSelect = (color: Highlight["color"]) => {
     if (!selectedText || !onUpdateHighlights) return;
@@ -833,6 +871,28 @@ function MessageItem({
             onSave={handleNoteSave}
             onDelete={handleRemoveHighlight}
             onClose={() => setShowNoteEditor(false)}
+          />
+        )}
+        {showAskChatGPT && message.role === "assistant" && onAskChatGPT && (
+          <AskChatGPTButton
+            position={askChatGPTPosition}
+            selectedText={askChatGPTText}
+            onAsk={onAskChatGPT}
+            onClose={() => {
+              setShowAskChatGPT(false);
+              window.getSelection()?.removeAllRanges();
+            }}
+          />
+        )}
+        {showAskChatGPT && message.role === "assistant" && onAskChatGPT && (
+          <AskChatGPTButton
+            position={askChatGPTPosition}
+            selectedText={askChatGPTText}
+            onAsk={onAskChatGPT}
+            onClose={() => {
+              setShowAskChatGPT(false);
+              window.getSelection()?.removeAllRanges();
+            }}
           />
         )}
         {message.role === "assistant" && isHovered && message.content && message.content.trim().length > 0 && (
@@ -2315,6 +2375,15 @@ export default function App() {
                       }
                       return next;
                     });
+                  } : undefined}
+                  onAskChatGPT={m.role === 'assistant' ? (text: string) => {
+                    setPrompt(text);
+                    // Auto-focus the textarea
+                    setTimeout(() => {
+                      textareaRef.current?.focus();
+                      // Scroll to input
+                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
                   } : undefined}
                 />
               ))}
