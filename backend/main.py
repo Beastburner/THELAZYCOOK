@@ -46,6 +46,10 @@ else:
     for dev_origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
         if dev_origin not in _allow_origins:
             _allow_origins.append(dev_origin)
+    # Production frontend (Vercel)
+    for prod_origin in ("https://lazycook-ai.vercel.app", "https://lazycook-ai.vercel.app/"):
+        if prod_origin.rstrip('/') not in [o.rstrip('/') for o in _allow_origins]:
+            _allow_origins.append(prod_origin.rstrip('/'))
     _allow_credentials = True
     logger.info(f"CORS: Allowing origins: {_allow_origins}")
 
@@ -180,7 +184,7 @@ class AIRunIn(BaseModel):
     chat_id: Optional[str] = None  # Link conversation to a specific chat
 
 
-@app.post("/api/chat")
+@app.post("/chat")
 def ai_run(
     payload: AIRunIn,
     user: Dict[str, Any] = Depends(auth.get_current_user),

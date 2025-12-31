@@ -1159,7 +1159,11 @@ function MessageItem({
 }
 
 export default function App() {
-  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+  // Use production backend URL by default, fallback to localhost for development
+  const API_BASE = import.meta.env.VITE_API_BASE || 
+    (import.meta.env.PROD 
+      ? "https://lazycook-backend.onrender.com" 
+      : "http://localhost:8000");
   
   // Debug: Log API base URL (remove in production if needed)
   if (import.meta.env.DEV) {
@@ -2009,7 +2013,7 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
       
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2128,7 +2132,12 @@ export default function App() {
       console.error("❌ [FRONTEND] Error in runAI:", e);
       const errorMessage = (e as Error).message || "Unknown error occurred";
       console.error("❌ [FRONTEND] Error message:", errorMessage);
-      const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout') || errorMessage.includes('Failed to fetch');
+      
+      // Check if request was blocked by client (ad blocker, browser extension, etc.)
+      const isBlocked = errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_BLOCKED_BY_CLIENT') || 
+                       (e as Error).name === 'TypeError' && errorMessage.includes('fetch');
+      
+      const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout');
       
       // Ensure error message is shown in the chat
       updateChatMessages(chatId, (m) => {
@@ -2146,7 +2155,9 @@ export default function App() {
           }
         }
         
-        const errorContent = isTimeout 
+        const errorContent = isBlocked
+          ? `⚠️ Request blocked by browser extension or ad blocker. Please disable ad blockers for this site or whitelist ${API_BASE}, then try again.`
+          : isTimeout 
           ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection." 
           : `Error: ${errorMessage}`;
         
@@ -2214,7 +2225,7 @@ export default function App() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2253,14 +2264,21 @@ export default function App() {
         if (idx >= 0) next[idx] = { ...next[idx], content, confidenceScore };
         return next;
       });
-    } catch (e) {
+      } catch (e) {
+      const errorMessage = (e as Error).message || "Unknown error occurred";
+      const isBlocked = errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_BLOCKED_BY_CLIENT') || 
+                       (e as Error).name === 'TypeError' && errorMessage.includes('fetch');
+      const errorContent = isBlocked
+        ? `⚠️ Request blocked by browser extension or ad blocker. Please disable ad blockers for this site or whitelist ${API_BASE}, then try again.`
+        : `Error: ${errorMessage}`;
+      
       updateChatMessages(activeChat.id, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMessageId);
-        if (idx >= 0) next[idx] = { ...next[idx], content: `Error: ${(e as Error).message}` };
+        if (idx >= 0) next[idx] = { ...next[idx], content: errorContent };
         return next;
       });
-      setError((e as Error).message);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -13,11 +13,14 @@ This installs all required dependencies including React, TypeScript, Vite, Tailw
 
 Create a .env file in the root of the project:
 
+# For local development:
 VITE_API_BASE=http://localhost:8000
 
+# For production (Render backend):
+VITE_API_BASE=https://lazycook-backend.onrender.com
 
 Note:
-VITE_API_BASE should point to your backend API URL.
+VITE_API_BASE should point to your backend API URL. The default is localhost:8000 for local development.
 
 ▶️ Running the App
 Start Development Server
