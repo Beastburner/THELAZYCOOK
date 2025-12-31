@@ -359,6 +359,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1; /* Allow navigation to grow */
+  min-height: 0; /* Allow flex shrinking */
 }
 
 .lc-nav-btn {

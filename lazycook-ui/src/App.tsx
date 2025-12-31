@@ -2613,6 +2613,18 @@ export default function App() {
             </svg>
             <span>Highlights & Notes</span>
           </button>
+          <button 
+            className="lc-nav-btn"
+            onClick={() => {
+              setShowUserMenu(!showUserMenu);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M3 14C3 11.5 5.2 9.5 8 9.5C10.8 9.5 13 11.5 13 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span>Profile</span>
+          </button>
         </div>
 
         {/* Search Input */}
@@ -2751,6 +2763,32 @@ export default function App() {
               </div>
             )}
           </div>
+          
+          {/* Logout Button - Direct access at bottom */}
+          <button 
+            className="lc-nav-btn"
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to log out?')) {
+                await logout();
+                if (window.innerWidth <= 900) {
+                  setSidebarOpen(false);
+                }
+              }
+            }}
+            style={{ 
+              color: 'var(--red)', 
+              width: '100%',
+              marginTop: '8px',
+              borderTop: '1px solid var(--border-light)',
+              paddingTop: '12px',
+              borderRadius: '0'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 4L2 8L6 12M2 8H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Log out</span>
+          </button>
         </div>
       </aside>
 
