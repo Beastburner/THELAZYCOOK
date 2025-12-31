@@ -63,18 +63,51 @@ export const getUserChats = async (userId: string): Promise<DocumentData[]> => {
  */
 export const subscribeToUserChats = (
   userId: string,
-  callback: (chats: DocumentData[]) => void
+  callback: (chats: DocumentData[]) => void,
+  onError?: (error: Error) => void
 ): (() => void) => {
   const chatsRef = collection(db, 'users', userId, 'chats');
   const q = query(chatsRef, orderBy('createdAt', 'desc'));
   
-  return onSnapshot(q, (snapshot: QuerySnapshot) => {
-    const chats = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    callback(chats);
-  });
+  return onSnapshot(
+    q, 
+    (snapshot: QuerySnapshot) => {
+      const chats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(chats);
+    },
+    (error: any) => {
+      console.error('⚠️ [FIRESTORE] Subscription error:', error);
+      
+      // Handle quota exceeded errors
+      if (error?.code === 'resource-exhausted' || error?.message?.includes('quota exceeded')) {
+        console.warn('⚠️ [FIRESTORE] Quota exceeded. Subscription disabled. Using local storage fallback.');
+        if (onError) {
+          onError(new Error('Firestore quota exceeded. Subscription disabled.'));
+        }
+        // Try to load from localStorage as fallback
+        try {
+          const backup = localStorage.getItem(`lazycook_chats_backup_${userId}`);
+          if (backup) {
+            const parsed = JSON.parse(backup);
+            if (parsed.chats && Array.isArray(parsed.chats)) {
+              console.log('📦 [FRONTEND] Loading chats from localStorage backup');
+              callback(parsed.chats.map((chat: any) => ({
+                id: chat.id,
+                ...chat
+              })));
+            }
+          }
+        } catch (e) {
+          console.error('⚠️ [FRONTEND] Failed to load from localStorage:', e);
+        }
+      } else if (onError) {
+        onError(error);
+      }
+    }
+  );
 };
 
 /**

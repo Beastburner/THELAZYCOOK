@@ -1458,8 +1458,10 @@ export default function App() {
 
     const loadChats = async () => {
       try {
-        // Subscribe to real-time updates
-        unsubscribe = subscribeToUserChats(firebaseUser.uid, (firestoreChats) => {
+        // Subscribe to real-time updates with error handling
+        unsubscribe = subscribeToUserChats(
+          firebaseUser.uid, 
+          (firestoreChats) => {
           // Convert Firestore data to Chat format
           const convertedChats: Chat[] = firestoreChats.map((doc: any) => {
             const chatId = doc.id;
@@ -1522,7 +1524,47 @@ export default function App() {
             if (savedActive) localStorage.removeItem("lazycook_active_chat"); // Clean up
             isInitialLoad = false;
           }
-        });
+        },
+        (error: Error) => {
+          // Handle subscription errors (like quota exceeded)
+          console.error("⚠️ [FRONTEND] Firestore subscription error:", error);
+          if (error.message.includes('quota exceeded') || error.message.includes('resource-exhausted')) {
+            setFirestoreQuotaExceeded(true);
+            setError("⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud.");
+            
+            // Try to load from localStorage backup
+            try {
+              const backup = localStorage.getItem(`lazycook_chats_backup_${firebaseUser.uid}`);
+              if (backup) {
+                const parsed = JSON.parse(backup);
+                if (parsed.chats && Array.isArray(parsed.chats) && parsed.chats.length > 0) {
+                  console.log("📦 [FRONTEND] Loaded chats from localStorage backup");
+                  const convertedChats: Chat[] = parsed.chats.map((doc: any) => ({
+                    id: doc.id,
+                    title: doc.title || "New chat",
+                    createdAt: doc.createdAt || Date.now(),
+                    messages: doc.messages || [],
+                  }));
+                  setChats(convertedChats);
+                  if (convertedChats.length > 0 && !activeChatId) {
+                    setActiveChatId(convertedChats[0].id);
+                  }
+                  return;
+                }
+              }
+            } catch (e) {
+              console.error("⚠️ [FRONTEND] Failed to load from localStorage:", e);
+            }
+            
+            // Fallback: create empty chat if no backup
+            if (chats.length === 0) {
+              const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
+              setChats([first]);
+              setActiveChatId(first.id);
+            }
+          }
+        }
+      );
       } catch (error) {
         console.error("Error loading chats from Firestore:", error);
         // Fallback: create empty chat
