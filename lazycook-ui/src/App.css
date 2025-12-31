@@ -2783,6 +2783,7 @@ code,
     transform: translateX(-50%) translateY(4px);
     width: 44px !important; /* Larger touch target on mobile */
     height: 44px !important;
+    position: fixed !important; /* Ensure it's fixed to viewport, not parent */
   }
   
   .lc-scroll-to-bottom.is-visible {
@@ -2790,6 +2791,15 @@ code,
     visibility: visible !important;
     pointer-events: auto !important;
     transform: translateX(-50%) translateY(0) !important;
+  }
+  
+  /* Ensure regenerate button is always visible on mobile */
+  .lc-msg-actions {
+    display: flex !important;
+  }
+  
+  .lc-msg-action-btn {
+    display: flex !important;
   }
   
   .lc-main {

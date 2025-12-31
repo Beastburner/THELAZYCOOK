@@ -597,6 +597,7 @@ function MessageItem({
   onAskChatGPT?: (text: string) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [liked, setLiked] = useState(false);
   const [showToolbar, setShowToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
@@ -740,6 +741,16 @@ function MessageItem({
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, [message.role, message.content, highlightEnabled, onUpdateHighlights, onAskChatGPT]);
+
+  // Track mobile state for regenerate button visibility
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 900);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleColorSelect = (color: Highlight["color"]) => {
     if (!selectedText || !onUpdateHighlights) return;
@@ -933,7 +944,7 @@ function MessageItem({
             }}
           />
         )}
-        {message.role === "assistant" && (isHovered || window.innerWidth <= 900) && message.content && message.content.trim().length > 0 && (
+        {message.role === "assistant" && (isHovered || isMobile) && message.content && message.content.trim().length > 0 && (
           <div className="lc-msg-actions">
             <button
               className="lc-msg-action-btn"
@@ -1134,9 +1145,10 @@ export default function App() {
     if (!threadRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    // Show arrow ONLY when distance from bottom ≥ 120px
-    // Hide when at bottom (distance < 120px)
-    setShowScrollToBottom(distanceFromBottom >= 120);
+    // Show arrow when NOT at bottom (distance from bottom > threshold)
+    // Lower threshold on mobile for better UX (50px vs 120px)
+    const threshold = window.innerWidth <= 900 ? 50 : 120;
+    setShowScrollToBottom(distanceFromBottom > threshold);
   };
 
   // Scroll to bottom function - ChatGPT exact behavior
@@ -1155,7 +1167,8 @@ export default function App() {
     
     const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const isNearBottom = distanceFromBottom < 120; // User is near bottom
+    const threshold = window.innerWidth <= 900 ? 50 : 120;
+    const isNearBottom = distanceFromBottom < threshold; // User is near bottom
     
     // Only auto-scroll if user is already near bottom
     // Hide arrow when new message arrives AND user is near bottom
@@ -1173,14 +1186,19 @@ export default function App() {
     const thread = threadRef.current;
     if (!thread) return;
     
-    thread.addEventListener('scroll', checkScrollPosition);
     // Initial check
     checkScrollPosition();
     
+    // Use passive listener for better performance
+    thread.addEventListener('scroll', checkScrollPosition, { passive: true });
+    // Also listen to touch events for mobile
+    thread.addEventListener('touchmove', checkScrollPosition, { passive: true });
+    
     return () => {
       thread.removeEventListener('scroll', checkScrollPosition);
+      thread.removeEventListener('touchmove', checkScrollPosition);
     };
-  }, [activeChat]);
+  }, [activeChat, activeChatId]);
 
   // ---- Firebase Auth State Listener ----
   useEffect(() => {
