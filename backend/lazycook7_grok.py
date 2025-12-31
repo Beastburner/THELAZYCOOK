@@ -61,22 +61,48 @@ logger = logging.getLogger(__name__)
 # --- Logging Configuration ---
 import sys
 import io
+import logging.handlers
 
-# Force UTF-8 encoding BEFORE any logging setup
+# Force UTF-8 encoding BEFORE any logging setup (only if streams are open)
 if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    try:
+        if not sys.stdout.closed:
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    except (AttributeError, ValueError):
+        pass  # stdout might not have buffer attribute or is already wrapped
+    
+    try:
+        if not sys.stderr.closed:
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    except (AttributeError, ValueError):
+        pass  # stderr might not have buffer attribute or is already wrapped
 
-# Simple logging with UTF-8
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('multi_agent_assistant.log', encoding='utf-8', errors='replace'),
-        logging.StreamHandler(sys.stdout)
-    ],
-    force=True
-)
+# Create a stream handler that uses sys.stdout (which is more stable)
+try:
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+except (AttributeError, ValueError):
+    # Fallback: use a simple StreamHandler without specifying stream
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Configure root logger
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.handlers = []  # Clear existing handlers
+root_logger.addHandler(stream_handler)
+
+# Also add file handler if needed (but make it optional)
+try:
+    file_handler = logging.FileHandler('multi_agent_assistant.log', encoding='utf-8', errors='replace')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(file_handler)
+except Exception:
+    pass  # File logging is optional
+
 logger = logging.getLogger(__name__)
 
 
@@ -172,6 +198,7 @@ class Conversation:
     sentiment: str
     topics: List[str]
     potential_followups: List[str]
+    chat_id: Optional[str] = None  # Link conversation to a specific chat
 
     def to_dict(self):
         return {
@@ -184,7 +211,8 @@ class Conversation:
             'context': self.context,
             'sentiment': self.sentiment,
             'topics': self.topics,
-            'potential_followups': self.potential_followups
+            'potential_followups': self.potential_followups,
+            'chat_id': self.chat_id
         }
 
     @classmethod
@@ -212,7 +240,8 @@ class Conversation:
             context=data['context'],
             sentiment=data['sentiment'],
             topics=data['topics'],
-            potential_followups=data['potential_followups']
+            potential_followups=data['potential_followups'],
+            chat_id=data.get('chat_id')  # Optional field for backward compatibility
         )
 
 
@@ -1950,9 +1979,14 @@ class MultiAgentSystem:
 
 # --- Autonomous Assistant ---
 class AutonomousMultiAgentAssistant:
-    def __init__(self, gemini_api_key: str):
+    def __init__(self, gemini_api_key: str, file_manager=None):
         self.console = Console()
-        self.file_manager = TextFileManager()
+        # Use FirestoreManager by default, but allow injection for testing
+        if file_manager is None:
+            from firestore_manager import FirestoreManager
+            self.file_manager = FirestoreManager()
+        else:
+            self.file_manager = file_manager
         self.multi_agent_system = MultiAgentSystem(gemini_api_key)
         self.running = False
         self.task_executor_thread = None
@@ -1979,12 +2013,14 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     async def process_user_message(self, user_id: str, message: str, reset_context: bool = False,
-                                   progress_callback: Optional[Callable] = None) -> str:
+                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None) -> str:
         if reset_context:
             self.clear_cached_context(user_id)
 
-        # Always get fresh context instead of cached for session conversations
-        context = self.file_manager.get_conversation_context(user_id)
+        # Get context filtered by chat_id (if provided)
+        # If chat_id is None, it's a new chat - use empty context
+        # If chat_id is provided, only get conversations from that chat
+        context = self.file_manager.get_conversation_context(user_id, chat_id=chat_id)
 
         # Debug: Print context being used (remove in production)
         # Safe debug print - commented out to avoid I/O errors in worker threads
@@ -2007,7 +2043,8 @@ class AutonomousMultiAgentAssistant:
             context=context[:2000] + "..." if len(context) > 2000 else context,
             sentiment="neutral",
             topics=[],
-            potential_followups=[]
+            potential_followups=[],
+            chat_id=chat_id  # Link conversation to the chat
         )
         self.file_manager.save_conversation(conversation)
         await self._analyze_and_create_tasks(conversation)
@@ -2119,7 +2156,7 @@ class AutonomousMultiAgentAssistant:
             "context_usage_rate": round(context_usage_rate * 100, 1),
             "topics": self._extract_topics(conversations),
             "last_interaction": conversations[0].timestamp.isoformat() if conversations else None,
-            "conversation_file_status": "Active" if self.file_manager.conversations_file.exists() else "Missing"
+            "conversation_file_status": "Active" if hasattr(self.file_manager, 'conversations_file') and self.file_manager.conversations_file.exists() else ("Active" if hasattr(self.file_manager, 'db') else "Missing")
         }
 
     def _extract_topics(self, conversations: List[Conversation]) -> List[str]:
@@ -2418,7 +2455,13 @@ class RichMultiAgentCLI:
 
             # Get pending and recent tasks
             pending_tasks = self.assistant.file_manager.get_pending_tasks()
-            all_tasks_data = self.assistant.file_manager._read_json_file(self.assistant.file_manager.tasks_file)
+            # Handle both TextFileManager and FirestoreManager
+            if hasattr(self.assistant.file_manager, '_read_json_file') and hasattr(self.assistant.file_manager, 'tasks_file'):
+                all_tasks_data = self.assistant.file_manager._read_json_file(self.assistant.file_manager.tasks_file)
+            elif hasattr(self.assistant.file_manager, 'get_all_tasks_as_dicts'):
+                all_tasks_data = self.assistant.file_manager.get_all_tasks_as_dicts()
+            else:
+                all_tasks_data = []
             progress.update(task, completed=60, description="[bold cyan]⚙️ Analyzing task queue...[/bold cyan]")
 
             current_percent = 60
@@ -4136,29 +4179,43 @@ class RichMultiAgentCLI:
 class MultiAgentAssistantConfig:
     """Configuration class for external usage of the Multi-Agent Assistant"""
 
-    def __init__(self, api_key: str, conversation_limit: int, document_limit: int = 2):
+    def __init__(self, api_key: str, conversation_limit: int, document_limit: int = 2, file_manager=None):
         self.api_key = api_key
         self.conversation_limit = conversation_limit
-        self.document_limit = document_limit  # NEW
+        self.document_limit = document_limit
+        self.file_manager = file_manager
 
     def create_assistant(self):
         """Create assistant with properly configured file manager"""
-        assistant = AutonomousMultiAgentAssistant(self.api_key)
-        # Replace the file manager with configured one
-        assistant.file_manager = TextFileManager(
-            conversation_limit=self.conversation_limit,
-            document_limit=self.document_limit  # Pass document limit
-        )
+        from firestore_manager import FirestoreManager
+        
+        # Use provided file_manager or create FirestoreManager with limits
+        if self.file_manager is None:
+            file_manager = FirestoreManager(
+                conversation_limit=self.conversation_limit,
+                document_limit=self.document_limit
+            )
+        else:
+            file_manager = self.file_manager
+        
+        assistant = AutonomousMultiAgentAssistant(self.api_key, file_manager=file_manager)
         return assistant
 
     def create_cli(self):
         """Create CLI with configured file manager"""
+        from firestore_manager import FirestoreManager
+        
+        # Use provided file_manager or create FirestoreManager with limits
+        if self.file_manager is None:
+            file_manager = FirestoreManager(
+                conversation_limit=self.conversation_limit,
+                document_limit=self.document_limit
+            )
+        else:
+            file_manager = self.file_manager
+        
         cli = RichMultiAgentCLI(self.api_key)
-        # Replace the file manager in the assistant
-        cli.assistant.file_manager = TextFileManager(
-            conversation_limit=self.conversation_limit,
-            document_limit=self.document_limit  # Pass document limit
-        )
+        cli.assistant.file_manager = file_manager
         return cli
 
     async def run_cli(self):

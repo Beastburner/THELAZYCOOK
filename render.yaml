@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: lazycook-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROK_API_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: /app/backend/serviceAccountKey.json
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: PORT
+        value: "8000"
+    healthCheckPath: /health
+

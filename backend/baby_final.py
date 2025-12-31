@@ -65,7 +65,8 @@ def gemini(
     prompt: str,
     conversation_limit: int = 0,
     document_limit: int = 2,
-    user_id: str = "user_001"
+    user_id: str = "user_001",
+    chat_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Call Gemini-only implementation (lazycook6.py)
@@ -99,7 +100,7 @@ def gemini(
         
         # Process query - use process_user_message instead of run_cli
         response = asyncio.run(
-            assistant.process_user_message(user_id, prompt)
+            assistant.process_user_message(user_id, prompt, chat_id=chat_id)
         )
         
         # Get quality metrics
@@ -113,6 +114,7 @@ def gemini(
                 "iterations": insights.get("average_iterations", 0),
                 "conversation_limit": conversation_limit,
                 "user_id": user_id,
+                "chat_id": chat_id,
                 "note": "Uses Gemini-only approach via lazycook6.py"
             }
         }
@@ -132,7 +134,8 @@ def grok(
     prompt: str,
     conversation_limit: int = 70,
     document_limit: int = 2,
-    user_id: str = "user_001"
+    user_id: str = "user_001",
+    chat_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Call Grok-only implementation (lazycook7_grok.py)
@@ -166,7 +169,7 @@ def grok(
         
         # Process query - use process_user_message instead of run_cli
         response = asyncio.run(
-            assistant.process_user_message(user_id, prompt)
+            assistant.process_user_message(user_id, prompt, chat_id=chat_id)
         )
         
         # Get quality metrics
@@ -181,6 +184,7 @@ def grok(
                 "conversation_limit": conversation_limit,
                 "document_limit": document_limit,
                 "user_id": user_id,
+                "chat_id": chat_id,
                 "note": "Uses Grok-only approach via lazycook7_grok.py"
             }
         }
@@ -201,7 +205,8 @@ def mixed(
     conversation_limit: int = 70,
     document_limit: int = 2,
     user_id: str = "user_001",
-    run_parallel: bool = False
+    run_parallel: bool = False,
+    chat_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Call Grok+Gemini mixed implementation (lazycook_grok_gemini_2.py)
@@ -242,7 +247,7 @@ def mixed(
         
         # Process query - use process_user_message instead of run_cli
         response = asyncio.run(
-            assistant.process_user_message(user_id, prompt)
+            assistant.process_user_message(user_id, prompt, chat_id=chat_id)
         )
         
         # Get quality metrics
@@ -257,6 +262,7 @@ def mixed(
                 "conversation_limit": conversation_limit,
                 "document_limit": document_limit,
                 "user_id": user_id,
+                "chat_id": chat_id,
                 "note": "Uses Gemini + Grok hybrid approach via lazycook_grok_gemini_2.py"
             }
         }
@@ -277,8 +283,10 @@ def run_assistant_by_plan(
     prompt: str,
     user_id: str = "user_001",
     conversation_limit: int = 70,
-    document_limit: int = 2
+    document_limit: int = 2,
+    chat_id: Optional[str] = None
 ) -> Dict[str, Any]:
+    logger.info(f"🔗 [BABY_FINAL] run_assistant_by_plan called with chat_id: {chat_id}")
     """
     Main entry function: Route to the correct assistant based on plan.
     
@@ -309,11 +317,11 @@ def run_assistant_by_plan(
     
     # Route to the appropriate function
     if model == "gemini":
-        return gemini(prompt, conversation_limit, document_limit, user_id)
+        return gemini(prompt, conversation_limit, document_limit, user_id, chat_id)
     elif model == "grok":
-        return grok(prompt, conversation_limit, document_limit, user_id)
+        return grok(prompt, conversation_limit, document_limit, user_id, chat_id)
     elif model == "mixed":
-        return mixed(prompt, conversation_limit, document_limit, user_id)
+        return mixed(prompt, conversation_limit, document_limit, user_id, chat_id)
     else:
         raise ValueError(f"Unknown model: {model}")
 

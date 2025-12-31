@@ -12,3 +12,4 @@ numpy
 sentence-transformers
 torch
 faiss-cpu
+firebase-admin

@@ -68,15 +68,29 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 # Simple logging with UTF-8
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('multi_agent_assistant.log', encoding='utf-8', errors='replace'),
-        logging.StreamHandler(sys.stdout)
-    ],
-    force=True
-)
+# Use a handler that won't close when file is closed
+import logging.handlers
+
+# Create a stream handler that uses sys.stdout (which is more stable)
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setLevel(logging.INFO)
+stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Configure root logger
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.handlers = []  # Clear existing handlers
+root_logger.addHandler(stream_handler)
+
+# Also add file handler if needed (but make it optional)
+try:
+    file_handler = logging.FileHandler('multi_agent_assistant.log', encoding='utf-8', errors='replace')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(file_handler)
+except Exception:
+    pass  # File logging is optional
+
 logger = logging.getLogger(__name__)
 
 
@@ -172,6 +186,7 @@ class Conversation:
     sentiment: str
     topics: List[str]
     potential_followups: List[str]
+    chat_id: Optional[str] = None  # Link conversation to a specific chat
 
     def to_dict(self):
         return {
@@ -184,7 +199,8 @@ class Conversation:
             'context': self.context,
             'sentiment': self.sentiment,
             'topics': self.topics,
-            'potential_followups': self.potential_followups
+            'potential_followups': self.potential_followups,
+            'chat_id': self.chat_id
         }
 
     @classmethod
@@ -212,7 +228,8 @@ class Conversation:
             context=data['context'],
             sentiment=data['sentiment'],
             topics=data['topics'],
-            potential_followups=data['potential_followups']
+            potential_followups=data['potential_followups'],
+            chat_id=data.get('chat_id')  # Optional field for backward compatibility
         )
 
 
@@ -1167,9 +1184,12 @@ class AIAgent:
         """
         try:
             if self.use_gemini:
+                logger.info(f"📡 [GENERATOR] Calling Gemini API...")
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text
+                logger.info(f"✅ [GENERATOR] Gemini API response received ({len(response_text)} chars)")
             else:
+                logger.info(f"📡 [GENERATOR] Calling Groq API (model: {self.model_name})...")
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=[{"role": "user", "content": prompt}],
@@ -1177,6 +1197,7 @@ class AIAgent:
                     max_tokens=self.max_tokens
                 )
                 response_text = response.choices[0].message.content
+                logger.info(f"✅ [GENERATOR] Groq API response received ({len(response_text)} chars)")
 
             return AgentResponse(
                 agent_role=self.role,
@@ -1188,7 +1209,9 @@ class AIAgent:
                 metadata={"context_length": len(context)}
             )
         except Exception as e:
-            logger.error(f"Error in _generate_solution: {e}")
+            logger.error(f"❌ [GENERATOR] Error in _generate_solution: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return AgentResponse(
                 agent_role=self.role,
                 content=f"Error generating solution: {e}",
@@ -1333,9 +1356,12 @@ class AIAgent:
 
         try:
             if self.use_gemini:
+                logger.info(f"📡 [OPTIMIZER] Calling Gemini API...")
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text.strip()
+                logger.info(f"✅ [OPTIMIZER] Gemini API response received ({len(response_text)} chars)")
             else:
+                logger.info(f"📡 [OPTIMIZER] Calling Groq API (model: {self.model_name})...")
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=[{"role": "user", "content": prompt}],
@@ -1343,6 +1369,7 @@ class AIAgent:
                     max_tokens=self.max_tokens
                 )
                 response_text = response.choices[0].message.content.strip()
+                logger.info(f"✅ [OPTIMIZER] Groq API response received ({len(response_text)} chars)")
 
             # ✅ ROBUST JSON PARSING
             import json
@@ -1490,9 +1517,12 @@ class AIAgent:
         """
         try:
             if self.use_gemini:
+                logger.info(f"📡 [VALIDATOR] Calling Gemini API...")
                 response = await self.model.generate_content_async(prompt)
                 response_text = response.text
+                logger.info(f"✅ [VALIDATOR] Gemini API response received ({len(response_text)} chars)")
             else:
+                logger.info(f"📡 [VALIDATOR] Calling Groq API (model: {self.model_name})...")
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=[{"role": "user", "content": prompt}],
@@ -1500,6 +1530,7 @@ class AIAgent:
                     max_tokens=self.max_tokens
                 )
                 response_text = response.choices[0].message.content
+                logger.info(f"✅ [VALIDATOR] Groq API response received ({len(response_text)} chars)")
 
             return AgentResponse(
                 agent_role=self.role,
@@ -1911,11 +1942,13 @@ class MultiAgentSystem:
     @log_errors
     async def process_query(self, user_query: str, context: str = "",
                             progress_callback: Optional[Callable] = None) -> MultiAgentSession:
+        logger.info(f"🚀 [MULTI_AGENT] Starting process_query for query: {user_query[:100]}...")
         session_id = f"session_{int(time.time())}"
 
         # Analyze query complexity
         complexity = self.complexity_analyzer.analyze_complexity(user_query)
         pipeline = self.complexity_analyzer.get_agent_pipeline(complexity)
+        logger.info(f"📊 [MULTI_AGENT] Pipeline: {pipeline}, use_analyzer={pipeline.get('use_analyzer')}, use_optimizer={pipeline.get('use_optimizer')}, use_validator={pipeline.get('use_validator')}")
 
         # Update stats
         self.stats[f'{complexity}_queries'] += 1
@@ -1955,7 +1988,9 @@ class MultiAgentSystem:
             if progress_callback:
                 progress_callback("generator", 20 + (current_iteration * 25),
                                   "🔧 Generator Agent creating solution...")
+            logger.info(f"🔄 Making Generator API call (iteration {current_iteration + 1})...")
             generator_response = await self.generator.process(user_query, context, iterations[-1] if iterations else None)
+            logger.info(f"✅ Generator API call completed (iteration {current_iteration + 1})")
             iteration_data["generator_response"] = asdict(generator_response)
             api_calls_used += 1
 
@@ -1964,7 +1999,9 @@ class MultiAgentSystem:
                 if progress_callback:
                     progress_callback("analyzer", 35 + (current_iteration * 25),
                                       "🔍 Analyzer Agent reviewing...")
+                logger.info(f"🔄 Making Analyzer API call (iteration {current_iteration + 1})...")
                 analyzer_response = await self.analyzer.process(user_query, context, iteration_data)
+                logger.info(f"✅ Analyzer API call completed (iteration {current_iteration + 1})")
                 iteration_data["analyzer_response"] = asdict(analyzer_response)
                 api_calls_used += 1
             else:
@@ -1984,10 +2021,14 @@ class MultiAgentSystem:
                 if progress_callback:
                     progress_callback("optimizer", 50 + (current_iteration * 25),
                                       "⚡ Optimizer Agent refining...")
+                logger.info(f"🔄 Making Optimizer API call (iteration {current_iteration + 1})...")
                 optimizer_response = await self.optimizer.process(user_query, "", iteration_data)
+                logger.info(f"✅ Optimizer API call completed (iteration {current_iteration + 1})")
+                logger.info(f"📝 [OPTIMIZER] Response content length: {len(optimizer_response.content) if optimizer_response.content else 0}")
                 iteration_data["optimizer_response"] = asdict(optimizer_response)
                 api_calls_used += 1
             else:
+                logger.info(f"⏭️ [OPTIMIZER] Skipped for simple query, using generator response")
                 optimizer_response = generator_response
                 iteration_data["optimizer_response"] = asdict(generator_response)
 
@@ -1996,7 +2037,9 @@ class MultiAgentSystem:
                 if progress_callback:
                     progress_callback("validator", 75 + (current_iteration * 25),
                                       "✅ Validator Agent validating...")
+                logger.info(f"🔄 Making Validator API call (iteration {current_iteration + 1})...")
                 validator_response = await self.validator.process(user_query, "", iteration_data)
+                logger.info(f"✅ Validator API call completed (iteration {current_iteration + 1})")
                 iteration_data["validator_response"] = asdict(validator_response)
                 api_calls_used += 1
             else:
@@ -2082,6 +2125,15 @@ class MultiAgentSystem:
 
             iterations.append(iteration_data)
             final_response = optimizer_response.content
+            
+            logger.info(f"📝 [MULTI_AGENT] Setting final_response from optimizer: length={len(final_response) if final_response else 0}")
+            logger.info(f"📝 [MULTI_AGENT] Optimizer content preview: {optimizer_response.content[:200] if optimizer_response.content else 'EMPTY'}...")
+            
+            # Safety check: if optimizer response is empty, use generator response
+            if not final_response or len(final_response.strip()) == 0:
+                logger.warning("⚠️ [MULTI_AGENT] Optimizer response is empty, falling back to generator response")
+                final_response = generator_response.content
+                logger.info(f"📝 [MULTI_AGENT] Using generator response instead: length={len(final_response) if final_response else 0}")
 
             # Get threshold for current iteration
             current_threshold = iteration_thresholds.get(current_iteration, self.quality_threshold)
@@ -2170,11 +2222,15 @@ class MultiAgentSystem:
 
 # --- Autonomous Assistant ---
 class AutonomousMultiAgentAssistant:
-    def __init__(self, gemini_api_key: str, grok_api_key: str):
+    def __init__(self, gemini_api_key: str, grok_api_key: str, file_manager=None):
         self.console = Console()
-        self.file_manager = TextFileManager()
+        # Use FirestoreManager by default, but allow injection for testing
+        if file_manager is None:
+            from firestore_manager import FirestoreManager
+            self.file_manager = FirestoreManager()
+        else:
+            self.file_manager = file_manager
         self.multi_agent_system = MultiAgentSystem(gemini_api_key, grok_api_key)
-
         self.running = False
         self.task_executor_thread = None
         self._cached_context = {}
@@ -2200,12 +2256,14 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     async def process_user_message(self, user_id: str, message: str, reset_context: bool = False,
-                                   progress_callback: Optional[Callable] = None) -> str:
+                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None) -> str:
         if reset_context:
             self.clear_cached_context(user_id)
 
-        # Always get fresh context - use file_manager's limit
-        context = self.file_manager.get_conversation_context(user_id)  # ✅ No hardcoded limit!
+        # Get context filtered by chat_id (if provided)
+        # If chat_id is None, it's a new chat - use empty context
+        # If chat_id is provided, only get conversations from that chat
+        context = self.file_manager.get_conversation_context(user_id, chat_id=chat_id)
 
         # Debug: Print context being used (remove in production)
         # Safe debug print - commented out to avoid I/O errors in worker threads
@@ -2216,6 +2274,9 @@ class AutonomousMultiAgentAssistant:
             context,
             progress_callback=progress_callback
         )
+
+        logger.info(f"📤 [MIXED_MODEL] Returning final_response: length={len(multi_agent_session.final_response) if multi_agent_session.final_response else 0}")
+        logger.info(f"📤 [MIXED_MODEL] Final response preview: {multi_agent_session.final_response[:200] if multi_agent_session.final_response else 'EMPTY'}...")
 
         conversation_id = f"{user_id}_{int(time.time())}"
         conversation = Conversation(
@@ -2228,10 +2289,17 @@ class AutonomousMultiAgentAssistant:
             context=context[:2000] + "..." if len(context) > 2000 else context,
             sentiment="neutral",
             topics=[],
-            potential_followups=[]
+            potential_followups=[],
+            chat_id=chat_id  # Link conversation to the chat
         )
         self.file_manager.save_conversation(conversation)
         await self._analyze_and_create_tasks(conversation)
+        
+        # Ensure we return a non-empty response
+        if not multi_agent_session.final_response or len(multi_agent_session.final_response.strip()) == 0:
+            logger.error("❌ [MIXED_MODEL] final_response is empty! Returning error message.")
+            return "Error: The AI response was empty. Please try again."
+        
         return multi_agent_session.final_response
 
     @log_errors
@@ -2340,7 +2408,7 @@ class AutonomousMultiAgentAssistant:
             "context_usage_rate": round(context_usage_rate * 100, 1),
             "topics": self._extract_topics(conversations),
             "last_interaction": conversations[0].timestamp.isoformat() if conversations else None,
-            "conversation_file_status": "Active" if self.file_manager.conversations_file.exists() else "Missing"
+            "conversation_file_status": "Active" if hasattr(self.file_manager, 'conversations_file') and self.file_manager.conversations_file.exists() else ("Active" if hasattr(self.file_manager, 'db') else "Missing")
         }
 
     def _extract_topics(self, conversations: List[Conversation]) -> List[str]:
@@ -2641,7 +2709,13 @@ class RichMultiAgentCLI:
 
             # Get pending and recent tasks
             pending_tasks = self.assistant.file_manager.get_pending_tasks()
-            all_tasks_data = self.assistant.file_manager._read_json_file(self.assistant.file_manager.tasks_file)
+            # Handle both TextFileManager and FirestoreManager
+            if hasattr(self.assistant.file_manager, '_read_json_file') and hasattr(self.assistant.file_manager, 'tasks_file'):
+                all_tasks_data = self.assistant.file_manager._read_json_file(self.assistant.file_manager.tasks_file)
+            elif hasattr(self.assistant.file_manager, 'get_all_tasks_as_dicts'):
+                all_tasks_data = self.assistant.file_manager.get_all_tasks_as_dicts()
+            else:
+                all_tasks_data = []
             progress.update(task, completed=60, description="[bold cyan]⚙️ Analyzing task queue...[/bold cyan]")
 
             current_percent = 60
@@ -4309,30 +4383,41 @@ class RichMultiAgentCLI:
 class MultiAgentAssistantConfig:
     """Configuration class for external usage of the Multi-Agent Assistant"""
 
-    def __init__(self, gemini_api_key: str, grok_api_key: str, conversation_limit: int = 70, document_limit: int = 2):
+    def __init__(self, gemini_api_key: str, grok_api_key: str, conversation_limit: int = 70, document_limit: int = 2, file_manager=None):
         self.gemini_api_key = gemini_api_key
         self.grok_api_key = grok_api_key
         self.conversation_limit = conversation_limit
-        self.document_limit = document_limit  # NEW
+        self.document_limit = document_limit
+        self.file_manager = file_manager
 
     def create_assistant(self):
-        file_manager = TextFileManager(
-            conversation_limit=self.conversation_limit,
-            document_limit=self.document_limit
-        )
+        from firestore_manager import FirestoreManager
+        
+        # Use provided file_manager or create FirestoreManager with limits
+        if self.file_manager is None:
+            file_manager = FirestoreManager(
+                conversation_limit=self.conversation_limit,
+                document_limit=self.document_limit
+            )
+        else:
+            file_manager = self.file_manager
 
-        assistant = AutonomousMultiAgentAssistant(self.gemini_api_key, self.grok_api_key)
-        assistant.file_manager = file_manager
+        assistant = AutonomousMultiAgentAssistant(self.gemini_api_key, self.grok_api_key, file_manager=file_manager)
         assistant._cached_context = {}
 
         return assistant
 
     def create_cli(self):
-        # Create file manager FIRST with your limits
-        file_manager = TextFileManager(
-            conversation_limit=self.conversation_limit,
-            document_limit=self.document_limit
-        )
+        from firestore_manager import FirestoreManager
+        
+        # Use provided file_manager or create FirestoreManager with limits
+        if self.file_manager is None:
+            file_manager = FirestoreManager(
+                conversation_limit=self.conversation_limit,
+                document_limit=self.document_limit
+            )
+        else:
+            file_manager = self.file_manager
 
         # Create CLI
         cli = RichMultiAgentCLI(self.gemini_api_key, self.grok_api_key)

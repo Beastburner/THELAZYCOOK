@@ -10,6 +10,10 @@ import { FiArrowRight } from "react-icons/fi";
 import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
 import logoTextImg from "./assets/logo-text.png";
+import { signIn, signUp, signInWithGoogle, logOut, onAuthChange, getIdToken } from "./firebase";
+import { setUserDoc, getUserDoc, updateUserPlan, updateUserSubscription, setChatDoc, subscribeToUserChats } from "./firebase";
+import type { User } from "firebase/auth";
+import PlanSelector from "./components/PlanSelector";
 
 type Plan = "GO" | "PRO" | "ULTRA";
 type Model = "gemini" | "grok" | "mixed";
@@ -47,6 +51,27 @@ const PLAN_MODELS: Record<Plan, Model[]> = {
 
 function uid(prefix = "id") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+}
+
+/**
+ * Determine user plan from email address
+ * Test emails: go@lazycook.ai -> GO, pro@lazycook.ai -> PRO, ultra@lazycook.ai -> ULTRA
+ */
+function getPlanFromEmail(email: string): Plan {
+  const e = email.toLowerCase();
+  if (e.includes("ultra@lazycook.ai") || e === "ultra@lazycook.ai") {
+    return "ULTRA";
+  }
+  if (e.includes("pro@lazycook.ai") || e === "pro@lazycook.ai") {
+    return "PRO";
+  }
+  if (e.includes("go@lazycook.ai") || e === "go@lazycook.ai") {
+    return "GO";
+  }
+  // Default fallback based on email content
+  if (e.includes("ultra")) return "ULTRA";
+  if (e.includes("pro")) return "PRO";
+  return "GO";
 }
 
 /**
@@ -989,6 +1014,10 @@ export default function App() {
   const [password, setPassword] = useState("1234");
   const [token, setToken] = useState<string | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showPlanSelector, setShowPlanSelector] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1134,57 +1163,188 @@ export default function App() {
     };
   }, [activeChat]);
 
-  // ---- Persist auth + chats ----
+  // ---- Firebase Auth State Listener ----
   useEffect(() => {
-    const saved = localStorage.getItem("lazycook_auth");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setEmail(parsed.email || "");
-      setToken(parsed.token || null);
-      setPlan(parsed.plan || null);
+    setAuthLoading(true);
+    const unsubscribe = onAuthChange(async (user) => {
+      if (user) {
+        setFirebaseUser(user);
+        setEmail(user.email || "");
+        
+        // Get Firebase ID token
+        let idToken: string | null = null;
+        try {
+          idToken = await getIdToken();
+          if (!idToken) {
+            throw new Error("Failed to get ID token");
+          }
+          setToken(idToken);
+        } catch (error: any) {
+          console.error("Error getting ID token:", error);
+          setError("Failed to authenticate. Please try again.");
+          setAuthLoading(false);
+          return;
+        }
+        
+        // Check if user document exists in Firestore
+        let userDoc;
+        try {
+          userDoc = await getUserDoc(user.uid);
+        } catch (error: any) {
+          console.error("Error fetching user doc:", error);
+          // If it's a permissions error, treat as new user (Firestore rules not set up yet)
+          if (error?.code === 'permission-denied' || error?.message?.includes('permission') || error?.message?.includes('Missing or insufficient permissions')) {
+            console.warn("Firestore permissions error - treating as new user. Please set up Firestore security rules.");
+            userDoc = null;
+          } else {
+            // Other errors - show warning but continue as new user
+            console.warn("Firestore read error, treating as new user:", error);
+            userDoc = null;
+          }
+        }
+        
+        try {
+          if (!userDoc || !userDoc.plan) {
+            // New user - show plan selector
+            setIsNewUser(true);
+            setShowPlanSelector(true);
+            // Set default plan based on email (but don't save yet)
+            const defaultPlan = getPlanFromEmail(user.email || "");
+            setPlan(defaultPlan);
+            // Set model to match default plan
+            const allowedModel = PLAN_MODELS[defaultPlan]?.[0];
+            if (allowedModel) {
+              setModel(allowedModel);
+            }
+          } else {
+            // Existing user - use their saved plan
+            const savedPlan = userDoc.plan as Plan;
+            setPlan(savedPlan);
+            setIsNewUser(false);
+            setShowPlanSelector(false);
+            
+            // Auto-select allowed model for the plan
+            const allowedModel = PLAN_MODELS[savedPlan]?.[0];
+            if (allowedModel) {
+              setModel(allowedModel);
+            }
+            
+            // Update last login (don't fail if this errors)
+            try {
+              await setUserDoc(user.uid, {
+                lastLoginAt: new Date().toISOString()
+              });
+            } catch (error) {
+              console.warn("Failed to update last login:", error);
+            }
+          }
+        } catch (error) {
+          console.error("Error processing user data:", error);
+          setError("Failed to load user data. Please try again.");
+        }
+      } else {
+        setFirebaseUser(null);
+        setEmail("");
+        setToken(null);
+        setPlan(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // ---- Load chats from Firestore when user is authenticated ----
+  useEffect(() => {
+    if (!firebaseUser) {
+      // If not authenticated, use empty state
+      setChats([]);
+      setActiveChatId(null);
+      return;
     }
 
-    const savedChats = localStorage.getItem("lazycook_chats");
-    const savedActive = localStorage.getItem("lazycook_active_chat");
-    if (savedChats) {
+    let unsubscribe: (() => void) | null = null;
+    let isInitialLoad = true;
+
+    const loadChats = async () => {
       try {
-        const parsed = JSON.parse(savedChats) as Chat[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setChats(parsed);
-          setActiveChatId(savedActive || (parsed?.[0]?.id ?? null));
-        } else {
-          // If parsed chats is empty array, create a new chat
-          const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
-          setChats([first]);
-          setActiveChatId(first.id);
-        }
+        // Subscribe to real-time updates
+        unsubscribe = subscribeToUserChats(firebaseUser.uid, (firestoreChats) => {
+          // Convert Firestore data to Chat format
+          const convertedChats: Chat[] = firestoreChats.map((doc: any) => ({
+            id: doc.id,
+            title: doc.title || "New chat",
+            createdAt: doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
+            messages: doc.messages || [],
+          }));
+
+          setChats(convertedChats);
+
+          // Set active chat only on initial load
+          if (isInitialLoad && convertedChats.length > 0) {
+            // Try to restore from localStorage first (for migration)
+            const savedActive = localStorage.getItem("lazycook_active_chat");
+            const foundChat = savedActive 
+              ? convertedChats.find(c => c.id === savedActive)
+              : null;
+            setActiveChatId(foundChat?.id || convertedChats[0].id);
+            if (savedActive) localStorage.removeItem("lazycook_active_chat"); // Clean up
+            isInitialLoad = false;
+          }
+        });
       } catch (error) {
-        console.error("Error parsing saved chats:", error);
-        // If parsing fails, create a new chat
+        console.error("Error loading chats from Firestore:", error);
+        // Fallback: create empty chat
         const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
         setChats([first]);
         setActiveChatId(first.id);
       }
-    } else {
-      const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
-      setChats([first]);
-      setActiveChatId(first.id);
-    }
-  }, []);
+    };
 
+    loadChats();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [firebaseUser]);
+
+  // ---- Save chat to Firestore when it changes ----
   useEffect(() => {
-    // Only save if chats array is not empty to prevent overwriting with empty array
-    if (chats.length > 0) {
+    if (!firebaseUser || chats.length === 0) return;
+
+    // Only save the active chat to reduce Firestore writes
+    const saveActiveChat = async () => {
+      if (!activeChatId) return;
+      
+      const activeChat = chats.find(c => c.id === activeChatId);
+      if (!activeChat) return;
+      
       try {
-        localStorage.setItem("lazycook_chats", JSON.stringify(chats));
+        await setChatDoc(firebaseUser.uid, activeChat.id, {
+          title: activeChat.title,
+          createdAt: activeChat.createdAt,
+          messages: activeChat.messages,
+        });
+        console.log("💾 [FRONTEND] Saved active chat to Firestore");
       } catch (error) {
-        console.error("Error saving chats to localStorage:", error);
+        console.error(`Error saving active chat ${activeChat.id} to Firestore:`, error);
+        // If it's a resource exhaustion error, wait longer before retrying
+        if (error instanceof Error && error.message.includes('resource-exhausted')) {
+          console.warn("⚠️ [FRONTEND] Firestore resource exhausted, will retry later");
+        }
       }
-    }
-  }, [chats]);
+    };
 
+    // Increased debounce time to reduce write frequency (2 seconds instead of 500ms)
+    const timeoutId = setTimeout(saveActiveChat, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [chats, firebaseUser, activeChatId]);
+
+  // ---- Save active chat ID to localStorage (for quick restore) ----
   useEffect(() => {
-    if (activeChatId) localStorage.setItem("lazycook_active_chat", activeChatId);
+    if (activeChatId) {
+      localStorage.setItem("lazycook_active_chat", activeChatId);
+    }
   }, [activeChatId]);
 
   // Persist highlight setting
@@ -1205,10 +1365,6 @@ export default function App() {
       textareaRef.current.style.height = `${newHeight}px`;
     }
   }, [prompt]);
-
-  const saveAuth = (e: string, t: string, p: string) => {
-    localStorage.setItem("lazycook_auth", JSON.stringify({ email: e, token: t, plan: p }));
-  };
 
   // Highlight Analytics
   type HighlightAnalytics = {
@@ -1351,53 +1507,143 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const logout = () => {
-    localStorage.removeItem("lazycook_auth");
-    setToken(null);
-    setPlan(null);
-  };
-
-  const refreshMe = async (tok: string) => {
-    const res = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${tok}` } });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Failed to load user");
-    setPlan(data.plan);
-    saveAuth(email, tok, data.plan);
-
-    // Auto-select allowed model for the plan (strict routing)
-    const allowed = PLAN_MODELS[data.plan as Plan]?.[0];
-    if (allowed) setModel(allowed);
-  };
-
-  useEffect(() => {
-    if (!token) return;
-    refreshMe(token).catch(() => logout());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  const login = async () => {
-    setError(null);
+  const logout = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Login failed");
-      setToken(data.access_token);
-      await refreshMe(data.access_token);
-    } catch (e) {
-      setError((e as Error).message);
+      await logOut();
+      setToken(null);
+      setPlan(null);
+      setEmail("");
+      setFirebaseUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+      setError("Failed to logout");
     }
   };
 
-  const newChat = () => {
+  const login = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      if (!email || !password) {
+        throw new Error("Email and password are required");
+      }
+
+      // Try to sign in first
+      let userCredential;
+      try {
+        userCredential = await signIn(email, password);
+      } catch (signInError: any) {
+        // If user doesn't exist, try to sign up (for test emails)
+        if (signInError.code === "auth/user-not-found") {
+          // Create account if it doesn't exist (useful for test emails)
+          try {
+            userCredential = await signUp(email, password);
+          } catch (signUpError: any) {
+            throw new Error(signUpError.message || "Failed to create account");
+          }
+        } else if (signInError.code === "auth/wrong-password") {
+          throw new Error("Incorrect password. Please try again.");
+        } else if (signInError.code === "auth/invalid-email") {
+          throw new Error("Invalid email address");
+        } else if (signInError.code === "auth/weak-password") {
+          throw new Error("Password should be at least 6 characters");
+        } else {
+          throw new Error(signInError.message || "Login failed");
+        }
+      }
+
+      // User is now authenticated via Firebase Auth state listener
+      // The listener will handle setting token, plan, etc.
+      
+    } catch (e: any) {
+      const errorMessage = e.message || "Login failed";
+      setError(errorMessage);
+      console.error("Login error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      // User is now authenticated via Firebase Auth state listener
+    } catch (e: any) {
+      const errorMessage = e.message || "Google sign-in failed";
+      setError(errorMessage);
+      console.error("Google sign-in error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlanSelect = async (newPlan: Plan) => {
+    if (!firebaseUser) return;
+    
+    try {
+      // Update plan in Firestore
+      await updateUserPlan(firebaseUser.uid, newPlan);
+      
+      // Update subscription (mock)
+      await updateUserSubscription(firebaseUser.uid, {
+        plan: newPlan,
+        status: 'active',
+        startDate: new Date().toISOString(),
+        paymentMethod: 'mock_payment'
+      });
+      
+      // Store initial user data if new user
+      if (isNewUser) {
+        await setUserDoc(firebaseUser.uid, {
+          email: firebaseUser.email,
+          plan: newPlan,
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString()
+        });
+        setIsNewUser(false);
+      }
+      
+      // Update local state
+      setPlan(newPlan);
+      setShowPlanSelector(false);
+      
+      // Auto-select allowed model for the new plan
+      const allowed = PLAN_MODELS[newPlan]?.[0];
+      if (allowed) setModel(allowed);
+    } catch (error) {
+      console.error("Error updating plan:", error);
+      setError("Failed to update plan. Please try again.");
+    }
+  };
+
+  const newChat = async () => {
+    if (!firebaseUser) {
+      setError("Please sign in to create a new chat");
+      return;
+    }
+
     const c: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
+    
+    // Add to local state immediately for instant UI update
     setChats((prev) => [c, ...prev]);
     setActiveChatId(c.id);
     setPrompt("");
     setError(null);
+    
+    // Save to Firestore
+    try {
+      await setChatDoc(firebaseUser.uid, c.id, {
+        title: c.title,
+        createdAt: c.createdAt,
+        messages: c.messages,
+      });
+    } catch (error) {
+      console.error("Error creating new chat in Firestore:", error);
+      setError("Failed to create new chat. Please try again.");
+    }
+    
     // Reset textarea height after creating new chat
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -1411,8 +1657,36 @@ export default function App() {
     );
   };
 
+  // Refresh token periodically (Firebase tokens expire after 1 hour)
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const refreshToken = async () => {
+      try {
+        const newToken = await getIdToken();
+        setToken(newToken);
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+      }
+    };
+
+    // Refresh token every 50 minutes
+    const interval = setInterval(refreshToken, 50 * 60 * 1000);
+    
+    // Also refresh on mount
+    refreshToken();
+
+    return () => clearInterval(interval);
+  }, [firebaseUser]);
+
   const runAI = async () => {
-    if (!token || !plan) return;
+    if (!token || !plan || !firebaseUser) {
+      if (!plan) {
+        setError("Please select a plan to use AI features");
+        setShowPlanSelector(true);
+      }
+      return;
+    }
     const text = prompt.trim();
     if (!text) return;
     if (!PLAN_MODELS[plan].includes(model)) {
@@ -1432,7 +1706,20 @@ export default function App() {
       setChats((prev) => [newChat, ...prev]);
       setActiveChatId(newChat.id);
       chatId = newChat.id;
+      
+      // Save new chat to Firestore
+      try {
+        await setChatDoc(firebaseUser.uid, newChat.id, {
+          title: newChat.title,
+          createdAt: newChat.createdAt,
+          messages: newChat.messages,
+        });
+      } catch (error) {
+        console.error("Error creating new chat in Firestore:", error);
+      }
     }
+    
+    console.log("🔍 [FRONTEND] Sending request with chat_id:", chatId);
 
     setLoading(true);
     setError(null);
@@ -1458,20 +1745,23 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "X-User-ID": email || "anon",
+          "X-User-ID": firebaseUser?.uid || email || "anon",
+          "X-User-Plan": plan || "GO",
         },
-        body: JSON.stringify({ prompt: text, model }),
+        body: JSON.stringify({ prompt: text, model, chat_id: chatId }),
         signal: controller.signal,
       });
       
       clearTimeout(timeoutId);
       const data = await res.json();
+      console.log("📥 [FRONTEND] Received API response:", data);
       if (!res.ok) throw new Error(data.detail || "Request failed");
 
       // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
       // All models (GO, PRO, ULTRA) now return data.response with unified content
       // PRO version might also have data.optimization field
       let content = data.response || data.optimization || JSON.stringify(data.responses ?? data, null, 2);
+      console.log("📝 [FRONTEND] Extracted content:", content?.substring(0, 100) + "...");
       // Ensure content is always a string
       content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
       
@@ -1487,10 +1777,33 @@ export default function App() {
       // This ensures PRO responses get emojis just like GO responses
       content = enhanceWithEmojis(content);
       
+      console.log("💬 [FRONTEND] Updating chat messages with content length:", content?.length);
       updateChatMessages(chatId, (m) => {
         const next = [...m];
-        const idx = next.findIndex((x) => x.id === assistantMsg.id);
-        if (idx >= 0) next[idx] = { ...next[idx], content, confidenceScore };
+        // Try to find by ID first
+        let idx = next.findIndex((x) => x.id === assistantMsg.id);
+        
+        // If not found by ID, find the last assistant message with empty content
+        if (idx < 0) {
+          console.warn("⚠️ [FRONTEND] Assistant message not found by ID, searching for last empty assistant message");
+          // Find the last assistant message that's empty (the one we just added)
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].role === "assistant" && (!next[i].content || next[i].content.trim() === "")) {
+              idx = i;
+              console.log("✅ [FRONTEND] Found empty assistant message at index:", idx);
+              break;
+            }
+          }
+        }
+        
+        if (idx >= 0) {
+          console.log("✅ [FRONTEND] Updating assistant message at index:", idx, "with content length:", content?.length);
+          next[idx] = { ...next[idx], content, confidenceScore };
+        } else {
+          console.error("❌ [FRONTEND] Could not find assistant message! Adding new one.");
+          // Fallback: add the message at the end
+          next.push({ ...assistantMsg, content, confidenceScore });
+        }
         return next;
       });
       
@@ -1506,7 +1819,9 @@ export default function App() {
         })
       );
     } catch (e) {
+      console.error("❌ [FRONTEND] Error in runAI:", e);
       const errorMessage = (e as Error).message;
+      console.error("❌ [FRONTEND] Error message:", errorMessage);
       const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout');
       
       updateChatMessages(chatId, (m) => {
@@ -1566,7 +1881,8 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "X-User-ID": email || "anon",
+          "X-User-ID": firebaseUser?.uid || email || "anon",
+          "X-User-Plan": plan || "GO",
         },
         body: JSON.stringify({ prompt: userMessage.content, model }),
       });
@@ -1967,7 +2283,24 @@ export default function App() {
     chat.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (!token) {
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="lc-login">
+        <div className="lc-login-card">
+          <div className="lc-brand">
+            <img src={logoImg} alt="LazyCook" className="lc-logo" />
+            <div>
+              <div className="lc-title"><LazyCookText /></div>
+              <div className="lc-subtitle">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token || !firebaseUser) {
     return (
       <div className="lc-login">
         <div className="lc-login-card">
@@ -1979,6 +2312,25 @@ export default function App() {
             </div>
           </div>
 
+          <button 
+            className="lc-google-btn" 
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            type="button"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <div className="lc-divider">
+            <span>or</span>
+          </div>
+
           <label className="lc-label">Email</label>
           <input
             className="lc-input"
@@ -1986,20 +2338,22 @@ export default function App() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
+            disabled={loading}
           />
 
           <label className="lc-label">Password</label>
           <input
             className="lc-input"
-            placeholder="(ignored for now)"
+            placeholder="Enter password (min 6 characters)"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            disabled={loading}
           />
 
-          <button className="lc-primary" onClick={login}>
-            Continue
+          <button className="lc-primary" onClick={login} disabled={loading}>
+            {loading ? "Signing in..." : "Continue"}
           </button>
 
           {error && <div className="lc-error">{error}</div>}
@@ -2012,7 +2366,8 @@ export default function App() {
   }
 
   return (
-    <div className="lc-shell">
+    <>
+      <div className="lc-shell">
       {sidebarOpen && (
         <div 
           className="lc-sidebar-overlay"
@@ -2137,11 +2492,11 @@ export default function App() {
         <div className="lc-sidebar-bottom">
           <div className="lc-userline" ref={userMenuRef} onClick={() => setShowUserMenu(!showUserMenu)}>
             <div className="lc-avatar">
-              {email ? (email.split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
+              {(firebaseUser?.email || email) ? ((firebaseUser?.email || email).split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
             </div>
             <div className="lc-usertext">
               <div className="lc-username">
-                {email ? email.split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
+                {(firebaseUser?.email || email) ? (firebaseUser?.email || email).split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
               </div>
               <div className="lc-userplan">{plan || 'GO'}</div>
             </div>
@@ -2149,19 +2504,25 @@ export default function App() {
               <div className="lc-user-menu">
                 <div className="lc-user-menu-header">
                   <div className="lc-avatar-menu">
-                    {email ? (email.split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
+                    {(firebaseUser?.email || email) ? ((firebaseUser?.email || email).split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
                   </div>
                   <div className="lc-user-menu-info">
                     <div className="lc-user-menu-name">
-                      {email ? email.split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
+                      {(firebaseUser?.email || email) ? (firebaseUser?.email || email).split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
                     </div>
                     <div className="lc-user-menu-username">
-                      @{email ? email.split('@')[0].toLowerCase() : 'user'}
+                      @{(firebaseUser?.email || email) ? (firebaseUser?.email || email).split('@')[0].toLowerCase() : 'user'}
                     </div>
                   </div>
                 </div>
                 <div className="lc-user-menu-divider"></div>
-                <button className="lc-user-menu-item">
+                <button 
+                  className="lc-user-menu-item"
+                  onClick={() => {
+                    setShowPlanSelector(true);
+                    setShowUserMenu(false);
+                  }}
+                >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 2L10 6L14 7L10 8L8 12L6 8L2 7L6 6L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -2446,17 +2807,37 @@ export default function App() {
               <textarea
                 ref={textareaRef}
                 className="lc-textarea"
-                placeholder="Ask anything"
+                placeholder={plan ? "Ask anything" : "Select a plan to start using AI"}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={onComposerKeyDown}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (plan) {
+                      onComposerKeyDown(e);
+                    } else {
+                      setShowPlanSelector(true);
+                      setError("Please select a plan to use AI features");
+                    }
+                  } else {
+                    onComposerKeyDown(e);
+                  }
+                }}
                 rows={1}
+                disabled={!plan}
                 spellCheck={true}
               />
               <button 
                 className="lc-composer-send" 
-                onClick={runAI} 
-                disabled={loading || !prompt.trim()}
+                onClick={() => {
+                  if (!plan) {
+                    setShowPlanSelector(true);
+                    setError("Please select a plan to use AI features");
+                  } else {
+                    runAI();
+                  }
+                }}
+                disabled={loading || !prompt.trim() || !plan}
                 aria-label="Send message"
               >
                 {loading ? (
@@ -2588,6 +2969,20 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+      {showPlanSelector && plan && (
+        <PlanSelector
+          currentPlan={plan}
+          onSelectPlan={handlePlanSelect}
+          onClose={() => {
+            if (!isNewUser) {
+              setShowPlanSelector(false);
+            }
+            // For new users, don't allow closing without selecting a plan
+          }}
+          isNewUser={isNewUser}
+        />
+      )}
+    </>
   );
 }
