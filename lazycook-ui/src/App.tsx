@@ -75,15 +75,16 @@ function getPlanFromEmail(email: string): Plan {
 }
 
 /**
- * ChatGPT-Style Title Generation
+ * Refined ChatGPT-Style Title Generation
  * 
  * Generates chat titles from user messages following ChatGPT's discipline:
- * - 3-6 words
+ * - 3-6 words (prefer 4-5 for optimal readability)
  * - Sentence case
  * - Verb + Object OR Noun phrase
  * - Neutral, scannable, predictable
+ * - Preserves key concepts and topics
  */
-function generateChatTitle(userMessage: string): string {
+function generateChatTitle(userMessage: string, aiResponse?: string): string {
   if (!userMessage || !userMessage.trim()) return "New chat";
   
   // Normalize whitespace
@@ -96,6 +97,7 @@ function generateChatTitle(userMessage: string): string {
   const greetingPatterns = [
     /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)\s*$/i,
     /^(please|thanks|thank you|thx|ty)\s*$/i,
+    /^(ok|okay|sure|yes|no|yep|nope)\s*$/i,
   ];
   
   if (greetingPatterns.some(pattern => pattern.test(text))) {
@@ -105,31 +107,57 @@ function generateChatTitle(userMessage: string): string {
   // Remove greeting/politeness prefixes (but keep the rest)
   text = text.replace(/^(hi|hello|hey|greetings|good morning|good afternoon|good evening)[\s,]+/i, '');
   text = text.replace(/^(please|thanks|thank you|thx|ty)[\s,]+/i, '');
-  text = text.replace(/^(i want|i need|i would like|i\'d like|can you|could you|would you|help me|help with|assist|please help)[\s,]+/i, '');
+  text = text.replace(/^(i want|i need|i would like|i\'d like|can you|could you|would you|help me|help with|assist|please help|tell me|explain|show me)[\s,]+/i, '');
   text = text.trim();
   
   // Remove question words at start (convert questions to statements)
-  text = text.replace(/^(what|how|why|when|where|which|who|can|could|would|should|is|are|do|does|did)\s+/i, '');
+  text = text.replace(/^(what|how|why|when|where|which|who|can|could|would|should|is|are|do|does|did|will|tell|explain|show)\s+/i, '');
   text = text.replace(/\?+$/, '').trim();
   
-  if (!text || text.length < 3) return "New chat";
+  if (!text || text.length < 3) {
+    // If user message is too short, try to extract from AI response
+    if (aiResponse && aiResponse.length > 20) {
+      const aiText = aiResponse
+        .replace(/[#*`\[\]()]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 150);
+      
+      const aiWords = aiText.toLowerCase().split(/\s+/)
+        .filter(w => w.length > 3 && !['that', 'this', 'with', 'from', 'have', 'been', 'will', 'would'].includes(w))
+        .slice(0, 4);
+      
+      if (aiWords.length >= 3) {
+        return aiWords
+          .map((word, index) => index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word)
+          .join(' ');
+      }
+    }
+    return "New chat";
+  }
   
   // Split into words
   const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
   
   // Remove only the most common filler words (be selective)
-  const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just'];
+  const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just', 'with', 'for', 'from', 'about'];
   let meaningfulWords = words.filter(w => !fillerWords.includes(w) && w.length > 1);
   
   // If we removed too many words, use original words but skip obvious fillers
   if (meaningfulWords.length < 3) {
-    meaningfulWords = words.filter(w => !['i', 'me', 'my', 'you', 'your', 'the', 'a', 'an'].includes(w) && w.length > 1);
+    meaningfulWords = words.filter(w => !['i', 'me', 'my', 'you', 'your', 'the', 'a', 'an', 'this', 'that'].includes(w) && w.length > 1);
+  }
+  
+  // If still not enough, include all words except single characters
+  if (meaningfulWords.length < 3) {
+    meaningfulWords = words.filter(w => w.length > 1);
   }
   
   if (meaningfulWords.length === 0) return "New chat";
   
-  // Extract 3-6 meaningful words (ChatGPT rule: 3-6 words)
-  const titleWords = meaningfulWords.slice(0, 6);
+  // Extract 4-5 meaningful words (optimal for readability, allow 3-6 range)
+  const targetLength = Math.min(Math.max(meaningfulWords.length, 3), 5);
+  const titleWords = meaningfulWords.slice(0, targetLength);
   
   // Ensure we have at least 3 words (hard safety)
   if (titleWords.length < 3) {
@@ -152,6 +180,11 @@ function generateChatTitle(userMessage: string): string {
       return word;
     })
     .join(' ');
+  
+  // Final validation: ensure title is meaningful
+  if (title.length < 5 || title.split(' ').length < 3) {
+    return "New chat";
+  }
   
   return title || "New chat";
 }
@@ -1987,11 +2020,11 @@ export default function App() {
       });
       
       // Update chat title from user message (ChatGPT-style: generate from first meaningful user prompt)
-      // Use the user message that was just sent (text variable)
+      // Use the user message that was just sent (text variable) and optionally AI response (content)
       setChats((prev) =>
         prev.map((c) => {
           if (c.id === chatId && (c.title === "New chat" || c.messages.length === 2)) {
-            const title = generateChatTitle(text);
+            const title = generateChatTitle(text, content);
             return { ...c, title };
           }
           return c;
