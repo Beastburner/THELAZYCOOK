@@ -113,7 +113,7 @@ Local storage persistence:
 All API calls remain unchanged:
 - `POST /auth/login` - User authentication
 - `GET /auth/me` - Get user info
-- `POST /ai/run` - Send message to AI
+- `POST /api/chat` - Send message to AI
 
 The UI only changes how responses are displayed, not the API contract.
 

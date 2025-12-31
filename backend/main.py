@@ -180,7 +180,7 @@ class AIRunIn(BaseModel):
     chat_id: Optional[str] = None  # Link conversation to a specific chat
 
 
-@app.post("/ai/run")
+@app.post("/api/chat")
 def ai_run(
     payload: AIRunIn,
     user: Dict[str, Any] = Depends(auth.get_current_user),

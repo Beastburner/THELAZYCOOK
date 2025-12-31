@@ -75,17 +75,19 @@ function getPlanFromEmail(email: string): Plan {
 }
 
 /**
- * Refined ChatGPT-Style Title Generation
+ * Emotional & Unique Title Generation
  * 
- * Generates chat titles from user messages following ChatGPT's discipline:
- * - 3-6 words (prefer 4-5 for optimal readability)
- * - Sentence case
- * - Verb + Object OR Noun phrase
- * - Neutral, scannable, predictable
- * - Preserves key concepts and topics
+ * Generates chat titles that are emotional, unique, and memorable:
+ * - 3-6 words with emotional context
+ * - Varied patterns for uniqueness
+ * - Sentiment-aware emotional modifiers
+ * - Preserves key concepts while adding personality
  */
 function generateChatTitle(userMessage: string, aiResponse?: string): string {
   if (!userMessage || !userMessage.trim()) return "New chat";
+  
+  // Analyze sentiment for emotional context
+  const sentiment = analyzeSentiment(userMessage);
   
   // Normalize whitespace
   let text = userMessage.trim().replace(/\s+/g, " ");
@@ -128,9 +130,10 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
         .slice(0, 4);
       
       if (aiWords.length >= 3) {
-        return aiWords
+        const baseTitle = aiWords
           .map((word, index) => index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word)
           .join(' ');
+        return addEmotionalContext(baseTitle, sentiment);
       }
     }
     return "New chat";
@@ -155,7 +158,7 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
   
   if (meaningfulWords.length === 0) return "New chat";
   
-  // Extract 4-5 meaningful words (optimal for readability, allow 3-6 range)
+  // Extract 3-5 meaningful words (optimal for readability)
   const targetLength = Math.min(Math.max(meaningfulWords.length, 3), 5);
   const titleWords = meaningfulWords.slice(0, targetLength);
   
@@ -170,8 +173,8 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
     }
   }
   
-  // Convert to sentence case (first letter uppercase, rest lowercase)
-  const title = titleWords
+  // Generate base title
+  const baseTitle = titleWords
     .map((word, index) => {
       if (index === 0) {
         // First word: capitalize first letter
@@ -182,11 +185,102 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
     .join(' ');
   
   // Final validation: ensure title is meaningful
-  if (title.length < 5 || title.split(' ').length < 3) {
+  if (baseTitle.length < 5 || baseTitle.split(' ').length < 3) {
     return "New chat";
   }
   
-  return title || "New chat";
+  // Add emotional context to make it unique and memorable
+  return addEmotionalContext(baseTitle, sentiment);
+}
+
+/**
+ * Adds emotional context and uniqueness to titles
+ * Ensures titles stay within 3-6 words while being emotional and memorable
+ */
+function addEmotionalContext(baseTitle: string, sentiment: { sentiment: 'positive' | 'neutral' | 'negative' | 'question' | 'excited'; score: number }): string {
+  // Use hash of base title + timestamp for uniqueness while maintaining consistency per title
+  const hash = baseTitle.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const patternIndex = hash % 5; // 5 different patterns for maximum variety
+  
+  const sentimentType = sentiment.sentiment;
+  const baseWords = baseTitle.split(' ');
+  const wordCount = baseWords.length;
+  
+  // Emotional adjectives that can be inserted naturally
+  const emotionalAdjectives = {
+    positive: ['brilliant', 'wonderful', 'amazing', 'fantastic', 'excellent', 'great', 'inspiring', 'valuable'],
+    excited: ['thrilling', 'incredible', 'fascinating', 'remarkable', 'extraordinary', 'exciting', 'captivating', 'stunning'],
+    question: ['curious', 'intriguing', 'mysterious', 'puzzling', 'thought-provoking', 'wondering', 'exploring', 'investigating'],
+    negative: ['challenging', 'complex', 'tricky', 'difficult', 'demanding', 'troublesome', 'problematic'],
+    neutral: ['interesting', 'notable', 'noteworthy', 'significant', 'relevant', 'important', 'noteworthy', 'compelling']
+  };
+  
+  // Action verbs for variety
+  const actionVerbs = {
+    positive: ['Exploring', 'Discovering', 'Unveiling', 'Unlocking', 'Celebrating'],
+    excited: ['Amazing', 'Incredible', 'Fascinating', 'Thrilling', 'Wonderful'],
+    question: ['Wondering', 'Exploring', 'Investigating', 'Understanding', 'Learning'],
+    negative: ['Troubleshooting', 'Fixing', 'Resolving', 'Addressing'],
+    neutral: ['Discussing', 'Exploring', 'Thinking', 'Considering', 'Reflecting']
+  };
+  
+  const adjectives = emotionalAdjectives[sentimentType] || emotionalAdjectives.neutral;
+  const verbs = actionVerbs[sentimentType] || actionVerbs.neutral;
+  
+  // Pattern 1: Replace first word with emotional verb (if base has 3+ words)
+  if (patternIndex === 0 && wordCount >= 3 && sentiment.score > 0) {
+    const verb = verbs[hash % verbs.length];
+    const rest = baseWords.slice(1).join(' ').toLowerCase();
+    const result = `${verb} ${rest}`;
+    if (result.split(' ').length <= 6) return result;
+  }
+  
+  // Pattern 2: Insert emotional adjective before last word (natural flow)
+  if (patternIndex === 1 && wordCount >= 2) {
+    const adjective = adjectives[hash % adjectives.length];
+    if (wordCount >= 3) {
+      const before = baseWords.slice(0, -1).join(' ');
+      const last = baseWords[baseWords.length - 1];
+      const result = `${before} ${adjective} ${last}`;
+      if (result.split(' ').length <= 6) return result;
+    }
+    // For 2-word titles, prepend adjective
+    const result = `${adjective} ${baseTitle.toLowerCase()}`;
+    if (result.split(' ').length <= 6) return result;
+  }
+  
+  // Pattern 3: Replace first word with emotional adjective
+  if (patternIndex === 2 && wordCount >= 2) {
+    const adjective = adjectives[hash % adjectives.length];
+    const rest = baseWords.slice(1).join(' ');
+    const result = `${adjective.charAt(0).toUpperCase() + adjective.slice(1)} ${rest}`;
+    if (result.split(' ').length <= 6) return result;
+  }
+  
+  // Pattern 4: Add emotional adjective at the end (if space allows)
+  if (patternIndex === 3 && wordCount <= 4) {
+    const adjective = adjectives[hash % adjectives.length];
+    const result = `${baseTitle} ${adjective}`;
+    if (result.split(' ').length <= 6) return result;
+  }
+  
+  // Pattern 5: Enhance with emotional prefix (single word)
+  if (patternIndex === 4 && wordCount <= 5) {
+    const prefixes = {
+      positive: ['Brilliant', 'Wonderful', 'Amazing', 'Fantastic'],
+      excited: ['Thrilling', 'Incredible', 'Fascinating', 'Remarkable'],
+      question: ['Curious', 'Intriguing', 'Mysterious', 'Exploring'],
+      negative: ['Challenging', 'Complex', 'Troubleshooting'],
+      neutral: ['Interesting', 'Notable', 'Noteworthy', 'Significant']
+    };
+    const prefixList = prefixes[sentimentType] || prefixes.neutral;
+    const prefix = prefixList[hash % prefixList.length];
+    const result = `${prefix} ${baseTitle.toLowerCase()}`;
+    if (result.split(' ').length <= 6) return result;
+  }
+  
+  // Fallback: return base title (already good enough)
+  return baseTitle;
 }
 
 // Component to render LazyCook with red Z
@@ -1915,7 +2009,7 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
       
-      const res = await fetch(`${API_BASE}/ai/run`, {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2120,7 +2214,7 @@ export default function App() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/ai/run`, {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
