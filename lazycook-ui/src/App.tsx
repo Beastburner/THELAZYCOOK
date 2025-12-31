@@ -84,6 +84,70 @@ function getPlanFromEmail(email: string): Plan {
  * - Preserves key concepts while adding personality
  */
 function generateChatTitle(userMessage: string, aiResponse?: string): string {
+  // Prioritize AI response for title generation
+  if (aiResponse && aiResponse.trim().length > 20) {
+    // Clean and normalize AI response
+    let aiText = aiResponse
+      .replace(/[#*`\[\]()]/g, '') // Remove markdown formatting
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+    
+    // Take first 200 characters for title extraction (enough context)
+    aiText = aiText.substring(0, 200);
+    
+    // Analyze sentiment from AI response for emotional context
+    const sentiment = analyzeSentiment(aiText);
+    
+    // Remove common filler words and extract meaningful words
+    const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just', 'with', 'for', 'from', 'about', 'that', 'this', 'with', 'from', 'have', 'been', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall'];
+    const stopWords = ['here', 'there', 'where', 'when', 'what', 'how', 'why', 'which', 'who', 'these', 'those', 'them', 'they', 'their', 'theirs', 'its', 'it', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'done'];
+    
+    const words = aiText.toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !fillerWords.includes(w) && !stopWords.includes(w));
+    
+    // Extract meaningful words (prioritize longer, more descriptive words)
+    let meaningfulWords = words
+      .filter(w => w.length > 3) // Prefer words longer than 3 characters
+      .slice(0, 6); // Take up to 6 words
+    
+    // If not enough meaningful words, include shorter words too
+    if (meaningfulWords.length < 3) {
+      meaningfulWords = words.slice(0, 5);
+    }
+    
+    // If still not enough, try including some shorter words
+    if (meaningfulWords.length < 3) {
+      const allWords = aiText.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+      meaningfulWords = allWords.filter(w => !fillerWords.includes(w) && !stopWords.includes(w)).slice(0, 5);
+    }
+    
+    if (meaningfulWords.length >= 3) {
+      // Take 3-5 words for the title
+      const targetLength = Math.min(Math.max(meaningfulWords.length, 3), 5);
+      const titleWords = meaningfulWords.slice(0, targetLength);
+      
+      // Generate base title with proper capitalization
+      const baseTitle = titleWords
+        .map((word, index) => {
+          if (index === 0) {
+            // First word: capitalize first letter
+            return word.charAt(0).toUpperCase() + word.slice(1);
+          }
+          return word;
+        })
+        .join(' ');
+      
+      // Final validation: ensure title is meaningful
+      if (baseTitle.length >= 5 && baseTitle.split(' ').length >= 3) {
+        // Add emotional context to make it unique and memorable
+        return addEmotionalContext(baseTitle, sentiment);
+      }
+    }
+  }
+  
+  // Fallback to user message if AI response is not available or not meaningful enough
   if (!userMessage || !userMessage.trim()) return "New chat";
   
   // Analyze sentiment for emotional context
@@ -117,25 +181,6 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
   text = text.replace(/\?+$/, '').trim();
   
   if (!text || text.length < 3) {
-    // If user message is too short, try to extract from AI response
-    if (aiResponse && aiResponse.length > 20) {
-      const aiText = aiResponse
-        .replace(/[#*`\[\]()]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .substring(0, 150);
-      
-      const aiWords = aiText.toLowerCase().split(/\s+/)
-        .filter(w => w.length > 3 && !['that', 'this', 'with', 'from', 'have', 'been', 'will', 'would'].includes(w))
-        .slice(0, 4);
-      
-      if (aiWords.length >= 3) {
-        const baseTitle = aiWords
-          .map((word, index) => index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word)
-          .join(' ');
-        return addEmotionalContext(baseTitle, sentiment);
-      }
-    }
     return "New chat";
   }
   
