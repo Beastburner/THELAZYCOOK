@@ -2013,7 +2013,8 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
       
-      const res = await fetch(`${API_BASE}/chat`, {
+      // Try new endpoint first, fallback to old endpoint for backward compatibility
+      let res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2024,6 +2025,22 @@ export default function App() {
         body: JSON.stringify({ prompt: text, model, chat_id: chatId }),
         signal: controller.signal,
       });
+      
+      // If 404, try the old endpoint (backward compatibility)
+      if (res.status === 404) {
+        console.log("⚠️ [FRONTEND] /chat endpoint not found, trying /ai/run for backward compatibility");
+        res = await fetch(`${API_BASE}/ai/run`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "X-User-ID": firebaseUser?.uid || email || "anon",
+            "X-User-Plan": plan || "GO",
+          },
+          body: JSON.stringify({ prompt: text, model, chat_id: chatId }),
+          signal: controller.signal,
+        });
+      }
       
       clearTimeout(timeoutId);
       

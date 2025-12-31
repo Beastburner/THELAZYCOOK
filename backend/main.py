@@ -184,8 +184,7 @@ class AIRunIn(BaseModel):
     chat_id: Optional[str] = None  # Link conversation to a specific chat
 
 
-@app.post("/chat")
-def ai_run(
+def _ai_run_handler(
     payload: AIRunIn,
     user: Dict[str, Any] = Depends(auth.get_current_user),
     x_user_id: Optional[str] = Header(default=None, alias="X-User-ID"),
@@ -291,3 +290,8 @@ def ai_run(
     # - Store payment/subscription history and plan changes
 
     return result
+
+
+# Register both endpoints for backward compatibility
+@app.post("/chat")(_ai_run_handler)
+@app.post("/ai/run")(_ai_run_handler)  # Keep old endpoint for backward compatibility
