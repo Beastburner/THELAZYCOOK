@@ -293,5 +293,21 @@ def _ai_run_handler(
 
 
 # Register both endpoints for backward compatibility
-@app.post("/chat")(_ai_run_handler)
-@app.post("/ai/run")(_ai_run_handler)  # Keep old endpoint for backward compatibility
+@app.post("/chat")
+def ai_run_chat(
+    payload: AIRunIn,
+    user: Dict[str, Any] = Depends(auth.get_current_user),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-ID"),
+    x_user_plan: Optional[str] = Header(default=None, alias="X-User-Plan"),
+) -> Any:
+    return _ai_run_handler(payload, user, x_user_id, x_user_plan)
+
+
+@app.post("/ai/run")  # Keep old endpoint for backward compatibility
+def ai_run_legacy(
+    payload: AIRunIn,
+    user: Dict[str, Any] = Depends(auth.get_current_user),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-ID"),
+    x_user_plan: Optional[str] = Header(default=None, alias="X-User-Plan"),
+) -> Any:
+    return _ai_run_handler(payload, user, x_user_id, x_user_plan)
