@@ -1416,6 +1416,9 @@ export default function App() {
     );
   };
 
+  // Unused functions - commented out to fix TypeScript build errors
+  // Can be uncommented if needed in the future
+  /*
   const exportHighlightsAsJSON = (chat: Chat) => {
     const highlights = exportHighlights(chat);
     return JSON.stringify({
@@ -1469,7 +1472,11 @@ export default function App() {
 
     return markdown;
   };
+  */
 
+  // Unused functions - commented out to fix TypeScript build errors
+  // Can be uncommented if needed in the future
+  /*
   const copyHighlightsToClipboard = async (chat: Chat) => {
     try {
       const json = exportHighlightsAsJSON(chat);
@@ -1506,6 +1513,7 @@ export default function App() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  */
 
   const logout = async () => {
     try {
@@ -1529,15 +1537,14 @@ export default function App() {
       }
 
       // Try to sign in first
-      let userCredential;
       try {
-        userCredential = await signIn(email, password);
+        await signIn(email, password);
       } catch (signInError: any) {
         // If user doesn't exist, try to sign up (for test emails)
         if (signInError.code === "auth/user-not-found") {
           // Create account if it doesn't exist (useful for test emails)
           try {
-            userCredential = await signUp(email, password);
+            await signUp(email, password);
           } catch (signUpError: any) {
             throw new Error(signUpError.message || "Failed to create account");
           }

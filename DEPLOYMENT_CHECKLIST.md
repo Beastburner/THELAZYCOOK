@@ -20,7 +20,8 @@ Use this checklist to ensure everything is configured correctly.
   - [ ] `CORS_ORIGINS` (set to `*` initially, update after frontend deploy)
   - [ ] `PORT=8000`
   - [ ] `FIREBASE_SERVICE_ACCOUNT_PATH=/app/backend/serviceAccountKey.json`
-- [ ] Firebase service account key uploaded as Secret File OR set as base64 env var
+- [ ] Firebase service account key uploaded as Secret File
+- [ ] Backend deployed successfully
 - [ ] Backend URL copied (e.g., `https://lazycook-backend.onrender.com`)
 
 ## ✅ Frontend (Vercel)
