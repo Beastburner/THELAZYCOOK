@@ -641,7 +641,7 @@ function MessageItem({
       }
     };
 
-    const handleMouseUp = (e: MouseEvent) => {
+    const handleTextSelection = (e: MouseEvent | TouchEvent) => {
       // Don't show toolbar if clicking on a highlight or Ask ChatGPT button (that's handled by handleClick)
       const target = e.target as HTMLElement;
       if (target?.closest('.lc-highlight') || target?.closest('.lc-ask-chatgpt-btn')) {
@@ -707,9 +707,21 @@ function MessageItem({
       }
     };
 
+    const handleMouseUp = (e: MouseEvent) => {
+      handleTextSelection(e);
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      // Small delay to ensure selection is complete on mobile
+      setTimeout(() => {
+        handleTextSelection(e);
+      }, 100);
+    };
+
     const contentElement = contentRef.current;
     contentElement?.addEventListener('click', handleClick, true); // Use capture phase
     contentElement?.addEventListener('mouseup', handleMouseUp);
+    contentElement?.addEventListener('touchend', handleTouchEnd);
 
     // Hide Ask ChatGPT when selection is cleared
     const handleSelectionChange = () => {
@@ -724,6 +736,7 @@ function MessageItem({
     return () => {
       contentElement?.removeEventListener('click', handleClick, true);
       contentElement?.removeEventListener('mouseup', handleMouseUp);
+      contentElement?.removeEventListener('touchend', handleTouchEnd);
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, [message.role, message.content, highlightEnabled, onUpdateHighlights, onAskChatGPT]);
@@ -920,7 +933,7 @@ function MessageItem({
             }}
           />
         )}
-        {message.role === "assistant" && isHovered && message.content && message.content.trim().length > 0 && (
+        {message.role === "assistant" && (isHovered || window.innerWidth <= 900) && message.content && message.content.trim().length > 0 && (
           <div className="lc-msg-actions">
             <button
               className="lc-msg-action-btn"

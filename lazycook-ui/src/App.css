@@ -2776,9 +2776,20 @@ code,
   
   /* Scroll to bottom button - center on mobile */
   .lc-scroll-to-bottom {
+    display: flex !important; /* Always show on mobile */
     left: 50% !important;
-    bottom: 88px;
-    z-index: 1000;
+    bottom: 88px !important;
+    z-index: 1000 !important;
+    transform: translateX(-50%) translateY(4px);
+    width: 44px !important; /* Larger touch target on mobile */
+    height: 44px !important;
+  }
+  
+  .lc-scroll-to-bottom.is-visible {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translateX(-50%) translateY(0) !important;
   }
   
   .lc-main {
