@@ -93,55 +93,156 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
     
-    // Take first 200 characters for title extraction (enough context)
-    aiText = aiText.substring(0, 200);
+    // Take first 300 characters for better topic extraction
+    aiText = aiText.substring(0, 300);
     
     // Analyze sentiment from AI response for emotional context
     const sentiment = analyzeSentiment(aiText);
     
-    // Remove common filler words and extract meaningful words
-    const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just', 'with', 'for', 'from', 'about', 'that', 'this', 'with', 'from', 'have', 'been', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall'];
+    // Extract key topic phrases and concepts
+    const extractedTopics: string[] = [];
+    
+    // Pattern 1: Look for "about X", "regarding X", "on X", etc.
+    const topicPattern1 = /(?:about|regarding|on|concerning|discussing|exploring|understanding|learning|studying|topic|subject|focus|centers?|revolves?)\s+(?:the\s+)?([a-z0-9]+(?:\s+[a-z0-9]+){0,4})/gi;
+    let match;
+    while ((match = topicPattern1.exec(aiText)) !== null) {
+      const topic = match[1]?.trim().toLowerCase();
+      if (topic && topic.length > 3 && topic.length < 40) {
+        extractedTopics.push(topic);
+      }
+    }
+    
+    // Pattern 2: Extract capitalized phrases (proper nouns, important concepts like "4th Dimension", "Einstein")
+    const capitalizedPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g;
+    while ((match = capitalizedPattern.exec(aiText)) !== null) {
+      const phrase = match[1]?.trim().toLowerCase();
+      // Skip common sentence starters
+      if (phrase && !['hello', 'again', 'it', 'looks', 'like', 'we\'re', 'we', 'that\'s', 'really'].includes(phrase) && phrase.length > 2) {
+        extractedTopics.push(phrase);
+      }
+    }
+    
+    // Pattern 3: Numbered concepts (like "4th dimension", "3D space", "first dimension")
+    const numberedPattern = /\b(\d+(?:st|nd|rd|th)?\s+[a-z]+(?:\s+[a-z]+){0,2})\b/gi;
+    while ((match = numberedPattern.exec(aiText)) !== null) {
+      const phrase = match[1]?.trim().toLowerCase();
+      if (phrase && phrase.length > 3) {
+        extractedTopics.push(phrase);
+      }
+    }
+    
+    // Pattern 4: Technical terms and compound phrases with hyphens
+    const compoundPattern = /\b([a-z]+(?:-[a-z]+)+(?:\s+[a-z]+){0,2})\b/gi;
+    while ((match = compoundPattern.exec(aiText)) !== null) {
+      const phrase = match[1]?.trim().toLowerCase();
+      if (phrase && phrase.length > 3) {
+        extractedTopics.push(phrase);
+      }
+    }
+    
+    // Pattern 5: Look for key phrases after colons or in quotes (often main topics)
+    const colonPattern = /[:]\s*([A-Z][a-z]+(?:\s+[a-z]+){0,3})/g;
+    while ((match = colonPattern.exec(aiText)) !== null) {
+      const phrase = match[1]?.trim().toLowerCase();
+      if (phrase && phrase.length > 3) {
+        extractedTopics.push(phrase);
+      }
+    }
+    
+    // Also extract important words (nouns, technical terms)
+    const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just', 'with', 'for', 'from', 'about', 'have', 'been', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall', 'hello', 'again', 'looks', 'like', 'we\'re', 'we', 'are', 'our', 'previous', 'chat', 'and', 'to', 'a', 'fascinating', 'new', 'topic', 'that\'s', 'really', 'intriguing', 'question', 'shifting', 'gears'];
     const stopWords = ['here', 'there', 'where', 'when', 'what', 'how', 'why', 'which', 'who', 'these', 'those', 'them', 'they', 'their', 'theirs', 'its', 'it', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'done'];
     
-    const words = aiText.toLowerCase()
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !fillerWords.includes(w) && !stopWords.includes(w));
+    // Extract meaningful words, prioritizing longer and capitalized words
+    const words = aiText.split(/\s+/);
+    const importantWords: string[] = [];
     
-    // Extract meaningful words (prioritize longer, more descriptive words)
-    let meaningfulWords = words
-      .filter(w => w.length > 3) // Prefer words longer than 3 characters
-      .slice(0, 6); // Take up to 6 words
-    
-    // If not enough meaningful words, include shorter words too
-    if (meaningfulWords.length < 3) {
-      meaningfulWords = words.slice(0, 5);
-    }
-    
-    // If still not enough, try including some shorter words
-    if (meaningfulWords.length < 3) {
-      const allWords = aiText.toLowerCase().split(/\s+/).filter(w => w.length > 1);
-      meaningfulWords = allWords.filter(w => !fillerWords.includes(w) && !stopWords.includes(w)).slice(0, 5);
-    }
-    
-    if (meaningfulWords.length >= 3) {
-      // Take 3-5 words for the title
-      const targetLength = Math.min(Math.max(meaningfulWords.length, 3), 5);
-      const titleWords = meaningfulWords.slice(0, targetLength);
+    words.forEach((word, index) => {
+      const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
       
-      // Generate base title with proper capitalization
+      // Prioritize capitalized words (likely proper nouns or important concepts)
+      if (word[0] === word[0]?.toUpperCase() && word[0] !== word[0]?.toLowerCase() && cleanWord.length > 2) {
+        if (!fillerWords.includes(cleanWord) && !stopWords.includes(cleanWord)) {
+          importantWords.push(cleanWord);
+        }
+      }
+      // Also collect longer meaningful words
+      else if (cleanWord.length > 4 && !fillerWords.includes(cleanWord) && !stopWords.includes(cleanWord)) {
+        importantWords.push(cleanWord);
+      }
+    });
+    
+    // Prioritize topics: prefer longer phrases and those appearing earlier in text
+    const prioritizedTopics = extractedTopics
+      .filter((topic, index, self) => self.indexOf(topic) === index) // Remove duplicates
+      .sort((a, b) => {
+        // Prioritize longer topics (more specific)
+        if (b.split(' ').length !== a.split(' ').length) {
+          return b.split(' ').length - a.split(' ').length;
+        }
+        // Then prioritize by length
+        return b.length - a.length;
+      })
+      .slice(0, 3); // Take top 3 candidates
+    
+    // Combine extracted topics and important words
+    let candidateWords = [...prioritizedTopics, ...importantWords];
+    
+    // Remove duplicates
+    candidateWords = [...new Set(candidateWords)];
+    
+    // If we found topic phrases, use the best one
+    if (prioritizedTopics.length > 0) {
+      const topicPhrase = prioritizedTopics[0];
+      const topicWords = topicPhrase.split(/\s+/).slice(0, 4);
+      
+      if (topicWords.length >= 2) {
+        const baseTitle = topicWords
+          .map((word, index) => {
+            // Capitalize first letter of each word
+            return word.charAt(0).toUpperCase() + word.slice(1);
+          })
+          .join(' ');
+        
+        if (baseTitle.length >= 5) {
+          return addEmotionalContext(baseTitle, sentiment);
+        }
+      }
+    }
+    
+    // Use important words if we have enough
+    if (candidateWords.length >= 2) {
+      const targetLength = Math.min(candidateWords.length, 4);
+      const titleWords = candidateWords.slice(0, targetLength);
+      
       const baseTitle = titleWords
         .map((word, index) => {
-          if (index === 0) {
-            // First word: capitalize first letter
-            return word.charAt(0).toUpperCase() + word.slice(1);
-          }
-          return word;
+          return word.charAt(0).toUpperCase() + word.slice(1);
         })
         .join(' ');
       
-      // Final validation: ensure title is meaningful
-      if (baseTitle.length >= 5 && baseTitle.split(' ').length >= 3) {
-        // Add emotional context to make it unique and memorable
+      if (baseTitle.length >= 5) {
+        return addEmotionalContext(baseTitle, sentiment);
+      }
+    }
+    
+    // Fallback: extract any meaningful words longer than 3 chars
+    const allWords = aiText.toLowerCase()
+      .split(/\s+/)
+      .map(w => w.replace(/[^\w]/g, ''))
+      .filter(w => w.length > 3 && !fillerWords.includes(w) && !stopWords.includes(w));
+    
+    if (allWords.length >= 2) {
+      const targetLength = Math.min(allWords.length, 4);
+      const titleWords = allWords.slice(0, targetLength);
+      
+      const baseTitle = titleWords
+        .map((word, index) => {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(' ');
+      
+      if (baseTitle.length >= 5) {
         return addEmotionalContext(baseTitle, sentiment);
       }
     }
@@ -2222,6 +2323,27 @@ export default function App() {
       
       console.log("💬 [FRONTEND] Updating chat messages with content length:", content?.length);
       
+      // Generate title BEFORE updating messages (so we can save it to Firestore)
+      const currentChat = chats.find(c => c.id === chatId);
+      // Update title if it's still "New chat" (first AI response)
+      const shouldUpdateTitle = currentChat && currentChat.title === "New chat";
+      let newTitle = currentChat?.title || "New chat";
+      
+      if (shouldUpdateTitle && content && content.trim().length > 20) {
+        newTitle = generateChatTitle(text, content);
+        console.log("📝 [FRONTEND] Generated new title:", newTitle, "from AI response length:", content.length);
+        
+        // Update title in state immediately
+        setChats((prev) =>
+          prev.map((c) => {
+            if (c.id === chatId) {
+              return { ...c, title: newTitle };
+            }
+            return c;
+          })
+        );
+      }
+      
       // Update the assistant message with the response
       updateChatMessages(chatId, (m) => {
         const next = [...m];
@@ -2251,11 +2373,12 @@ export default function App() {
         }
         
         // Save updated messages to Firestore (only if quota not exceeded)
+        // Use the newly generated title if we updated it, otherwise use the existing title
         const updatedMessages = next;
         if (!firestoreQuotaExceeded) {
           setChatDoc(firebaseUser.uid, chatId, {
-            title: chats.find(c => c.id === chatId)?.title || "New chat",
-            createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
+            title: newTitle, // Use the generated title
+            createdAt: currentChat?.createdAt || Date.now(),
             messages: updatedMessages,
           }).catch((error: any) => {
             if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
@@ -2272,18 +2395,6 @@ export default function App() {
         
         return updatedMessages;
       });
-      
-      // Update chat title from user message (ChatGPT-style: generate from first meaningful user prompt)
-      // Use the user message that was just sent (text variable) and optionally AI response (content)
-      setChats((prev) =>
-        prev.map((c) => {
-          if (c.id === chatId && (c.title === "New chat" || c.messages.length === 2)) {
-            const title = generateChatTitle(text, content);
-            return { ...c, title };
-          }
-          return c;
-        })
-      );
     } catch (e) {
       console.error("❌ [FRONTEND] Error in runAI:", e);
       const errorMessage = (e as Error).message || "Unknown error occurred";
