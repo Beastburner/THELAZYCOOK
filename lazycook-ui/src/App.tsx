@@ -1008,7 +1008,13 @@ function MessageItem({
 }
 
 export default function App() {
-  const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://localhost:8000";
+  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+  
+  // Debug: Log API base URL (remove in production if needed)
+  if (import.meta.env.DEV) {
+    console.log("🔗 [FRONTEND] API_BASE:", API_BASE);
+    console.log("🔗 [FRONTEND] VITE_API_BASE env:", import.meta.env.VITE_API_BASE);
+  }
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("1234");

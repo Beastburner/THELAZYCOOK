@@ -164,11 +164,14 @@ VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
 
-**Backend API URL (1 variable):**
+**Backend API URL (1 variable) - CRITICAL:**
 ```
 VITE_API_BASE=https://lazycook-backend.onrender.com
 ```
-**Important:** Use your actual Render backend URL. If yours is different, replace with your URL.
+**⚠️ IMPORTANT:** 
+- Replace `lazycook-backend.onrender.com` with your actual Render backend URL
+- This is REQUIRED - without it, frontend will try to use `localhost:8000` and fail
+- Make sure the URL starts with `https://` (not `http://`)
 
 **For each variable:**
 - Select "Production", "Preview", and "Development"
