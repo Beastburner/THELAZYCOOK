@@ -1260,12 +1260,16 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Track local message updates to prevent Firestore from overwriting them
+  const localMessageUpdates = useRef<Map<string, { messages: Message[], timestamp: number }>>(new Map());
+
   // ---- Load chats from Firestore when user is authenticated ----
   useEffect(() => {
     if (!firebaseUser) {
       // If not authenticated, use empty state
       setChats([]);
       setActiveChatId(null);
+      localMessageUpdates.current.clear();
       return;
     }
 
@@ -1277,22 +1281,63 @@ export default function App() {
         // Subscribe to real-time updates
         unsubscribe = subscribeToUserChats(firebaseUser.uid, (firestoreChats) => {
           // Convert Firestore data to Chat format
-          const convertedChats: Chat[] = firestoreChats.map((doc: any) => ({
-            id: doc.id,
-            title: doc.title || "New chat",
-            createdAt: doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
-            messages: doc.messages || [],
-          }));
+          const convertedChats: Chat[] = firestoreChats.map((doc: any) => {
+            const chatId = doc.id;
+            const firestoreMessages: Message[] = doc.messages || [];
+            
+            // Check if we have more recent local updates for this chat
+            const localUpdate = localMessageUpdates.current.get(chatId);
+            if (localUpdate && localUpdate.timestamp > Date.now() - 5000) {
+              // Use local messages if they're more recent (within last 5 seconds)
+              // This prevents Firestore from overwriting messages we just added
+              console.log(`🔄 [FRONTEND] Using local messages for chat ${chatId} (more recent)`);
+              return {
+                id: chatId,
+                title: doc.title || "New chat",
+                createdAt: doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
+                messages: localUpdate.messages,
+              };
+            }
+            
+            return {
+              id: chatId,
+              title: doc.title || "New chat",
+              createdAt: doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
+              messages: firestoreMessages,
+            };
+          });
 
-          setChats(convertedChats);
+          setChats((prevChats) => {
+            // Merge with existing chats to preserve any local changes
+            const mergedChats = convertedChats.map((firestoreChat) => {
+              const existingChat = prevChats.find(c => c.id === firestoreChat.id);
+              if (existingChat) {
+                // If we have local updates, prefer them if they're newer
+                const localUpdate = localMessageUpdates.current.get(firestoreChat.id);
+                if (localUpdate && localUpdate.timestamp > Date.now() - 5000) {
+                  return { ...firestoreChat, messages: localUpdate.messages };
+                }
+                // Otherwise, merge messages - keep local if they have more messages
+                if (existingChat.messages.length > firestoreChat.messages.length) {
+                  return existingChat; // Keep local version if it has more messages
+                }
+              }
+              return firestoreChat;
+            });
+            
+            // Add any local-only chats (not yet in Firestore)
+            const localOnlyChats = prevChats.filter(
+              c => !convertedChats.find(fc => fc.id === c.id)
+            );
+            
+            return [...mergedChats, ...localOnlyChats];
+          });
 
           // Set active chat only on initial load
           if (isInitialLoad && convertedChats.length > 0) {
             // Try to restore from localStorage first (for migration)
             const savedActive = localStorage.getItem("lazycook_active_chat");
-            const foundChat = savedActive 
-              ? convertedChats.find(c => c.id === savedActive)
-              : null;
+            const foundChat = convertedChats.find(c => c.id === savedActive);
             setActiveChatId(foundChat?.id || convertedChats[0].id);
             if (savedActive) localStorage.removeItem("lazycook_active_chat"); // Clean up
             isInitialLoad = false;
@@ -1665,9 +1710,25 @@ export default function App() {
   };
 
   const updateChatMessages = (chatId: string, updater: (m: Message[]) => Message[]) => {
-    setChats((prev) =>
-      prev.map((c) => (c.id === chatId ? { ...c, messages: updater(c.messages) } : c))
-    );
+    setChats((prev) => {
+      const updated = prev.map((c) => {
+        if (c.id === chatId) {
+          const updatedMessages = updater(c.messages);
+          // Track this update locally to prevent Firestore from overwriting it
+          localMessageUpdates.current.set(chatId, {
+            messages: updatedMessages,
+            timestamp: Date.now()
+          });
+          // Clear the local update after 10 seconds (by then it should be saved to Firestore)
+          setTimeout(() => {
+            localMessageUpdates.current.delete(chatId);
+          }, 10000);
+          return { ...c, messages: updatedMessages };
+        }
+        return c;
+      });
+      return updated;
+    });
   };
 
   // Refresh token periodically (Firebase tokens expire after 1 hour)
@@ -1740,7 +1801,29 @@ export default function App() {
     const userMsg: Message = { id: uid("m"), role: "user", content: text };
     const assistantMsg: Message = { id: uid("m"), role: "assistant", content: "" };
 
-    updateChatMessages(chatId, (m) => [...m, userMsg, assistantMsg]);
+    // Add messages immediately to local state
+    console.log("➕ [FRONTEND] Adding user and assistant messages to chat:", chatId);
+    updateChatMessages(chatId, (m) => {
+      const updated = [...m, userMsg, assistantMsg];
+      console.log("✅ [FRONTEND] Messages added. Total messages in chat:", updated.length);
+      return updated;
+    });
+    
+    // Immediately save to Firestore to prevent race conditions
+    try {
+      const currentChat = chats.find(c => c.id === chatId) || { id: chatId, title: "New chat", createdAt: Date.now(), messages: [] };
+      const updatedMessages = [...currentChat.messages, userMsg, assistantMsg];
+      await setChatDoc(firebaseUser.uid, chatId, {
+        title: currentChat.title,
+        createdAt: currentChat.createdAt,
+        messages: updatedMessages,
+      });
+      console.log("💾 [FRONTEND] Messages saved to Firestore immediately");
+    } catch (error) {
+      console.error("⚠️ [FRONTEND] Failed to save messages immediately, will retry:", error);
+      // Continue anyway - the debounced save will retry
+    }
+    
     setPrompt("");
     // Reset textarea height immediately after sending
     if (textareaRef.current) {
@@ -1766,9 +1849,33 @@ export default function App() {
       });
       
       clearTimeout(timeoutId);
-      const data = await res.json();
-      console.log("📥 [FRONTEND] Received API response:", data);
-      if (!res.ok) throw new Error(data.detail || "Request failed");
+      
+      // Check if response is ok before parsing
+      if (!res.ok) {
+        let errorDetail = "Request failed";
+        try {
+          const errorData = await res.json();
+          errorDetail = errorData.detail || errorData.message || errorDetail;
+        } catch {
+          // If JSON parsing fails, use status text
+          errorDetail = res.statusText || `HTTP ${res.status}`;
+        }
+        throw new Error(errorDetail);
+      }
+      
+      // Parse JSON response
+      let data;
+      try {
+        const text = await res.text();
+        if (!text || text.trim() === "") {
+          throw new Error("Empty response from server");
+        }
+        data = JSON.parse(text);
+        console.log("📥 [FRONTEND] Received API response:", data);
+      } catch (parseError) {
+        console.error("❌ [FRONTEND] Failed to parse JSON response:", parseError);
+        throw new Error("Invalid response from server. Please try again.");
+      }
 
       // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
       // All models (GO, PRO, ULTRA) now return data.response with unified content
@@ -1791,6 +1898,8 @@ export default function App() {
       content = enhanceWithEmojis(content);
       
       console.log("💬 [FRONTEND] Updating chat messages with content length:", content?.length);
+      
+      // Update the assistant message with the response
       updateChatMessages(chatId, (m) => {
         const next = [...m];
         // Try to find by ID first
@@ -1817,7 +1926,18 @@ export default function App() {
           // Fallback: add the message at the end
           next.push({ ...assistantMsg, content, confidenceScore });
         }
-        return next;
+        
+        // Immediately save updated messages to Firestore
+        const updatedMessages = next;
+        setChatDoc(firebaseUser.uid, chatId, {
+          title: chats.find(c => c.id === chatId)?.title || "New chat",
+          createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
+          messages: updatedMessages,
+        }).catch(error => {
+          console.error("⚠️ [FRONTEND] Failed to save response to Firestore:", error);
+        });
+        
+        return updatedMessages;
       });
       
       // Update chat title from user message (ChatGPT-style: generate from first meaningful user prompt)
@@ -1833,23 +1953,55 @@ export default function App() {
       );
     } catch (e) {
       console.error("❌ [FRONTEND] Error in runAI:", e);
-      const errorMessage = (e as Error).message;
+      const errorMessage = (e as Error).message || "Unknown error occurred";
       console.error("❌ [FRONTEND] Error message:", errorMessage);
-      const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout');
+      const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout') || errorMessage.includes('Failed to fetch');
       
+      // Ensure error message is shown in the chat
       updateChatMessages(chatId, (m) => {
         const next = [...m];
-        const idx = next.findIndex((x) => x.id === assistantMsg.id);
+        // Try to find by ID first
+        let idx = next.findIndex((x) => x.id === assistantMsg.id);
+        
+        // If not found, find the last empty assistant message
+        if (idx < 0) {
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].role === "assistant" && (!next[i].content || next[i].content.trim() === "")) {
+              idx = i;
+              break;
+            }
+          }
+        }
+        
+        const errorContent = isTimeout 
+          ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection." 
+          : `Error: ${errorMessage}`;
+        
         if (idx >= 0) {
           next[idx] = { 
             ...next[idx], 
-            content: isTimeout 
-              ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection." 
-              : `Error: ${errorMessage}` 
+            content: errorContent
           };
+        } else {
+          // If still not found, add error message at the end
+          next.push({ 
+            ...assistantMsg, 
+            content: errorContent
+          });
         }
+        
+        // Save error state to Firestore
+        setChatDoc(firebaseUser.uid, chatId, {
+          title: chats.find(c => c.id === chatId)?.title || "New chat",
+          createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
+          messages: next,
+        }).catch(error => {
+          console.error("⚠️ [FRONTEND] Failed to save error state to Firestore:", error);
+        });
+        
         return next;
       });
+      
       setError(isTimeout ? "Request timed out. Please try again." : errorMessage);
     } finally {
       setLoading(false);
