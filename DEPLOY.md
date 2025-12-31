@@ -204,13 +204,19 @@ VITE_API_BASE=https://lazycook-backend.onrender.com
    - Open your `lazycook-backend` service
    - Go to "Environment" tab
 2. **Find `CORS_ORIGINS` variable**
-3. **Update it to:**
+3. **Update it to your Vercel frontend URL:**
    ```
-   https://your-frontend.vercel.app
+   https://thelazycook-ai.vercel.app
    ```
-   Replace with your actual Vercel URL
+   **⚠️ IMPORTANT:** Replace with your actual Vercel frontend URL!
+   
+   **Or to allow multiple Vercel deployments:**
+   ```
+   https://thelazycook-ai.vercel.app,https://*.vercel.app
+   ```
 4. **Click "Save Changes"**
-5. **Render will automatically redeploy**
+5. **Render will automatically redeploy** (wait 2-3 minutes)
+6. **Verify deployment completed** in Render logs
 
 ### Step 2: Update Firebase Authorized Domains
 

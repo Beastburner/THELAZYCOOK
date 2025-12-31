@@ -32,10 +32,12 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="LazyCook API", version="1.0.0")
 
 
+# CORS Configuration
 _origins_env = os.getenv("CORS_ORIGINS", "*").strip()
 if not _origins_env or _origins_env == "*":
     _allow_origins = ["*"]
     _allow_credentials = False
+    logger.info("CORS: Allowing all origins (*)")
 else:
     _allow_origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
     # Dev convenience: React often runs on localhost but people paste 127.0.0.1 into env (or vice‑versa).
@@ -43,13 +45,15 @@ else:
         if dev_origin not in _allow_origins:
             _allow_origins.append(dev_origin)
     _allow_credentials = True
+    logger.info(f"CORS: Allowing origins: {_allow_origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allow_origins,
     allow_credentials=_allow_credentials,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
