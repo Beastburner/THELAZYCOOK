@@ -1996,9 +1996,19 @@ export default function App() {
         messages: updatedMessages,
       });
       console.log("💾 [FRONTEND] Messages saved to Firestore immediately");
-    } catch (error) {
-      console.error("⚠️ [FRONTEND] Failed to save messages immediately, will retry:", error);
-      // Continue anyway - the debounced save will retry
+    } catch (error: any) {
+      console.error("⚠️ [FRONTEND] Failed to save messages immediately:", error);
+      
+      // Show user-friendly error message for quota exceeded
+      if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
+        setError("⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud. Please upgrade your Firebase plan or wait for quota reset.");
+      } else if (error?.message?.includes('blocked')) {
+        console.warn("⚠️ [FRONTEND] Firestore blocked by browser extension. Continuing with local storage only.");
+        // Don't show error for blocked requests - just continue locally
+      } else {
+        console.warn("⚠️ [FRONTEND] Firestore save failed, but continuing with local state. Will retry later.");
+      }
+      // Continue anyway - the debounced save will retry, and local state is maintained
     }
     
     setPrompt("");
@@ -2127,8 +2137,14 @@ export default function App() {
           title: chats.find(c => c.id === chatId)?.title || "New chat",
           createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
           messages: updatedMessages,
-        }).catch(error => {
-          console.error("⚠️ [FRONTEND] Failed to save response to Firestore:", error);
+        }).catch((error: any) => {
+          if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
+            console.warn("⚠️ [FRONTEND] Firestore quota exceeded. Chat saved locally only.");
+            // Don't show error to user during response - it's already displayed
+          } else if (!error?.message?.includes('blocked')) {
+            console.error("⚠️ [FRONTEND] Failed to save response to Firestore:", error);
+          }
+          // Continue - local state is maintained
         });
         
         return updatedMessages;

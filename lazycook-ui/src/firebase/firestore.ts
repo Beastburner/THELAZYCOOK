@@ -28,11 +28,24 @@ export const getUserDoc = async (userId: string): Promise<DocumentData | null> =
  * Create or update a user document
  */
 export const setUserDoc = async (userId: string, data: any): Promise<void> => {
-  const userRef = doc(db, 'users', userId);
-  await setDoc(userRef, {
-    ...data,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (error: any) {
+    // Handle Firestore quota exceeded and other errors gracefully
+    if (error?.code === 'resource-exhausted') {
+      console.warn('⚠️ [FIRESTORE] Quota exceeded. User data will be stored locally only.');
+      throw new Error('Firestore quota exceeded. Your data is saved locally, but cannot be synced to the cloud.');
+    } else if (error?.code === 'permission-denied') {
+      console.warn('⚠️ [FIRESTORE] Permission denied.');
+      throw new Error('Permission denied. Please check your authentication.');
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
@@ -72,36 +85,52 @@ export const setChatDoc = async (
   chatId: string,
   data: any
 ): Promise<void> => {
-  const chatRef = doc(db, 'users', userId, 'chats', chatId);
-  
-  // Remove undefined values (Firestore doesn't accept undefined)
-  const cleanData: any = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
-      cleanData[key] = value;
+  try {
+    const chatRef = doc(db, 'users', userId, 'chats', chatId);
+    
+    // Remove undefined values (Firestore doesn't accept undefined)
+    const cleanData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
     }
+    
+    // Convert createdAt to Firestore Timestamp if it's a number
+    const chatData: any = {
+      ...cleanData,
+      updatedAt: serverTimestamp()
+    };
+    
+    // If createdAt is a number (milliseconds), convert to Firestore Timestamp
+    if (cleanData.createdAt && typeof cleanData.createdAt === 'number') {
+      chatData.createdAt = Timestamp.fromMillis(cleanData.createdAt);
+    } else if (!cleanData.createdAt) {
+      // If no createdAt, set it to now
+      chatData.createdAt = serverTimestamp();
+    }
+    
+    // Ensure messages is an array (not undefined)
+    if (!chatData.messages) {
+      chatData.messages = [];
+    }
+    
+    await setDoc(chatRef, chatData, { merge: true });
+  } catch (error: any) {
+    // Handle Firestore quota exceeded and other errors gracefully
+    if (error?.code === 'resource-exhausted') {
+      console.warn('⚠️ [FIRESTORE] Quota exceeded. Data will be stored locally only.');
+      throw new Error('Firestore quota exceeded. Your data is saved locally, but cannot be synced to the cloud. Please upgrade your Firebase plan or wait for quota reset.');
+    } else if (error?.code === 'permission-denied') {
+      console.warn('⚠️ [FIRESTORE] Permission denied.');
+      throw new Error('Permission denied. Please check your authentication.');
+    } else if (error?.message?.includes('ERR_BLOCKED_BY_CLIENT') || error?.message?.includes('blocked')) {
+      console.warn('⚠️ [FIRESTORE] Request blocked by browser extension.');
+      throw new Error('Firestore request blocked by browser extension. Please disable ad blockers for this site.');
+    }
+    // Re-throw other errors
+    throw error;
   }
-  
-  // Convert createdAt to Firestore Timestamp if it's a number
-  const chatData: any = {
-    ...cleanData,
-    updatedAt: serverTimestamp()
-  };
-  
-  // If createdAt is a number (milliseconds), convert to Firestore Timestamp
-  if (cleanData.createdAt && typeof cleanData.createdAt === 'number') {
-    chatData.createdAt = Timestamp.fromMillis(cleanData.createdAt);
-  } else if (!cleanData.createdAt) {
-    // If no createdAt, set it to now
-    chatData.createdAt = serverTimestamp();
-  }
-  
-  // Ensure messages is an array (not undefined)
-  if (!chatData.messages) {
-    chatData.messages = [];
-  }
-  
-  await setDoc(chatRef, chatData, { merge: true });
 };
 
 /**
