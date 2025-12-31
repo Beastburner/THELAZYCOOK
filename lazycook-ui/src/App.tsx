@@ -2305,13 +2305,27 @@ export default function App() {
       // All models (GO, PRO, ULTRA) now return data.response with unified content
       // PRO version might also have data.optimization field
       let content = data.response || data.optimization || JSON.stringify(data.responses ?? data, null, 2);
-      console.log("📝 [FRONTEND] Extracted content:", content?.substring(0, 100) + "...");
+      console.log("📝 [FRONTEND] Extracted content type:", typeof content, "length:", typeof content === 'string' ? content.length : 'N/A');
+      
       // Ensure content is always a string
       content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+      
+      // Store raw content for title generation (before PRO cleaning and emoji enhancement)
+      // This ensures we have the cleanest possible text for topic extraction
+      let rawContentForTitle = content;
       
       // Clean PRO version responses to remove JSON artifacts and extract content properly
       if (plan === 'PRO') {
         content = cleanProResponse(content);
+        // For PRO, use cleaned content but ensure it's still valid
+        if (content && content.trim().length > 20) {
+          rawContentForTitle = content;
+        }
+      }
+      
+      // Ensure rawContentForTitle is a valid string
+      if (!rawContentForTitle || typeof rawContentForTitle !== 'string') {
+        rawContentForTitle = typeof content === 'string' ? content : '';
       }
       
       // Extract confidence score from API response
@@ -2322,26 +2336,57 @@ export default function App() {
       content = enhanceWithEmojis(content);
       
       console.log("💬 [FRONTEND] Updating chat messages with content length:", content?.length);
+      console.log("📝 [FRONTEND] Raw content for title generation length:", rawContentForTitle?.length);
       
       // Generate title BEFORE updating messages (so we can save it to Firestore)
+      // Use raw content (before emoji enhancement) for better topic extraction
       const currentChat = chats.find(c => c.id === chatId);
       // Update title if it's still "New chat" (first AI response)
-      const shouldUpdateTitle = currentChat && currentChat.title === "New chat";
-      let newTitle = currentChat?.title || "New chat";
+      // Also check if title is undefined or empty string (defensive check for Vercel)
+      const currentTitle = currentChat?.title;
+      const shouldUpdateTitle = currentChat && (!currentTitle || currentTitle === "New chat" || currentTitle.trim() === "");
+      let newTitle = currentTitle || "New chat";
       
-      if (shouldUpdateTitle && content && content.trim().length > 20) {
-        newTitle = generateChatTitle(text, content);
-        console.log("📝 [FRONTEND] Generated new title:", newTitle, "from AI response length:", content.length);
-        
-        // Update title in state immediately
-        setChats((prev) =>
-          prev.map((c) => {
-            if (c.id === chatId) {
-              return { ...c, title: newTitle };
-            }
-            return c;
-          })
-        );
+      console.log("🔍 [FRONTEND] Title generation check:", {
+        chatId,
+        currentTitle,
+        shouldUpdateTitle,
+        contentLength: rawContentForTitle?.length,
+        hasContent: !!rawContentForTitle
+      });
+      
+      if (shouldUpdateTitle && rawContentForTitle && rawContentForTitle.trim().length > 20) {
+        try {
+          newTitle = generateChatTitle(text, rawContentForTitle);
+          console.log("📝 [FRONTEND] Generated new title:", newTitle, "from AI response length:", rawContentForTitle.length);
+          
+          // Validate that we got a meaningful title (not "New chat")
+          if (newTitle && newTitle !== "New chat" && newTitle.trim().length > 3) {
+            // Update title in state immediately using functional update to ensure we have latest state
+            setChats((prev) => {
+              const updated = prev.map((c) => {
+                if (c.id === chatId) {
+                  console.log("✅ [FRONTEND] Updating chat title from", c.title, "to", newTitle);
+                  return { ...c, title: newTitle };
+                }
+                return c;
+              });
+              return updated;
+            });
+          } else {
+            console.warn("⚠️ [FRONTEND] Title generation returned invalid title:", newTitle);
+          }
+        } catch (error) {
+          console.error("❌ [FRONTEND] Error generating title:", error);
+          // Continue with "New chat" if title generation fails
+        }
+      } else {
+        console.log("⏭️ [FRONTEND] Skipping title update.", {
+          shouldUpdateTitle,
+          hasContent: !!rawContentForTitle,
+          contentLength: rawContentForTitle?.length,
+          currentTitle
+        });
       }
       
       // Update the assistant message with the response
@@ -2376,8 +2421,10 @@ export default function App() {
         // Use the newly generated title if we updated it, otherwise use the existing title
         const updatedMessages = next;
         if (!firestoreQuotaExceeded) {
+          // Use the generated title (newTitle) which was already updated in state above
+          // If title wasn't updated, newTitle will still be "New chat" or the existing title
           setChatDoc(firebaseUser.uid, chatId, {
-            title: newTitle, // Use the generated title
+            title: newTitle, // Use the generated/updated title
             createdAt: currentChat?.createdAt || Date.now(),
             messages: updatedMessages,
           }).catch((error: any) => {
