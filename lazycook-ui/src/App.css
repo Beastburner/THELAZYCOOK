@@ -1656,10 +1656,7 @@ code,
 }
 
 /* Override Prism Tomorrow theme - target code element directly */
-.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token,
-.lc-code-block-wrapper pre.lc-vscode-theme code .token {
-  /* Base token styles - will be overridden by specific token rules below */
-}
+/* Base token styles are defined in specific token rules below */
 
 /* VS Code Dark+ Token Colors - Exact Match */
 /* Make selectors more specific to override Prism theme */
@@ -2468,8 +2465,6 @@ code,
   /* Completely hide scrollbar but keep scrolling functionality */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
-  /* Ensure proper alignment */
-  vertical-align: bottom;
   display: block;
 }
 
@@ -2596,6 +2591,10 @@ code,
 
 .mobile-only {
   display: none;
+}
+
+.desktop-only {
+  display: block;
 }
 
 /* ============================================
@@ -2740,7 +2739,11 @@ code,
   }
   
   .mobile-only {
-    display: inline-flex;
+    display: inline-flex !important;
+  }
+  
+  .desktop-only {
+    display: none !important;
   }
   
   .lc-main {
@@ -4463,6 +4466,660 @@ code,
   color: var(--muted);
   font-size: 11px;
   font-style: italic;
+}
+
+/* ============================================
+   COMPREHENSIVE RESPONSIVE DESIGN
+   Mobile & Tablet Optimizations
+   ============================================ */
+
+/* Tablet Breakpoint (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .lc-sidebar {
+    width: 240px;
+  }
+  
+  .lc-composer-row {
+    max-width: 90%;
+    padding: 0 20px;
+  }
+  
+  .lc-messages {
+    max-width: 90%;
+    padding: 0 20px 20px;
+  }
+  
+  .lc-plan-selector-modal {
+    max-width: 90%;
+    margin: 20px;
+  }
+  
+  .lc-plan-selector-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 20px;
+  }
+  
+  .lc-topbar {
+    padding: 0 16px;
+  }
+  
+  .lc-topbar-title {
+    font-size: 12px;
+    max-width: 200px;
+  }
+}
+
+/* Mobile Landscape / Small Tablet (641px - 900px) */
+@media (min-width: 641px) and (max-width: 900px) {
+  .lc-sidebar {
+    width: 280px;
+  }
+  
+  .lc-plan-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .lc-plan-card {
+    padding: 16px;
+  }
+  
+  .lc-plan-name {
+    font-size: 24px;
+  }
+  
+  .lc-plan-price {
+    font-size: 18px;
+  }
+}
+
+/* Mobile Portrait (up to 640px) - Enhanced */
+@media (max-width: 640px) {
+  /* Ensure viewport meta tag is respected */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Touch-friendly button sizes (minimum 44x44px) */
+  button, .lc-iconbtn, .lc-nav-btn, .lc-topbar-action-btn {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* Mobile menu button - larger and more visible */
+  .lc-iconbtn.mobile-only {
+    font-size: 20px;
+    padding: 12px;
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Sidebar improvements */
+  .lc-sidebar {
+    width: 100%;
+    max-width: 320px;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+  
+  .lc-sidebar-header {
+    padding: 0 12px;
+  }
+  
+  .lc-sidebar-close {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  
+  .lc-nav-btn {
+    padding: 12px;
+    font-size: 15px;
+    min-height: 48px;
+  }
+  
+  .lc-nav-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* Topbar improvements */
+  .lc-topbar {
+    padding: 0 12px;
+    height: 56px;
+    min-height: 56px;
+  }
+  
+  .lc-topbar-left {
+    gap: 8px;
+  }
+  
+  .lc-topbar-model {
+    font-size: 13px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  
+  .lc-logo-text {
+    max-height: 20px;
+  }
+  
+  .lc-topbar-title {
+    font-size: 12px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .lc-topbar-actions {
+    gap: 4px;
+  }
+  
+  .lc-topbar-action-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  
+  .lc-topbar-action-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* Messages improvements */
+  .lc-messages {
+    padding: 0 12px 16px;
+  }
+  
+  .lc-msg.is-user .lc-msg-inner {
+    max-width: 90%;
+    padding: 12px 16px;
+  }
+  
+  .lc-msg.is-assistant {
+    padding: 0;
+  }
+  
+  .lc-msg-content {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  
+  .lc-msg-actions {
+    gap: 4px;
+    margin-top: 8px;
+  }
+  
+  .lc-msg-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  
+  .lc-msg-action-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  /* Composer improvements */
+  .lc-composer {
+    padding: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  
+  .lc-composer-row {
+    max-width: 100%;
+    padding: 0 0;
+    gap: 8px;
+  }
+  
+  .lc-textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px 14px;
+    min-height: 48px;
+    max-height: 180px;
+    border-radius: 24px;
+  }
+  
+  .lc-primary {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px 16px;
+    border-radius: 24px;
+  }
+  
+  .lc-composer-mic {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+  
+  .lc-composer-mic svg {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .lc-footnote {
+    font-size: 11px;
+    padding: 0 12px;
+  }
+  
+  /* Plan Selector Modal - Mobile Optimized */
+  .lc-plan-selector-overlay {
+    padding: 0;
+    align-items: flex-end; /* Slide up from bottom on mobile */
+    justify-content: center;
+  }
+  
+  .lc-plan-selector-modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+    margin: 0;
+    animation: slideUpMobile 0.3s ease;
+  }
+  
+  @keyframes slideUpMobile {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .lc-plan-selector-header {
+    padding: 20px;
+    border-radius: 20px 20px 0 0;
+  }
+  
+  .lc-plan-selector-header h2 {
+    font-size: 20px;
+  }
+  
+  .lc-plan-selector-close {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+  
+  .lc-plan-selector-grid {
+    grid-template-columns: 1fr; /* Stack plans vertically on mobile */
+    gap: 12px;
+    padding: 20px;
+  }
+  
+  .lc-plan-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .lc-plan-name {
+    font-size: 24px;
+  }
+  
+  .lc-plan-price {
+    font-size: 18px;
+  }
+  
+  .lc-plan-features {
+    font-size: 13px;
+  }
+  
+  .lc-plan-features li {
+    padding: 6px 0;
+  }
+  
+  .lc-plan-selector-footer {
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  
+  .lc-plan-selector-cancel,
+  .lc-plan-selector-confirm {
+    width: 100%;
+    padding: 14px 24px;
+    font-size: 15px;
+    min-height: 48px;
+  }
+  
+  .lc-plan-selector-note {
+    padding: 12px 20px 0;
+  }
+  
+  /* Help Modal - Mobile Optimized */
+  .lc-help-modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  
+  .lc-help-modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 90vh;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    animation: slideUpMobile 0.3s ease;
+  }
+  
+  .lc-help-modal-header,
+  .lc-help-modal-content,
+  .lc-help-modal-footer {
+    padding: 16px 20px;
+  }
+  
+  .lc-help-modal-header h2 {
+    font-size: 20px;
+  }
+  
+  .lc-help-modal-close {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  /* Profile Modal - Mobile Optimized */
+  .lc-profile-modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  
+  .lc-profile-modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 90vh;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    animation: slideUpMobile 0.3s ease;
+  }
+  
+  /* Chat List improvements */
+  .lc-chatlist {
+    padding: 8px;
+  }
+  
+  .lc-chatitem {
+    padding: 12px;
+    min-height: 56px;
+    border-radius: 12px;
+  }
+  
+  .lc-chatitem-title {
+    font-size: 14px;
+  }
+  
+  .lc-chatitem-meta {
+    font-size: 11px;
+  }
+  
+  /* Empty state improvements */
+  .lc-empty {
+    padding: 40px 20px;
+  }
+  
+  .lc-empty-title {
+    font-size: 22px;
+  }
+  
+  .lc-empty-subtitle {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  /* Code blocks - mobile friendly */
+  .lc-code-block-wrapper {
+    margin: 0.6em 0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .lc-code-block-header {
+    padding: 0.5em 0.6em;
+    min-height: 36px;
+  }
+  
+  .lc-code-block-btn {
+    font-size: 0.7em;
+    padding: 0.4em 0.6em;
+    min-height: 32px;
+  }
+  
+  /* Typing indicator */
+  .lc-typing-indicator {
+    bottom: max(90px, calc(90px + env(safe-area-inset-bottom)));
+    padding: 10px 12px;
+  }
+  
+  /* Login card improvements */
+  .lc-login-card {
+    padding: 24px 20px;
+    margin: 16px;
+  }
+  
+  .lc-google-btn {
+    padding: 14px 20px;
+    font-size: 15px;
+    min-height: 48px;
+  }
+  
+  .lc-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+  
+  .lc-primary {
+    padding: 14px 24px;
+    font-size: 15px;
+    min-height: 48px;
+  }
+  
+  /* Dropdown menus - mobile friendly */
+  .lc-model-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 80px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    border-radius: 16px 16px 0 0;
+    animation: slideUpMobile 0.3s ease;
+  }
+  
+  .lc-model-option {
+    padding: 16px 20px;
+    font-size: 15px;
+    min-height: 52px;
+  }
+  
+  /* Topbar menu dropdown - mobile friendly */
+  .lc-topbar-menu-dropdown {
+    position: fixed;
+    bottom: 80px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    animation: slideUpMobile 0.3s ease;
+  }
+  
+  .lc-topbar-menu-item {
+    padding: 16px 20px;
+    font-size: 15px;
+    min-height: 52px;
+  }
+  
+  /* Chat actions - mobile friendly */
+  .lc-chat-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .lc-chat-action-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 40px;
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+  
+  /* Prevent horizontal scroll */
+  body, html {
+    overflow-x: hidden;
+  }
+  
+  .lc-shell {
+    overflow-x: hidden;
+  }
+  
+  /* Safe area insets for notched devices */
+  .lc-composer {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  
+  .lc-plan-selector-footer {
+    padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
+  }
+}
+
+/* Very Small Mobile (up to 360px) */
+@media (max-width: 360px) {
+  .lc-sidebar {
+    max-width: 100%;
+  }
+  
+  .lc-plan-selector-header h2 {
+    font-size: 18px;
+  }
+  
+  .lc-plan-name {
+    font-size: 20px;
+  }
+  
+  .lc-plan-price {
+    font-size: 16px;
+  }
+  
+  .lc-topbar-title {
+    font-size: 11px;
+    max-width: 100px;
+  }
+  
+  .lc-empty-title {
+    font-size: 20px;
+  }
+}
+
+/* Landscape Mobile (640px - 900px, landscape) */
+@media (max-width: 900px) and (orientation: landscape) {
+  .lc-sidebar {
+    width: 280px;
+  }
+  
+  .lc-plan-selector-modal {
+    max-height: 95vh;
+  }
+  
+  .lc-help-modal {
+    max-height: 95vh;
+  }
+  
+  .lc-profile-modal {
+    max-height: 95vh;
+  }
+  
+  .lc-composer {
+    padding: 8px 12px;
+  }
+  
+  .lc-topbar {
+    height: 48px;
+    min-height: 48px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button, a, .lc-iconbtn, .lc-nav-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .lc-nav-btn:hover,
+  .lc-iconbtn:hover,
+  .lc-topbar-action-btn:hover {
+    background: transparent;
+  }
+  
+  /* Active states for touch feedback */
+  .lc-nav-btn:active {
+    background: var(--beige-soft);
+  }
+  
+  .lc-iconbtn:active {
+    background: var(--beige-soft);
+  }
+  
+  .lc-topbar-action-btn:active {
+    background: var(--beige-soft);
+  }
+  
+  /* Prevent text selection on buttons */
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .lc-logo,
+  .lc-logo-icon,
+  .lc-logo-text {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Print styles - hide UI elements */
+@media print {
+  .lc-sidebar,
+  .lc-topbar,
+  .lc-composer,
+  .lc-sidebar-overlay {
+    display: none !important;
+  }
+  
+  .lc-main {
+    width: 100%;
+  }
+  
+  .lc-messages {
+    max-width: 100%;
+    padding: 0;
+  }
 }
 
 
