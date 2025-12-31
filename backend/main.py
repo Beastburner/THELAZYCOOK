@@ -40,6 +40,8 @@ if not _origins_env or _origins_env == "*":
     logger.info("CORS: Allowing all origins (*)")
 else:
     _allow_origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+    # Remove trailing slashes and normalize origins
+    _allow_origins = [origin.rstrip('/') for origin in _allow_origins]
     # Dev convenience: React often runs on localhost but people paste 127.0.0.1 into env (or vice‑versa).
     for dev_origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
         if dev_origin not in _allow_origins:

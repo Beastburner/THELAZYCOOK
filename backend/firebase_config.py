@@ -19,12 +19,33 @@ load_dotenv()
 # Initialize Firebase Admin SDK (only once)
 if not firebase_admin._apps:
     try:
-        # Option 1: Use service account JSON file (for local development)
+        # Option 1: Use service account JSON file
+        # Check multiple possible paths (Render secret files can be in different locations)
         cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
-        if cred_path and os.path.exists(cred_path):
-            cred = credentials.Certificate(cred_path)
+        possible_paths = []
+        
+        if cred_path:
+            possible_paths.append(cred_path)
+        
+        # Render secret files are typically at /etc/secrets/<filename>
+        possible_paths.extend([
+            "/etc/secrets/serviceAccountKey.json",
+            "/app/backend/serviceAccountKey.json",
+            "./serviceAccountKey.json",
+            "serviceAccountKey.json"
+        ])
+        
+        # Try each path
+        found_path = None
+        for path in possible_paths:
+            if path and os.path.exists(path):
+                found_path = path
+                break
+        
+        if found_path:
+            cred = credentials.Certificate(found_path)
             firebase_admin.initialize_app(cred)
-            logger.info(f"Firebase Admin initialized with service account: {cred_path}")
+            logger.info(f"Firebase Admin initialized with service account: {found_path}")
         else:
             # Option 2: Use default credentials (for cloud deployment like GCP, Firebase Cloud Functions)
             # This will use Application Default Credentials (ADC)
@@ -35,7 +56,8 @@ if not firebase_admin._apps:
                 # If ADC fails, log warning but don't crash - credentials can be set later
                 logger.warning(f"Firebase Admin default credentials not found: {adc_error}")
                 logger.warning("Firebase features will be disabled until credentials are configured.")
-                logger.warning("To fix: Set FIREBASE_SERVICE_ACCOUNT_PATH in .env or configure Application Default Credentials")
+                logger.warning(f"Checked paths: {possible_paths}")
+                logger.warning("To fix: Upload serviceAccountKey.json as Secret File in Render, or set FIREBASE_SERVICE_ACCOUNT_PATH")
     except Exception as e:
         logger.warning(f"Firebase Admin initialization skipped: {e}")
         logger.warning("Firebase features will be disabled. Configure credentials to enable.")
