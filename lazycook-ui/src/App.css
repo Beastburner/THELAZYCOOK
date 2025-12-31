@@ -160,6 +160,11 @@ select {
   border-radius: 12px;
   padding: 10px 12px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .lc-error {
@@ -706,6 +711,9 @@ select {
   background: var(--bg);
   box-sizing: border-box; /* Hard alignment guard */
   font-family: var(--font-ui);
+  position: sticky;
+  top: 0;
+  z-index: 100; /* Ensure topbar is always visible */
 }
 
 .lc-topbar-left {
@@ -1041,7 +1049,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  z-index: 1000; /* Above messages but below modals */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   
   /* Hidden by default */
@@ -2746,6 +2754,31 @@ code,
     display: none !important;
   }
   
+  /* Ensure topbar is visible on mobile */
+  .lc-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+  }
+  
+  /* Ensure hamburger button is visible */
+  .lc-topbar .mobile-only {
+    display: inline-flex !important;
+    margin-right: 8px;
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 20px;
+    color: var(--text);
+  }
+  
+  /* Scroll to bottom button - center on mobile */
+  .lc-scroll-to-bottom {
+    left: 50% !important;
+    bottom: 88px;
+    z-index: 1000;
+  }
+  
   .lc-main {
     width: 100%;
   }
@@ -4051,13 +4084,19 @@ code,
   
   .lc-scroll-to-bottom {
     padding: 10px; /* Larger touch area on mobile */
-    bottom: 88px; /* Adjust for mobile composer */
-    left: 50%; /* Center horizontally on mobile */
+    bottom: 88px !important; /* Adjust for mobile composer */
+    left: 50% !important; /* Center horizontally on mobile */
     transform: translateX(-50%) translateY(4px); /* Center and subtle upward position when hidden */
+    z-index: 1000 !important; /* Ensure it's above other elements */
+    width: 44px !important; /* Larger touch target on mobile */
+    height: 44px !important;
   }
   
   .lc-scroll-to-bottom.is-visible {
-    transform: translateX(-50%) translateY(0); /* Center and no vertical offset when visible */
+    transform: translateX(-50%) translateY(0) !important; /* Center and no vertical offset when visible */
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
   
   .lc-scroll-to-bottom svg {
