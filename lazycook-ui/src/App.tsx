@@ -1165,6 +1165,9 @@ export default function App() {
       ? "https://lazycook-backend.onrender.com" 
       : "http://localhost:8000");
   
+  // Track Firestore quota status to prevent excessive writes
+  const [firestoreQuotaExceeded, setFirestoreQuotaExceeded] = useState(false);
+  
   // Debug: Log API base URL (remove in production if needed)
   if (import.meta.env.DEV) {
     console.log("🔗 [FRONTEND] API_BASE:", API_BASE);
@@ -1563,10 +1566,16 @@ export default function App() {
       }
     };
 
-    // Increased debounce time to reduce write frequency (2 seconds instead of 500ms)
-    const timeoutId = setTimeout(saveActiveChat, 2000);
+    // Skip Firestore save if quota is exceeded
+    if (firestoreQuotaExceeded) {
+      console.log("⏭️ [FRONTEND] Skipping debounced Firestore save (quota exceeded)");
+      return;
+    }
+    
+    // Increased debounce time to reduce write frequency (5 seconds to minimize quota usage)
+    const timeoutId = setTimeout(saveActiveChat, 5000);
     return () => clearTimeout(timeoutId);
-  }, [chats, firebaseUser, activeChatId]);
+  }, [chats, firebaseUser, activeChatId, firestoreQuotaExceeded]);
 
   // ---- Save active chat ID to localStorage (for quick restore) ----
   useEffect(() => {
@@ -1574,6 +1583,23 @@ export default function App() {
       localStorage.setItem("lazycook_active_chat", activeChatId);
     }
   }, [activeChatId]);
+
+  // ---- Backup chats to localStorage when Firestore quota is exceeded ----
+  useEffect(() => {
+    if (firestoreQuotaExceeded && firebaseUser && chats.length > 0) {
+      try {
+        const backup = {
+          userId: firebaseUser.uid,
+          chats: chats,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(`lazycook_chats_backup_${firebaseUser.uid}`, JSON.stringify(backup));
+        console.log("💾 [FRONTEND] Chats backed up to localStorage");
+      } catch (error) {
+        console.error("⚠️ [FRONTEND] Failed to backup chats to localStorage:", error);
+      }
+    }
+  }, [chats, firestoreQuotaExceeded, firebaseUser]);
 
   // Persist highlight setting
   useEffect(() => {
@@ -1986,29 +2012,35 @@ export default function App() {
       return updated;
     });
     
-    // Immediately save to Firestore to prevent race conditions
-    try {
-      const currentChat = chats.find(c => c.id === chatId) || { id: chatId, title: "New chat", createdAt: Date.now(), messages: [] };
-      const updatedMessages = [...currentChat.messages, userMsg, assistantMsg];
-      await setChatDoc(firebaseUser.uid, chatId, {
-        title: currentChat.title,
-        createdAt: currentChat.createdAt,
-        messages: updatedMessages,
-      });
-      console.log("💾 [FRONTEND] Messages saved to Firestore immediately");
-    } catch (error: any) {
-      console.error("⚠️ [FRONTEND] Failed to save messages immediately:", error);
-      
-      // Show user-friendly error message for quota exceeded
-      if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
-        setError("⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud. Please upgrade your Firebase plan or wait for quota reset.");
-      } else if (error?.message?.includes('blocked')) {
-        console.warn("⚠️ [FRONTEND] Firestore blocked by browser extension. Continuing with local storage only.");
-        // Don't show error for blocked requests - just continue locally
-      } else {
-        console.warn("⚠️ [FRONTEND] Firestore save failed, but continuing with local state. Will retry later.");
+    // Skip immediate Firestore save if quota is exceeded - rely on debounced save only
+    // This reduces write frequency significantly
+    if (!firestoreQuotaExceeded) {
+      try {
+        const currentChat = chats.find(c => c.id === chatId) || { id: chatId, title: "New chat", createdAt: Date.now(), messages: [] };
+        const updatedMessages = [...currentChat.messages, userMsg, assistantMsg];
+        await setChatDoc(firebaseUser.uid, chatId, {
+          title: currentChat.title,
+          createdAt: currentChat.createdAt,
+          messages: updatedMessages,
+        });
+        console.log("💾 [FRONTEND] Messages saved to Firestore");
+      } catch (error: any) {
+        console.error("⚠️ [FRONTEND] Failed to save messages:", error);
+        
+        // Mark quota as exceeded to prevent further writes
+        if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
+          setFirestoreQuotaExceeded(true);
+          setError("⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud. Please upgrade your Firebase plan or wait for quota reset.");
+        } else if (error?.message?.includes('blocked')) {
+          console.warn("⚠️ [FRONTEND] Firestore blocked by browser extension. Continuing with local storage only.");
+          // Don't show error for blocked requests - just continue locally
+        } else {
+          console.warn("⚠️ [FRONTEND] Firestore save failed, but continuing with local state. Will retry later.");
+        }
+        // Continue anyway - the debounced save will retry, and local state is maintained
       }
-      // Continue anyway - the debounced save will retry, and local state is maintained
+    } else {
+      console.log("⏭️ [FRONTEND] Skipping Firestore save (quota exceeded). Data saved locally only.");
     }
     
     setPrompt("");
@@ -2131,21 +2163,25 @@ export default function App() {
           next.push({ ...assistantMsg, content, confidenceScore });
         }
         
-        // Immediately save updated messages to Firestore
+        // Save updated messages to Firestore (only if quota not exceeded)
         const updatedMessages = next;
-        setChatDoc(firebaseUser.uid, chatId, {
-          title: chats.find(c => c.id === chatId)?.title || "New chat",
-          createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
-          messages: updatedMessages,
-        }).catch((error: any) => {
-          if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
-            console.warn("⚠️ [FRONTEND] Firestore quota exceeded. Chat saved locally only.");
-            // Don't show error to user during response - it's already displayed
-          } else if (!error?.message?.includes('blocked')) {
-            console.error("⚠️ [FRONTEND] Failed to save response to Firestore:", error);
-          }
-          // Continue - local state is maintained
-        });
+        if (!firestoreQuotaExceeded) {
+          setChatDoc(firebaseUser.uid, chatId, {
+            title: chats.find(c => c.id === chatId)?.title || "New chat",
+            createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
+            messages: updatedMessages,
+          }).catch((error: any) => {
+            if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
+              setFirestoreQuotaExceeded(true);
+              console.warn("⚠️ [FRONTEND] Firestore quota exceeded. Chat saved locally only.");
+            } else if (!error?.message?.includes('blocked')) {
+              console.error("⚠️ [FRONTEND] Failed to save response to Firestore:", error);
+            }
+            // Continue - local state is maintained
+          });
+        } else {
+          console.log("⏭️ [FRONTEND] Skipping Firestore save (quota exceeded). Response saved locally only.");
+        }
         
         return updatedMessages;
       });
