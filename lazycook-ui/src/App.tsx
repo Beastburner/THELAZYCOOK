@@ -1146,9 +1146,10 @@ export default function App() {
     const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     // Show arrow when NOT at bottom (distance from bottom > threshold)
-    // Lower threshold on mobile for better UX (50px vs 120px)
-    const threshold = window.innerWidth <= 900 ? 50 : 120;
-    setShowScrollToBottom(distanceFromBottom > threshold);
+    // Lower threshold on mobile for better UX (20px vs 120px) - more sensitive on mobile
+    const threshold = window.innerWidth <= 900 ? 20 : 120;
+    const shouldShow = distanceFromBottom > threshold;
+    setShowScrollToBottom(shouldShow);
   };
 
   // Scroll to bottom function - ChatGPT exact behavior
@@ -1190,13 +1191,27 @@ export default function App() {
     checkScrollPosition();
     
     // Use passive listener for better performance
-    thread.addEventListener('scroll', checkScrollPosition, { passive: true });
-    // Also listen to touch events for mobile
-    thread.addEventListener('touchmove', checkScrollPosition, { passive: true });
+    const handleScroll = () => {
+      checkScrollPosition();
+    };
+    
+    thread.addEventListener('scroll', handleScroll, { passive: true });
+    // Also listen to touch events for mobile scrolling
+    thread.addEventListener('touchmove', handleScroll, { passive: true });
+    // Listen to touch end to catch when user stops scrolling
+    thread.addEventListener('touchend', handleScroll, { passive: true });
+    
+    // Also check on resize (mobile orientation change)
+    const handleResize = () => {
+      setTimeout(checkScrollPosition, 100);
+    };
+    window.addEventListener('resize', handleResize);
     
     return () => {
-      thread.removeEventListener('scroll', checkScrollPosition);
-      thread.removeEventListener('touchmove', checkScrollPosition);
+      thread.removeEventListener('scroll', handleScroll);
+      thread.removeEventListener('touchmove', handleScroll);
+      thread.removeEventListener('touchend', handleScroll);
+      window.removeEventListener('resize', handleResize);
     };
   }, [activeChat, activeChatId]);
 

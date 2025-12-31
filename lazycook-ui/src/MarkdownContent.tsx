@@ -187,20 +187,17 @@ function processTextWithHighlights(text: string, highlights: Highlight[] = [], o
             }
             
             // Add highlighted match (preserve original case from the text)
+            // Note: Click handling is done via event delegation in App.tsx
+            // This allows text selection to work normally
             newResult.push(
               <mark 
                 key={`highlight-${keyCounter++}`} 
                 className={`lc-highlight lc-highlight-${color} ${note ? 'has-note' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onHighlightClick) {
-                    onHighlightClick(highlightText, e);
-                  }
-                }}
                 data-highlight-text={highlightText}
                 data-highlight-id={id}
                 data-highlight-note={note || ''}
                 title={note || ''}
+                style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
                 {matchText}
               </mark>
@@ -446,7 +443,12 @@ export default function MarkdownContent({
                       data-highlight-text={highlightText}
                       data-highlight-note={highlightNote}
                       title={hasNote ? highlightNote : ''}
-                      style={{ cursor: 'pointer', ...((props as any).style || {}) }}
+                      style={{ 
+                        cursor: 'pointer', 
+                        userSelect: 'text',
+                        WebkitUserSelect: 'text',
+                        ...((props as any).style || {}) 
+                      }}
                     >
                       {children}
                     </mark>

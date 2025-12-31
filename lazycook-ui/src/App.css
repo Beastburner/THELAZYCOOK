@@ -1259,6 +1259,8 @@ select {
   word-break: break-word;
   overflow-x: hidden;
   box-sizing: border-box;
+  user-select: text; /* Allow text selection */
+  -webkit-user-select: text; /* Safari */
 }
 
 /* Markdown response container */
@@ -1268,6 +1270,8 @@ select {
   box-sizing: border-box;
   overflow-x: hidden; /* Prevent horizontal overflow */
   min-width: 0; /* Allow flex shrinking */
+  user-select: text; /* Allow text selection */
+  -webkit-user-select: text; /* Safari */
 }
 
 .lc-msg-actions {
@@ -2776,7 +2780,7 @@ code,
   
   /* Scroll to bottom button - center on mobile */
   .lc-scroll-to-bottom {
-    display: flex !important; /* Always show on mobile */
+    display: flex !important; /* Always render on mobile */
     left: 50% !important;
     bottom: 88px !important;
     z-index: 1000 !important;
@@ -2784,6 +2788,10 @@ code,
     width: 44px !important; /* Larger touch target on mobile */
     height: 44px !important;
     position: fixed !important; /* Ensure it's fixed to viewport, not parent */
+    /* Override base hidden state - button should be visible when needed */
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
   
   .lc-scroll-to-bottom.is-visible {
@@ -3884,6 +3892,8 @@ code,
   transition: background 0.2s ease;
   cursor: pointer;
   position: relative;
+  user-select: text; /* Allow text selection */
+  -webkit-user-select: text; /* Safari */
 }
 
 .lc-highlight:hover {
