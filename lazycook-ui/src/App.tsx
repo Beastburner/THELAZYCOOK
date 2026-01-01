@@ -3470,25 +3470,27 @@ export default function App() {
               </button>
               
               {/* Dropdown menu - visible on mobile, contains Share and Add people */}
-              {showTopbarMenu && activeChatId && (
+              {showTopbarMenu && (
                 <div className="lc-topbar-menu-dropdown">
-                  <button 
-                    className="lc-topbar-menu-item lc-topbar-action-menu" 
-                    aria-label="Rename chat"
-                    onClick={() => {
-                      setShowTopbarMenu(false);
-                      const newTitle = window.prompt('Enter new chat title:', chats.find(c => c.id === activeChatId)?.title || '');
-                      if (newTitle !== null && newTitle.trim()) {
-                        handleRenameChat(activeChatId, newTitle.trim());
-                      }
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 14V12L8 6L10 8L4 14H2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span>Rename</span>
-                  </button>
+                  {activeChatId && (
+                    <button 
+                      className="lc-topbar-menu-item lc-topbar-action-menu" 
+                      aria-label="Rename chat"
+                      onClick={() => {
+                        setShowTopbarMenu(false);
+                        const newTitle = window.prompt('Enter new chat title:', chats.find(c => c.id === activeChatId)?.title || '');
+                        if (newTitle !== null && newTitle.trim()) {
+                          handleRenameChat(activeChatId, newTitle.trim());
+                        }
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 14V12L8 6L10 8L4 14H2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span>Rename</span>
+                    </button>
+                  )}
                   <button 
                     className="lc-topbar-menu-item lc-topbar-action-menu" 
                     aria-label="Share"
@@ -3516,24 +3518,26 @@ export default function App() {
                     </svg>
                     <span>Add people</span>
                   </button>
-                  <div className="lc-topbar-menu-divider"></div>
-                  <button 
-                    className="lc-topbar-menu-item lc-topbar-action-menu" 
-                    style={{ color: 'var(--red)' }}
-                    aria-label="Delete chat"
-                    onClick={() => {
-                      setShowTopbarMenu(false);
-                      if (activeChatId) {
-                        handleDeleteChat(activeChatId);
-                      }
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M6 7V11M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                    <span>Delete</span>
-                  </button>
+                  {activeChatId && (
+                    <>
+                      <div className="lc-topbar-menu-divider"></div>
+                      <button 
+                        className="lc-topbar-menu-item lc-topbar-action-menu" 
+                        style={{ color: 'var(--red)' }}
+                        aria-label="Delete chat"
+                        onClick={() => {
+                          setShowTopbarMenu(false);
+                          handleDeleteChat(activeChatId);
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M6 7V11M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
