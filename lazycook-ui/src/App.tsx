@@ -26,7 +26,8 @@ import {
   FiX,
   FiStar,
   FiClock,
-  FiSettings
+  FiSettings,
+  FiFileText
 } from "react-icons/fi";
 import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
@@ -1302,11 +1303,8 @@ function MessageItem({
 }
 
 export default function App() {
-  // Use production backend URL by default, fallback to localhost for development
-  const API_BASE = import.meta.env.VITE_API_BASE || 
-    (import.meta.env.PROD 
-      ? "https://lazycook-backend.onrender.com" 
-      : "http://localhost:8000");
+  // Use localhost for local testing (change before pushing to production)
+  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
   
   // Track Firestore quota status to prevent excessive writes
   const [firestoreQuotaExceeded, setFirestoreQuotaExceeded] = useState(false);
@@ -1339,6 +1337,7 @@ export default function App() {
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ id: string; filename: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Ensure file input ref is available after render
@@ -2300,6 +2299,8 @@ export default function App() {
     }
     
     setPrompt("");
+    // Clear attached file after sending
+    setAttachedFile(null);
     // Reset textarea height immediately after sending
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -2320,7 +2321,12 @@ export default function App() {
           "X-User-ID": firebaseUser?.uid || email || "anon",
           "X-User-Plan": plan || "GO",
         },
-        body: JSON.stringify({ prompt: text, model, chat_id: chatId }),
+        body: JSON.stringify({ 
+          prompt: text, 
+          model, 
+          chat_id: chatId,
+          document_id: attachedFile?.id || null
+        }),
         signal: controller.signal,
       });
       
@@ -2335,7 +2341,12 @@ export default function App() {
             "X-User-ID": firebaseUser?.uid || email || "anon",
             "X-User-Plan": plan || "GO",
           },
-          body: JSON.stringify({ prompt: text, model, chat_id: chatId }),
+          body: JSON.stringify({ 
+            prompt: text, 
+            model, 
+            chat_id: chatId,
+            document_id: attachedFile?.id || null
+          }),
           signal: controller.signal,
         });
       }
@@ -3640,6 +3651,21 @@ export default function App() {
 
         <footer className="lc-composer">
           {error && <div className="lc-error lc-error-inline">{error}</div>}
+          {attachedFile && (
+            <div className="lc-attached-file">
+              <FiFileText className="lc-attached-file-icon" />
+              <span className="lc-attached-file-name">{attachedFile.filename}</span>
+              <button
+                type="button"
+                className="lc-attached-file-remove"
+                onClick={() => setAttachedFile(null)}
+                title="Remove file"
+                aria-label="Remove attached file"
+              >
+                <FiX />
+              </button>
+            </div>
+          )}
           <div className="lc-composer-row">
             <div className="lc-textarea-wrapper">
               {/* Upload files */}
@@ -3695,6 +3721,14 @@ export default function App() {
                       const successMsg = result.message || `File '${file.name}' uploaded successfully`;
                       setError(successMsg);
                       setTimeout(() => setError(null), 3000);
+                      
+                      // Store attached file info for display
+                      if (result.document) {
+                        setAttachedFile({
+                          id: result.document.id,
+                          filename: result.document.filename || file.name
+                        });
+                      }
                       
                       // Clear file input
                       if (fileInputRef.current) {

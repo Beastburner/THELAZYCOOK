@@ -93,8 +93,8 @@ select {
   margin-bottom: 14px;
 }
 .lc-logo {
-  width: 42px;
-  height: 42px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
   display: block;
 }
@@ -301,8 +301,8 @@ select {
 }
 
 .lc-logo-icon {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   display: block;
 }
@@ -820,7 +820,7 @@ select {
 }
 
 .lc-logo-text {
-  height: 2.8125rem; /* 45px / 16px = 2.8125rem */
+  height: 3.75rem; /* 60px / 16px = 3.75rem */
   object-fit: contain;
   display: block;
   cursor: pointer;
@@ -2466,6 +2466,81 @@ code,
   padding: 16px 0 12px;
 }
 
+/* Attached file display (ChatGPT-style) */
+.lc-attached-file {
+  max-width: 880px;
+  margin: 0 auto 8px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.lc-attached-file-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.lc-attached-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.lc-attached-file-remove {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.lc-attached-file-remove:hover {
+  background: var(--red-subtle);
+  color: var(--red);
+}
+
+.lc-attached-file-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Mobile adjustments for attached file */
+@media (max-width: 768px) {
+  .lc-attached-file {
+    max-width: calc(100% - 32px);
+    margin-left: 16px;
+    margin-right: 16px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lc-attached-file {
+    max-width: calc(100% - 24px);
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+
 .lc-composer-row {
   max-width: 880px; /* Match messages max-width - ChatGPT-style readable width */
   margin: 0 auto; /* Keep centered */
@@ -3300,8 +3375,8 @@ code,
   }
   
   .lc-logo {
-    width: 36px;
-    height: 36px;
+    width: 50px;
+    height: 50px;
     font-size: 14px;
   }
   
@@ -4297,6 +4372,21 @@ code,
     padding: 14px;
   }
   
+  .lc-logo {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .lc-logo-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .lc-logo-text {
+    max-height: 35px;
+    height: 35px;
+  }
+  
   .lc-title {
     font-size: 15px;
   }
@@ -4978,7 +5068,13 @@ code,
   }
   
   .lc-logo-text {
-    max-height: 20px;
+    max-height: 45px;
+    height: 45px;
+  }
+  
+  .lc-logo-icon {
+    width: 44px;
+    height: 44px;
   }
   
   .lc-topbar-title {

@@ -438,12 +438,16 @@ class TextFileManager:
                 context_parts.append(f"[Topics: {', '.join(conv.topics)}]")
 
         # Add document context
-        # Add document context
+        current_doc_id = getattr(self, '_current_document_id', None)
+        logger.info(f"📄 [TEXTFILE] get_conversation_context: _current_document_id = {current_doc_id}")
         docs_context = self.get_documents_context(user_id, self.document_limit,
-                                                  full_content=False)  # Use self.document_limit
+                                                  full_content=True, document_id=current_doc_id)  # Use full content and prioritize specific document
         if docs_context:
             context_parts.append(f"\n--- 📄 RELEVANT DOCUMENTS ---")
             context_parts.append(docs_context)
+            logger.info(f"📄 [TEXTFILE] Added document context to conversation context ({len(docs_context)} chars)")
+        else:
+            logger.info(f"📄 [TEXTFILE] No document context to add")
 
         context_parts.append("\n=== END OF CONTEXT ===")
         context = "\n".join(context_parts)
@@ -655,10 +659,15 @@ class TextFileManager:
 
     @log_errors
     def get_user_documents(self, user_id: str, limit: int = 20) -> List[Document]:
+        logger.info(f"📄 [TEXTFILE] Fetching documents for user {user_id} (limit: {limit})")
         documents_data = self._read_json_file(self.documents_file)
         user_docs = [d for d in documents_data if d.get('user_id') == user_id]
         user_docs.sort(key=lambda x: x.get('upload_time', ''), reverse=True)
-        return [Document.from_dict(doc_data) for doc_data in user_docs[:limit]]
+        documents = [Document.from_dict(doc_data) for doc_data in user_docs[:limit]]
+        logger.info(f"📄 [TEXTFILE] Successfully loaded {len(documents)} documents from local JSON")
+        for doc in documents:
+            logger.debug(f"📄 [TEXTFILE] Loaded document: {doc.filename} (id: {doc.id}, size: {len(doc.content)} chars)")
+        return documents
 
     @log_errors
     def delete_document(self, document_id: str, user_id: str) -> bool:
@@ -676,24 +685,59 @@ class TextFileManager:
 
     @log_errors
     @log_errors
-    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True) -> str:
-        documents = self.get_user_documents(user_id, limit)
+    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True, document_id: Optional[str] = None) -> str:
+        logger.info(f"📄 [TEXTFILE] get_documents_context called: user_id={user_id}, document_id={document_id}, limit={limit}, full_content={full_content}")
+        documents = self.get_user_documents(user_id, limit * 2)  # Get more to ensure we find the specific one
+        logger.info(f"📄 [TEXTFILE] Retrieved {len(documents)} documents from local JSON")
+        
+        # Log document IDs for debugging
+        if documents:
+            doc_ids = [doc.id for doc in documents]
+            logger.info(f"📄 [TEXTFILE] Document IDs found: {doc_ids[:5]}... (showing first 5)")
+        
+        # If document_id is provided, ONLY use that document (like ChatGPT)
+        if document_id:
+            logger.info(f"📄 [TEXTFILE] Looking for specific document_id: {document_id}")
+            # Find the specific document
+            specific_doc = None
+            for doc in documents:
+                if doc.id == document_id:
+                    specific_doc = doc
+                    logger.info(f"📄 [TEXTFILE] ✅ Found attached document: {doc.filename} (id: {doc.id})")
+                    break
+            
+            # ONLY use the attached document, no other documents
+            if specific_doc:
+                documents = [specific_doc]  # ChatGPT behavior: only the attached file
+                logger.info(f"📄 [TEXTFILE] Using ONLY attached document: {specific_doc.filename}, content length: {len(specific_doc.content)} chars")
+            else:
+                # If not found, return empty (document might not be in local JSON yet)
+                logger.warning(f"📄 [TEXTFILE] ⚠️ Attached document_id '{document_id}' not found in local JSON! Available IDs: {[doc.id for doc in documents[:5]]}")
+                documents = []
+        else:
+            documents = documents[:limit]
+        
         if not documents:
+            logger.info(f"📄 [TEXTFILE] No documents found for user {user_id}")
             return ""
 
         context_parts = []
         for i, doc in enumerate(documents):
-            context_parts.append(f"\n--- Document {i + 1}: {doc.filename} ---")
+            priority_marker = " (ATTACHED)" if document_id and doc.id == document_id else ""
+            context_parts.append(f"\n--- Document {i + 1}: {doc.filename}{priority_marker} ---")
 
             if full_content:
                 # Pass COMPLETE content - NO TRUNCATION
                 context_parts.append(doc.content)
+                logger.info(f"📄 [TEXTFILE] Added full content for {doc.filename}: {len(doc.content)} chars")
             else:
                 # Preview only for display (when full_content=False)
                 content_preview = doc.content[:500] + "..." if len(doc.content) > 500 else doc.content
                 context_parts.append(content_preview)
 
-        return "\n".join(context_parts)
+        result = "\n".join(context_parts)
+        logger.info(f"📄 [TEXTFILE] Document context built: {len(result)} chars total, {len(documents)} documents")
+        return result
 
     @log_errors
     def process_uploaded_file(self, file_path: str, user_id: str) -> Optional[Document]:
@@ -2260,9 +2304,15 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     async def process_user_message(self, user_id: str, message: str, reset_context: bool = False,
-                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None) -> str:
+                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None, document_id: Optional[str] = None) -> str:
         if reset_context:
             self.clear_cached_context(user_id)
+
+        # Set document_id for context retrieval
+        if document_id:
+            self.file_manager._current_document_id = document_id
+        else:
+            self.file_manager._current_document_id = None
 
         # Get context filtered by chat_id (if provided)
         # If chat_id is None, it's a new chat - use empty context

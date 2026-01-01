@@ -44,14 +44,16 @@ else:
     _allow_origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
     # Remove trailing slashes and normalize origins
     _allow_origins = [origin.rstrip('/') for origin in _allow_origins]
-    # Dev convenience: React often runs on localhost but people paste 127.0.0.1 into env (or vice‑versa).
-    for dev_origin in ("http://localhost:5173", "http://127.0.0.1:5173"):
+    # Local development: Only allow localhost origins for local testing
+    # (Change before pushing to production to include Vercel URLs)
+    for dev_origin in ("http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"):
         if dev_origin not in _allow_origins:
             _allow_origins.append(dev_origin)
-    # Production frontend (Vercel)
-    for prod_origin in ("https://lazycook-ai.vercel.app", "https://lazycook-ai.vercel.app/"):
-        if prod_origin.rstrip('/') not in [o.rstrip('/') for o in _allow_origins]:
-            _allow_origins.append(prod_origin.rstrip('/'))
+    # Production frontend (Vercel) - COMMENTED OUT FOR LOCAL TESTING
+    # Uncomment before pushing to production:
+    # for prod_origin in ("https://lazycook-ai.vercel.app", "https://thelazycook.vercel.app"):
+    #     if prod_origin.rstrip('/') not in [o.rstrip('/') for o in _allow_origins]:
+    #         _allow_origins.append(prod_origin.rstrip('/'))
     _allow_credentials = True
     logger.info(f"CORS: Allowing origins: {_allow_origins}")
 
@@ -184,6 +186,7 @@ class AIRunIn(BaseModel):
     # Client may send a model; backend will validate against plan.
     model: Optional[str] = None
     chat_id: Optional[str] = None  # Link conversation to a specific chat
+    document_id: Optional[str] = None  # Explicitly reference an uploaded document
 
 
 def _ai_run_handler(
@@ -247,7 +250,8 @@ def _ai_run_handler(
             conversation_limit = 30  # Reduced from 70 for better performance
         
         logger.info(f"📥 [BACKEND] Received chat_id from payload: {payload.chat_id}")
-        logger.info(f"📥 [BACKEND] Payload contents: prompt={payload.prompt[:50]}..., model={payload.model}, chat_id={payload.chat_id}")
+        logger.info(f"📥 [BACKEND] Received document_id from payload: {payload.document_id}")
+        logger.info(f"📥 [BACKEND] Payload contents: prompt={payload.prompt[:50]}..., model={payload.model}, chat_id={payload.chat_id}, document_id={payload.document_id}")
         
         result = baby_final.run_assistant_by_plan(
             plan=user_plan,
@@ -255,7 +259,8 @@ def _ai_run_handler(
             user_id=user_id,
             conversation_limit=conversation_limit,
             document_limit=2,
-            chat_id=payload.chat_id  # Pass chat_id to filter context by chat
+            chat_id=payload.chat_id,  # Pass chat_id to filter context by chat
+            document_id=payload.document_id  # Pass document_id to prioritize specific file
         )
         
         # Map model to file name based on actual imports in baby_final.py
@@ -346,12 +351,13 @@ async def upload_file(
         except ModuleNotFoundError as e:
             raise HTTPException(status_code=500, detail=f"AI module import failed: {e}") from e
         
-        # Import TextFileManager for proper file processing (handles PDF, text, etc.)
-        from lazycook7_grok import TextFileManager
-        file_manager = TextFileManager(document_limit=2)
+        # Import FirestoreManager for proper file processing (handles PDF, text, etc.)
+        from firestore_manager import FirestoreManager
+        file_manager = FirestoreManager(document_limit=2)
         
         # Save uploaded file to temporary location
-        file_extension = Path(file.filename).suffix if file.filename else ""
+        original_filename = file.filename or "uploaded_file"
+        file_extension = Path(original_filename).suffix if original_filename else ""
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
             content = await file.read()
             tmp_file.write(content)
@@ -359,7 +365,8 @@ async def upload_file(
         
         try:
             # Process the file using the file manager (handles PDF, text files, etc.)
-            document = file_manager.process_uploaded_file(tmp_path, user_id)
+            # Pass original filename to preserve it
+            document = file_manager.process_uploaded_file(tmp_path, user_id, original_filename=original_filename)
             
             if document is None:
                 raise HTTPException(status_code=400, detail="Failed to process file")

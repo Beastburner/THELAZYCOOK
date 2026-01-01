@@ -9,7 +9,12 @@
     "CHECK": "✅",
     "EYES": "👀",
     "THINKING": "🤔",
-    "NAIL_POLISH": "💅"
+    "NAIL_POLISH": "💅",
+    "PARTYING_FACE": "🥳",
+    "STAR_STRUCK": "🤩",
+    "EXPLODING_HEAD": "🤯",
+    "SLEEPING_FACE": "😴",
+    "ROLLING_ON_THE_FLOOR_LAUGHING": "🤣"
   },
   "expressive": {
     "SWEAT": "😅",
@@ -18,7 +23,11 @@
     "FOLDED_HANDS": "🙏",
     "HANDSHAKE": "🤝",
     "MELTING": "🫠",
-    "HOLDING_TEARS": "🥹"
+    "HOLDING_TEARS": "🥹",
+    "HUGGING_FACE": "🤗",
+    "SMILING_FACE_WITH_HALO": "😇",
+    "SMILING_FACE_WITH_HORNS": "😈",
+    "ZANY_FACE": "🤪"
   },
   "conversational": {
     "POINT_DOWN": "👇",
@@ -27,7 +36,13 @@
     "MICROPHONE": "🎤",
     "HOT_BEVERAGE": "☕",
     "SHRUG_WOMAN": "🤷‍♀️",
-    "SHRUG_MAN": "🤷‍♂️"
+    "SHRUG_MAN": "🤷‍♂️",
+    "WAVING_HAND": "👋",
+    "THUMBS_DOWN": "👎",
+    "SPEAKING_HEAD": "🗣️",
+    "SPEECH_BUBBLE": "💬",
+    "LIGHT_BULB_IDEA": "💡",
+    "MEMO": "📝"
   },
   "professional": {
     "SUCCESS": "✅",
@@ -38,13 +53,32 @@
     "EXPLANATION": "🔍",
     "CONCEPT": "🧠",
     "NEXT_STEP": "👉",
-    "APPROVAL": "👍"
+    "APPROVAL": "👍",
+    "BAR_CHART": "📊",
+    "CHART_WITH_UPWARDS_TREND": "📈",
+    "SPIRAL_CALENDAR": "🗓️",
+    "E_MAIL": "📧",
+    "LINK": "🔗",
+    "LAPTOP": "💻"
+  },
+  "food_drink": {
+    "PIZZA": "🍕",
+    "HAMBURGER": "🍔",
+    "FRENCH_FRIES": "🍟",
+    "CUP_WITH_STRAW": "🥤",
+    "SUSHI": "🍣",
+    "SOFT_ICE_CREAM": "🍦",
+    "DOUGHNUT": "🍩",
+    "RED_APPLE": "🍎",
+    "BROCCOLI": "🥦",
+    "MILK_GLASS": "🥛"
   },
   "categories": {
-    "reaction": ["😂", "💀", "😭", "✨", "🔥", "💯", "✅", "👀", "🤔", "💅"],
-    "expressive": ["😅", "🥺", "🫡", "🙏", "🤝", "🫠", "🥹"],
-    "conversational": ["👇", "⬆️", "➡️", "🎤", "☕", "🤷‍♀️", "🤷‍♂️"],
-    "professional": ["✅", "⚠️", "❗", "🚫", "📌", "🔍", "🧠", "👉", "👍"]
+    "reaction": ["😂", "💀", "😭", "✨", "🔥", "💯", "✅", "👀", "🤔", "💅", "🥳", "🤩", "🤯", "😴", "🤣"],
+    "expressive": ["😅", "🥺", "🫡", "🙏", "🤝", "🫠", "🥹", "🤗", "😇", "😈", "🤪"],
+    "conversational": ["👇", "⬆️", "➡️", "🎤", "☕", "🤷‍♀️", "🤷‍♂️", "👋", "👎", "🗣️", "💬", "💡", "📝"],
+    "professional": ["✅", "⚠️", "❗", "🚫", "📌", "🔍", "🧠", "👉", "👍", "📊", "📈", "🗓️", "📧", "🔗", "💻"],
+    "food_drink": ["🍕", "🍔", "🍟", "🥤", "🍣", "🍦", "🍩", "🍎", "🥦", "🥛"]
   },
   "mappings": {
     "success": "✅",
@@ -60,7 +94,37 @@
     "fire": "🔥",
     "sparkles": "✨",
     "thinking": "🤔",
-    "eyes": "👀"
+    "eyes": "👀",
+    "partying_face": "🥳",
+    "star_struck": "🤩",
+    "exploding_head": "🤯",
+    "sleeping_face": "😴",
+    "rolling_on_the_floor_laughing": "🤣",
+    "hugging_face": "🤗",
+    "smiling_face_with_halo": "😇",
+    "devil": "😈",
+    "zany_face": "🤪",
+    "waving_hand": "👋",
+    "thumbs_down": "👎",
+    "speaking_head": "🗣️",
+    "speech_bubble": "💬",
+    "idea": "💡",
+    "memo": "📝",
+    "bar_chart": "📊",
+    "chart_up": "📈",
+    "calendar": "🗓️",
+    "email": "📧",
+    "link": "🔗",
+    "laptop": "💻",
+    "pizza": "🍕",
+    "hamburger": "🍔",
+    "fries": "🍟",
+    "cup_with_straw": "🥤",
+    "sushi": "🍣",
+    "ice_cream": "🍦",
+    "doughnut": "🍩",
+    "apple": "🍎",
+    "broccoli": "🥦",
+    "milk_glass": "🥛"
   }
 }
-

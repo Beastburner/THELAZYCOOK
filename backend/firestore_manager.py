@@ -428,10 +428,15 @@ class FirestoreManager:
                     current_length += len(topics_str)
 
         # Add document context
-        docs_context = self.get_documents_context(user_id, self.document_limit, full_content=False)
+        current_doc_id = getattr(self, '_current_document_id', None)
+        logger.info(f"📄 [FIRESTORE] get_conversation_context: _current_document_id = {current_doc_id}")
+        docs_context = self.get_documents_context(user_id, self.document_limit, full_content=True, document_id=current_doc_id)  # Use full content and prioritize specific document
         if docs_context:
             context_parts.append(f"\n--- 📄 RELEVANT DOCUMENTS ---")
             context_parts.append(docs_context)
+            logger.info(f"📄 [FIRESTORE] Added document context to conversation context ({len(docs_context)} chars)")
+        else:
+            logger.info(f"📄 [FIRESTORE] No document context to add")
 
         context_parts.append("\n=== END OF CONTEXT ===")
         context = "\n".join(context_parts)
@@ -494,6 +499,7 @@ class FirestoreManager:
         from lazycook6 import Document
         
         try:
+            logger.info(f"📄 [FIRESTORE] Fetching documents for user {user_id} (limit: {limit})")
             docs_ref = self.db.collection('users').document(user_id).collection('documents')
             query = docs_ref.order_by('upload_time', direction='DESCENDING').limit(limit)
             docs = query.stream()
@@ -502,14 +508,46 @@ class FirestoreManager:
             for doc in docs:
                 data = doc.to_dict()
                 if data:
-                    # Convert timestamp
+                    # Convert timestamp - Document.from_dict expects ISO string format
                     if 'upload_time' in data:
-                        data['upload_time'] = self._firestore_to_datetime(data['upload_time'])
-                    documents.append(Document.from_dict(data))
+                        upload_time = data['upload_time']
+                        # If it's already a datetime, convert to ISO string
+                        if isinstance(upload_time, datetime):
+                            data['upload_time'] = upload_time.isoformat()
+                        # If it's a string, keep it (should be ISO format)
+                        elif isinstance(upload_time, str):
+                            # Validate it's a valid ISO string
+                            try:
+                                datetime.fromisoformat(upload_time)
+                                # Keep as is
+                            except (ValueError, AttributeError):
+                                # Try to convert and then to ISO
+                                dt = self._firestore_to_datetime(upload_time)
+                                if isinstance(dt, datetime):
+                                    data['upload_time'] = dt.isoformat()
+                                else:
+                                    data['upload_time'] = datetime.now().isoformat()
+                        else:
+                            # Convert Firestore timestamp to datetime, then to ISO string
+                            dt = self._firestore_to_datetime(upload_time)
+                            if isinstance(dt, datetime):
+                                data['upload_time'] = dt.isoformat()
+                            else:
+                                # Fallback to current time
+                                data['upload_time'] = datetime.now().isoformat()
+                    # Ensure all required fields exist
+                    if 'hash_value' not in data:
+                        data['hash_value'] = ''
+                    if 'metadata' not in data:
+                        data['metadata'] = {}
+                    document = Document.from_dict(data)
+                    documents.append(document)
+                    logger.debug(f"📄 [FIRESTORE] Loaded document: {document.filename} (id: {document.id}, size: {len(document.content)} chars)")
             
+            logger.info(f"📄 [FIRESTORE] Successfully loaded {len(documents)} documents from Firestore")
             return documents
         except Exception as e:
-            logger.error(f"Error fetching documents: {e}")
+            logger.error(f"Error fetching documents: {e}", exc_info=True)
             return []
 
     @log_errors
@@ -524,28 +562,63 @@ class FirestoreManager:
             logger.error(f"Failed to delete document: {e}")
             return False
 
-    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True) -> str:
+    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True, document_id: Optional[str] = None) -> str:
         """Get formatted document context for AI."""
-        documents = self.get_user_documents(user_id, limit)
+        logger.info(f"📄 [FIRESTORE] get_documents_context called: user_id={user_id}, document_id={document_id}, limit={limit}, full_content={full_content}")
+        documents = self.get_user_documents(user_id, limit * 2)  # Get more to ensure we find the specific one
+        logger.info(f"📄 [FIRESTORE] Retrieved {len(documents)} documents from Firestore")
+        
+        # Log document IDs for debugging
+        if documents:
+            doc_ids = [doc.id for doc in documents]
+            logger.info(f"📄 [FIRESTORE] Document IDs found: {doc_ids[:5]}... (showing first 5)")
+        
+        # If document_id is provided, ONLY use that document (like ChatGPT)
+        if document_id:
+            logger.info(f"📄 [FIRESTORE] Looking for specific document_id: {document_id}")
+            # Find the specific document
+            specific_doc = None
+            for doc in documents:
+                if doc.id == document_id:
+                    specific_doc = doc
+                    logger.info(f"📄 [FIRESTORE] ✅ Found attached document: {doc.filename} (id: {doc.id})")
+                    break
+            
+            # ONLY use the attached document, no other documents
+            if specific_doc:
+                documents = [specific_doc]  # ChatGPT behavior: only the attached file
+                logger.info(f"📄 [FIRESTORE] Using ONLY attached document: {specific_doc.filename}, content length: {len(specific_doc.content)} chars")
+            else:
+                # If not found, return empty (document might not be in Firestore yet)
+                logger.warning(f"📄 [FIRESTORE] ⚠️ Attached document_id '{document_id}' not found in Firestore! Available IDs: {[doc.id for doc in documents[:5]]}")
+                documents = []
+        else:
+            documents = documents[:limit]
+        
         if not documents:
+            logger.info(f"📄 [FIRESTORE] No documents found for user {user_id}")
             return ""
 
         context_parts = []
         for i, doc in enumerate(documents):
-            context_parts.append(f"\n--- Document {i + 1}: {doc.filename} ---")
+            priority_marker = " (ATTACHED)" if document_id and doc.id == document_id else ""
+            context_parts.append(f"\n--- Document {i + 1}: {doc.filename}{priority_marker} ---")
 
             if full_content:
                 # Pass COMPLETE content - NO TRUNCATION
                 context_parts.append(doc.content)
+                logger.info(f"📄 [FIRESTORE] Added full content for {doc.filename}: {len(doc.content)} chars")
             else:
                 # Preview only for display (when full_content=False)
                 content_preview = doc.content[:500] + "..." if len(doc.content) > 500 else doc.content
                 context_parts.append(content_preview)
 
-        return "\n".join(context_parts)
+        result = "\n".join(context_parts)
+        logger.info(f"📄 [FIRESTORE] Document context built: {len(result)} chars total, {len(documents)} documents")
+        return result
 
     @log_errors
-    def process_uploaded_file(self, file_path: str, user_id: str):
+    def process_uploaded_file(self, file_path: str, user_id: str, original_filename: Optional[str] = None):
         """Process uploaded file and create Document (same as TextFileManager)."""
         # Import Document class and related functions
         from lazycook6 import Document
@@ -559,24 +632,75 @@ class FirestoreManager:
                 logger.error(f"File not found: {file_path}")
                 return None
 
-            # Read file content
-            with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                content = f.read()
+            # Use original filename if provided, otherwise use temp file name
+            filename = original_filename if original_filename else path.name
+            logger.info(f"📄 [FIRESTORE] Processing file: {filename} (original: {original_filename})")
 
-            # Get file info
+            file_type = mimetypes.guess_type(filename)[0] or 'text/plain'  # Use original filename for MIME type detection
+            content = ""
+
+            # Handle different file types (same as TextFileManager)
+            if file_type.startswith('text/'):
+                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+            elif file_type == 'application/json':
+                # JSON files are application/json, not text/*
+                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+            elif file_type == 'application/pdf':
+                try:
+                    from PyPDF2 import PdfReader
+                    reader = PdfReader(path)
+                    number_of_pages = len(reader.pages)
+                    content_parts = []
+                    for i in range(number_of_pages):
+                        page = reader.pages[i]
+                        text = page.extract_text()
+                        if text.strip():
+                            content_parts.append(text)
+                    content = "\n\n".join(content_parts) if content_parts else "[PDF - No text content extracted]"
+                    logger.info(f"PDF extracted: {number_of_pages} pages, {len(content)} characters")
+                except Exception as e:
+                    logger.error(f"Error extracting PDF content: {e}")
+                    content = f"[PDF - Error extracting content: {str(e)}]"
+            elif file_type == 'text/markdown':
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            elif file_type == 'text/csv':
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                # Try to read as text anyway
+                try:
+                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                except:
+                    content = f"[Binary file: {filename} - content not extractable]"
+
+            # Calculate file hash
+            import hashlib
+            import time
+            with open(path, 'rb') as f:
+                file_hash = hashlib.md5(f.read()).hexdigest()
+
             file_size = path.stat().st_size
-            file_type = mimetypes.generate_type(path.suffix) or 'text/plain'
             
-            # Create document
-            doc_id = f"doc_{user_id}_{int(datetime.now().timestamp())}"
+            # Create document with same ID format as TextFileManager
+            doc_id = f"{user_id}_{int(time.time())}_{file_hash[:8]}"
             document = Document(
                 id=doc_id,
-                filename=path.name,
+                filename=filename,  # Use original filename instead of temp file name
                 content=content,
                 file_type=file_type,
                 file_size=file_size,
+                upload_time=datetime.now(),
                 user_id=user_id,
-                upload_time=datetime.now()
+                hash_value=file_hash,
+                metadata={
+                    'original_path': str(path),
+                    'original_filename': original_filename,  # Store original filename in metadata too
+                    'processed_at': datetime.now().isoformat()
+                }
             )
             
             self.save_document(document)
