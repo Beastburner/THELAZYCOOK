@@ -491,55 +491,85 @@ select {
   display: none; /* Hide timestamps like ChatGPT */
 }
 
-.lc-chatitem-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.lc-chatitem-actions {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+.lc-chat-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 10;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
 }
 
-.lc-chatitem-actions.is-visible,
-.lc-chatitem-wrapper:hover .lc-chatitem-actions {
+.lc-chat-item:hover {
+  background: var(--beige-soft);
+}
+
+.lc-chat-item.active {
+  background: var(--beige-soft);
+}
+
+.lc-chat-title {
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  padding-right: 8px;
+}
+
+.lc-chat-icons {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.lc-chat-item:hover .lc-chat-icons {
   opacity: 1;
 }
 
-.lc-chatitem-rename,
-.lc-chatitem-delete {
-  width: 28px;
-  height: 28px;
+.lc-chat-icon {
+  background: transparent;
   border: none;
-  background: var(--white);
   color: var(--muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  transition: background-color 0.2s, color 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s;
 }
 
-.lc-chatitem-rename:hover {
+.lc-chat-icon:hover {
+  color: var(--accent);
   background: var(--beige-soft);
-  color: var(--text);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.lc-chatitem-delete:hover {
-  background: var(--red);
-  color: var(--white);
-  box-shadow: 0 2px 6px rgba(230, 57, 47, 0.3);
+.lc-chat-icon.delete:hover {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.1);
+}
+
+.lc-chat-rename-input {
+  background: var(--white);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  padding: 4px 8px;
+  width: 100%;
+  border-radius: 4px;
+  outline: none;
+  flex: 1;
+}
+
+.lc-chat-rename-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(230, 57, 47, 0.1);
 }
 
 .lc-sidebar-bottom {

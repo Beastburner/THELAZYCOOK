@@ -6,7 +6,7 @@ import HighlightNoteEditor from "./components/HighlightNoteEditor";
 import AskChatGPTButton from "./components/AskChatGPTButton";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { FiArrowRight } from "react-icons/fi";
+import { FiArrowRight, FiTrash2, FiEdit2 } from "react-icons/fi";
 import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
 import logoTextImg from "./assets/logo-text.png";
@@ -1339,6 +1339,8 @@ export default function App() {
   const [showTopbarMenu, setShowTopbarMenu] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   
   // Highlight feature toggle (default: enabled)
   const [highlightEnabled, setHighlightEnabled] = useState<boolean>(() => {
@@ -3212,59 +3214,64 @@ export default function App() {
             filteredChats.map((c) => (
               <div
                 key={c.id}
-                className={`lc-chatitem-wrapper ${c.id === activeChatId ? "is-active" : ""}`}
-                onMouseEnter={(e) => {
-                  const actions = e.currentTarget.querySelector('.lc-chatitem-actions');
-                  if (actions) actions.classList.add('is-visible');
-                }}
-                onMouseLeave={(e) => {
-                  const actions = e.currentTarget.querySelector('.lc-chatitem-actions');
-                  if (actions) actions.classList.remove('is-visible');
-                }}
-              >
-                <button
-                  className={`lc-chatitem ${c.id === activeChatId ? "is-active" : ""}`}
-                  onClick={() => {
+                className={`lc-chat-item ${c.id === activeChatId ? "active" : ""}`}
+                onClick={() => {
+                  if (renamingChatId !== c.id) {
                     setActiveChatId(c.id);
                     if (window.innerWidth <= 900) {
                       setSidebarOpen(false);
                     }
-                  }}
-                  title={c.title}
-                >
-                  <div className="lc-chatitem-title">{c.title}</div>
-                </button>
-                <div className="lc-chatitem-actions">
-                  <button
-                    className="lc-chatitem-rename"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newTitle = window.prompt('Enter new chat title:', c.title || '');
-                      if (newTitle !== null && newTitle.trim()) {
-                        handleRenameChat(c.id, newTitle.trim());
+                  }
+                }}
+              >
+                {renamingChatId === c.id ? (
+                  <input
+                    className="lc-chat-rename-input"
+                    value={renameValue}
+                    autoFocus
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={async () => {
+                      if (renameValue.trim() && firebaseUser) {
+                        await handleRenameChat(c.id, renameValue.trim());
+                      }
+                      setRenamingChatId(null);
+                      setRenameValue("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                      }
+                      if (e.key === "Escape") {
+                        setRenamingChatId(null);
+                        setRenameValue("");
                       }
                     }}
-                    aria-label="Rename chat"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className="lc-chat-title">{c.title}</span>
+                )}
+                <div className="lc-chat-icons">
+                  <button
+                    className="lc-chat-icon"
                     title="Rename chat"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingChatId(c.id);
+                      setRenameValue(c.title);
+                    }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <FiEdit2 size={14} />
                   </button>
                   <button
-                    className="lc-chatitem-delete"
+                    className="lc-chat-icon delete"
+                    title="Delete chat"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteChat(c.id);
                     }}
-                    aria-label="Delete chat"
-                    title="Delete chat"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M10 11V17M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <FiTrash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -3503,9 +3510,9 @@ export default function App() {
                         }
                       }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M2 14V12L8 6L10 8L4 14H2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z"/>
+                        <path d="M2 14V12L8 6L10 8L4 14H2Z"/>
                       </svg>
                       <span>Rename</span>
                     </button>
@@ -3549,9 +3556,9 @@ export default function App() {
                           handleDeleteChat(activeChatId);
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M10 11V17M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z"/>
+                          <path d="M6 7V11M10 7V11"/>
                         </svg>
                         <span>Delete</span>
                       </button>
