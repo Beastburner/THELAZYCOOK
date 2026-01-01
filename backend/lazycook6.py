@@ -2076,15 +2076,35 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     def _task_executor_loop(self):
-        while self.running:
+        # Create a new event loop for this thread to avoid conflicts with the main event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            while self.running:
+                try:
+                    pending_tasks = self.file_manager.get_pending_tasks()
+                    for task in pending_tasks[:2]:
+                        # Run the async function in this thread's event loop
+                        loop.run_until_complete(self._execute_task_async(task))
+                    time.sleep(45)
+                except Exception as e:
+                    logger.error(f"Task executor error: {e}")
+                    time.sleep(60)
+        finally:
+            # Clean up the event loop when done
             try:
-                pending_tasks = self.file_manager.get_pending_tasks()
-                for task in pending_tasks[:2]:
-                    asyncio.run(self._execute_task_async(task))
-                time.sleep(45)
+                # Cancel any pending tasks
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+                # Wait for tasks to be cancelled
+                if pending:
+                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
             except Exception as e:
-                logger.error(f"Task executor error: {e}")
-                time.sleep(60)
+                logger.error(f"Error cleaning up event loop: {e}")
+            finally:
+                loop.close()
 
     @log_errors
     async def _execute_task_async(self, task: Task):

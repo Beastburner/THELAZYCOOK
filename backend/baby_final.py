@@ -17,6 +17,7 @@ import sys
 import asyncio
 import traceback
 import logging
+import concurrent.futures
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 
@@ -99,9 +100,35 @@ def gemini(
         assistant = config.create_assistant()
         
         # Process query - use process_user_message instead of run_cli
-        response = asyncio.run(
-            assistant.process_user_message(user_id, prompt, chat_id=chat_id)
-        )
+        # Handle event loop properly for FastAPI (which already has a running loop)
+        try:
+            # Check if there's already a running event loop (FastAPI context)
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, we can't use asyncio.run()
+            # Instead, create a new event loop in a separate thread
+            import concurrent.futures
+            import threading
+            
+            def run_in_new_loop(coro):
+                """Run a coroutine in a new event loop in a new thread"""
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    run_in_new_loop,
+                    assistant.process_user_message(user_id, prompt, chat_id=chat_id)
+                )
+                response = future.result(timeout=300)  # 5 minute timeout
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            response = asyncio.run(
+                assistant.process_user_message(user_id, prompt, chat_id=chat_id)
+            )
         
         # Get quality metrics
         insights = assistant.get_user_insights(user_id)
@@ -168,9 +195,35 @@ def grok(
         assistant = config.create_assistant()
         
         # Process query - use process_user_message instead of run_cli
-        response = asyncio.run(
-            assistant.process_user_message(user_id, prompt, chat_id=chat_id)
-        )
+        # Handle event loop properly for FastAPI (which already has a running loop)
+        try:
+            # Check if there's already a running event loop (FastAPI context)
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, we can't use asyncio.run()
+            # Instead, create a new event loop in a separate thread
+            import concurrent.futures
+            import threading
+            
+            def run_in_new_loop(coro):
+                """Run a coroutine in a new event loop in a new thread"""
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    run_in_new_loop,
+                    assistant.process_user_message(user_id, prompt, chat_id=chat_id)
+                )
+                response = future.result(timeout=300)  # 5 minute timeout
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            response = asyncio.run(
+                assistant.process_user_message(user_id, prompt, chat_id=chat_id)
+            )
         
         # Get quality metrics
         insights = assistant.get_user_insights(user_id)
@@ -246,9 +299,35 @@ def mixed(
         assistant = config.create_assistant()
         
         # Process query - use process_user_message instead of run_cli
-        response = asyncio.run(
-            assistant.process_user_message(user_id, prompt, chat_id=chat_id)
-        )
+        # Handle event loop properly for FastAPI (which already has a running loop)
+        try:
+            # Check if there's already a running event loop (FastAPI context)
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, we can't use asyncio.run()
+            # Instead, create a new event loop in a separate thread
+            import concurrent.futures
+            import threading
+            
+            def run_in_new_loop(coro):
+                """Run a coroutine in a new event loop in a new thread"""
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    run_in_new_loop,
+                    assistant.process_user_message(user_id, prompt, chat_id=chat_id)
+                )
+                response = future.result(timeout=300)  # 5 minute timeout
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            response = asyncio.run(
+                assistant.process_user_message(user_id, prompt, chat_id=chat_id)
+            )
         
         # Get quality metrics
         insights = assistant.get_user_insights(user_id)
