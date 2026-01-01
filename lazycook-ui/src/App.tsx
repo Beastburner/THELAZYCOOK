@@ -11,7 +11,7 @@ import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
 import logoTextImg from "./assets/logo-text.png";
 import { signIn, signUp, signInWithGoogle, logOut, onAuthChange, getIdToken } from "./firebase";
-import { setUserDoc, getUserDoc, updateUserPlan, updateUserSubscription, setChatDoc, subscribeToUserChats } from "./firebase";
+import { setUserDoc, getUserDoc, updateUserPlan, updateUserSubscription, setChatDoc, subscribeToUserChats, deleteChatDoc } from "./firebase";
 import type { User } from "firebase/auth";
 import PlanSelector from "./components/PlanSelector";
 
@@ -2122,6 +2122,63 @@ export default function App() {
     });
   };
 
+  // Delete chat handler
+  const handleDeleteChat = async (chatId: string) => {
+    if (!firebaseUser) return;
+    
+    if (!window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // Delete from Firestore
+      await deleteChatDoc(firebaseUser.uid, chatId);
+      
+      // Remove from local state
+      setChats((prev) => prev.filter((c) => c.id !== chatId));
+      
+      // If deleted chat was active, switch to another chat or create new one
+      if (activeChatId === chatId) {
+        const remainingChats = chats.filter((c) => c.id !== chatId);
+        if (remainingChats.length > 0) {
+          setActiveChatId(remainingChats[0].id);
+        } else {
+          setActiveChatId(null);
+          // Create a new chat
+          await newChat();
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+      setError("Failed to delete chat. Please try again.");
+    }
+  };
+
+  // Rename chat handler
+  const handleRenameChat = async (chatId: string, newTitle: string) => {
+    if (!firebaseUser) return;
+    
+    if (!newTitle || !newTitle.trim()) {
+      setError("Chat title cannot be empty");
+      return;
+    }
+
+    try {
+      // Update in Firestore
+      await setChatDoc(firebaseUser.uid, chatId, {
+        title: newTitle.trim()
+      });
+      
+      // Update in local state
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, title: newTitle.trim() } : c))
+      );
+    } catch (error) {
+      console.error("Error renaming chat:", error);
+      setError("Failed to rename chat. Please try again.");
+    }
+  };
+
   // Refresh token periodically (Firebase tokens expire after 1 hour)
   useEffect(() => {
     if (!firebaseUser) return;
@@ -2355,36 +2412,36 @@ export default function App() {
         hasContent: !!rawContentForTitle
       });
       
-      if (shouldUpdateTitle && rawContentForTitle && rawContentForTitle.trim().length > 20) {
+      // Use first user message as title (truncated to 50 characters)
+      if (shouldUpdateTitle && text && text.trim().length > 0) {
         try {
-          newTitle = generateChatTitle(text, rawContentForTitle);
-          console.log("📝 [FRONTEND] Generated new title:", newTitle, "from AI response length:", rawContentForTitle.length);
-          
-          // Validate that we got a meaningful title (not "New chat")
-          if (newTitle && newTitle !== "New chat" && newTitle.trim().length > 3) {
-            // Update title in state immediately using functional update to ensure we have latest state
-            setChats((prev) => {
-              const updated = prev.map((c) => {
-                if (c.id === chatId) {
-                  console.log("✅ [FRONTEND] Updating chat title from", c.title, "to", newTitle);
-                  return { ...c, title: newTitle };
-                }
-                return c;
-              });
-              return updated;
-            });
-          } else {
-            console.warn("⚠️ [FRONTEND] Title generation returned invalid title:", newTitle);
+          // Truncate to 50 characters and clean up
+          newTitle = text.trim().substring(0, 50);
+          if (text.length > 50) {
+            newTitle += '...';
           }
+          
+          console.log("📝 [FRONTEND] Setting title from first message:", newTitle);
+          
+          // Update title in state immediately
+          setChats((prev) => {
+            const updated = prev.map((c) => {
+              if (c.id === chatId) {
+                console.log("✅ [FRONTEND] Updating chat title from", c.title, "to", newTitle);
+                return { ...c, title: newTitle };
+              }
+              return c;
+            });
+            return updated;
+          });
         } catch (error) {
-          console.error("❌ [FRONTEND] Error generating title:", error);
-          // Continue with "New chat" if title generation fails
+          console.error("❌ [FRONTEND] Error setting title:", error);
         }
       } else {
         console.log("⏭️ [FRONTEND] Skipping title update.", {
           shouldUpdateTitle,
-          hasContent: !!rawContentForTitle,
-          contentLength: rawContentForTitle?.length,
+          hasText: !!text,
+          textLength: text?.length,
           currentTitle
         });
       }
@@ -3153,19 +3210,45 @@ export default function App() {
             </div>
           ) : (
             filteredChats.map((c) => (
-              <button
+              <div
                 key={c.id}
-                className={`lc-chatitem ${c.id === activeChatId ? "is-active" : ""}`}
-                onClick={() => {
-                  setActiveChatId(c.id);
-                  if (window.innerWidth <= 900) {
-                    setSidebarOpen(false);
-                  }
+                className={`lc-chatitem-wrapper ${c.id === activeChatId ? "is-active" : ""}`}
+                onMouseEnter={(e) => {
+                  const deleteBtn = e.currentTarget.querySelector('.lc-chatitem-delete');
+                  if (deleteBtn) deleteBtn.classList.add('is-visible');
                 }}
-                title={c.title}
+                onMouseLeave={(e) => {
+                  const deleteBtn = e.currentTarget.querySelector('.lc-chatitem-delete');
+                  if (deleteBtn) deleteBtn.classList.remove('is-visible');
+                }}
               >
-                <div className="lc-chatitem-title">{c.title}</div>
-              </button>
+                <button
+                  className={`lc-chatitem ${c.id === activeChatId ? "is-active" : ""}`}
+                  onClick={() => {
+                    setActiveChatId(c.id);
+                    if (window.innerWidth <= 900) {
+                      setSidebarOpen(false);
+                    }
+                  }}
+                  title={c.title}
+                >
+                  <div className="lc-chatitem-title">{c.title}</div>
+                </button>
+                <button
+                  className="lc-chatitem-delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteChat(c.id);
+                  }}
+                  aria-label="Delete chat"
+                  title="Delete chat"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M6 7V11M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -3387,8 +3470,25 @@ export default function App() {
               </button>
               
               {/* Dropdown menu - visible on mobile, contains Share and Add people */}
-              {showTopbarMenu && (
+              {showTopbarMenu && activeChatId && (
                 <div className="lc-topbar-menu-dropdown">
+                  <button 
+                    className="lc-topbar-menu-item lc-topbar-action-menu" 
+                    aria-label="Rename chat"
+                    onClick={() => {
+                      setShowTopbarMenu(false);
+                      const newTitle = window.prompt('Enter new chat title:', chats.find(c => c.id === activeChatId)?.title || '');
+                      if (newTitle !== null && newTitle.trim()) {
+                        handleRenameChat(activeChatId, newTitle.trim());
+                      }
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 14V12L8 6L10 8L4 14H2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Rename</span>
+                  </button>
                   <button 
                     className="lc-topbar-menu-item lc-topbar-action-menu" 
                     aria-label="Share"
@@ -3415,6 +3515,24 @@ export default function App() {
                       <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
                     </svg>
                     <span>Add people</span>
+                  </button>
+                  <div className="lc-topbar-menu-divider"></div>
+                  <button 
+                    className="lc-topbar-menu-item lc-topbar-action-menu" 
+                    style={{ color: 'var(--red)' }}
+                    aria-label="Delete chat"
+                    onClick={() => {
+                      setShowTopbarMenu(false);
+                      if (activeChatId) {
+                        handleDeleteChat(activeChatId);
+                      }
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M6 7V11M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                    <span>Delete</span>
                   </button>
                 </div>
               )}
