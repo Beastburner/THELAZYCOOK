@@ -34,7 +34,7 @@ import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
 import logoTextImg from "./assets/logo-text.png";
 import { signIn, signUp, signInWithGoogle, logOut, onAuthChange, getIdToken } from "./firebase";
-import { setUserDoc, getUserDoc, updateUserPlan, updateUserSubscription, setChatDoc, subscribeToUserChats, deleteChatDoc } from "./firebase";
+import { setUserDoc, getUserDoc, updateUserPlan, updateUserSubscription, setChatDoc, subscribeToUserChats, deleteChatDoc, getSharedChat, shareChat } from "./firebase";
 import type { User } from "firebase/auth";
 import PlanSelector from "./components/PlanSelector";
 
@@ -1491,10 +1491,23 @@ export default function App() {
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  // State for shared chat (loaded from public collection)
+  const [sharedChat, setSharedChat] = useState<Chat | null>(null);
 
   const activeChat = useMemo(
-    () => chats.find((c) => c.id === activeChatId) || null,
-    [chats, activeChatId]
+    () => {
+      // First check user's own chats
+      const userChat = chats.find((c) => c.id === activeChatId);
+      if (userChat) return userChat;
+      
+      // If not found, check shared chat
+      if (sharedChat && sharedChat.id === activeChatId) {
+        return sharedChat;
+      }
+      
+      return null;
+    },
+    [chats, activeChatId, sharedChat]
   );
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -1676,23 +1689,59 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const shareChatId = urlParams.get('share');
     
-    if (shareChatId && chats.length > 0) {
-      // Check if the shared chat exists in the user's chats
-      const sharedChat = chats.find(c => c.id === shareChatId);
-      if (sharedChat) {
-        setActiveChatId(shareChatId);
-        // Clean up URL by removing the share parameter
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-      } else {
-        // Chat not found - could show an error message
-        setError("Shared chat not found or you don't have access to it.");
+    if (!shareChatId) return;
+
+    const loadSharedChat = async () => {
+      try {
+        // First, check if the chat exists in the user's own chats
+        if (chats.length > 0) {
+          const userChat = chats.find(c => c.id === shareChatId);
+          if (userChat) {
+            setActiveChatId(shareChatId);
+            setSharedChat(null); // Clear shared chat since it's in user's chats
+            // Clean up URL by removing the share parameter
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+            return;
+          }
+        }
+
+        // If not found in user's chats, try to fetch from public shared collection
+        const sharedChatData = await getSharedChat(shareChatId);
+        if (sharedChatData) {
+          // Convert Firestore data to Chat format
+          const convertedChat: Chat = {
+            id: sharedChatData.id,
+            title: sharedChatData.title || "Shared Chat",
+            createdAt: sharedChatData.createdAt?.toMillis?.() || sharedChatData.createdAt || Date.now(),
+            messages: sharedChatData.messages || [],
+          };
+          
+          setSharedChat(convertedChat);
+          setActiveChatId(shareChatId);
+          
+          // Clean up URL by removing the share parameter
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        } else {
+          // Chat not found in public collection either
+          setError("Shared chat not found. The link may be invalid or the chat may have been deleted.");
+          setTimeout(() => setError(null), 5000);
+          // Clean up URL
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (error) {
+        console.error("Error loading shared chat:", error);
+        setError("Failed to load shared chat. Please try again.");
         setTimeout(() => setError(null), 5000);
         // Clean up URL
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
       }
-    }
+    };
+
+    loadSharedChat();
   }, [chats]);
 
   // ---- Load chats from Firestore when user is authenticated ----
@@ -2821,6 +2870,19 @@ export default function App() {
     }
 
     try {
+      // Save chat to public sharedChats collection for public access
+      try {
+        await shareChat(activeChatId, {
+          title: activeChat.title,
+          messages: activeChat.messages,
+          createdAt: activeChat.createdAt,
+          userId: firebaseUser?.uid || 'anonymous',
+        });
+      } catch (shareError) {
+        console.error("Error saving to shared collection:", shareError);
+        // Continue even if this fails - the link might still work if user has access
+      }
+
       // Generate shareable link using the chat ID
       // Works on both localhost and Vercel deployments
       const baseUrl = window.location.origin;

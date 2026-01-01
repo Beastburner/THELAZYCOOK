@@ -299,3 +299,34 @@ export const updateUserSubscription = async (
   });
 };
 
+/**
+ * Get a shared chat by ID from the public shared chats collection
+ */
+export const getSharedChat = async (chatId: string): Promise<DocumentData | null> => {
+  try {
+    const sharedChatRef = doc(db, 'sharedChats', chatId);
+    const sharedChatSnap = await getDoc(sharedChatRef);
+    return sharedChatSnap.exists() ? { id: sharedChatSnap.id, ...sharedChatSnap.data() } : null;
+  } catch (error: any) {
+    console.error('Error fetching shared chat:', error);
+    return null;
+  }
+};
+
+/**
+ * Save a chat to the public shared chats collection
+ */
+export const shareChat = async (chatId: string, chatData: any): Promise<void> => {
+  try {
+    const sharedChatRef = doc(db, 'sharedChats', chatId);
+    await setDoc(sharedChatRef, {
+      ...chatData,
+      sharedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  } catch (error: any) {
+    console.error('Error sharing chat:', error);
+    throw error;
+  }
+};
+
