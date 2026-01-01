@@ -485,7 +485,7 @@ select {
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.4;
-  padding-right: 32px; /* Make room for delete button */
+  padding-right: 70px; /* Make room for action buttons */
 }
 .lc-chatitem-meta {
   display: none; /* Hide timestamps like ChatGPT */
@@ -496,11 +496,26 @@ select {
   width: 100%;
 }
 
-.lc-chatitem-delete {
+.lc-chatitem-actions {
   position: absolute;
-  right: 12px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.lc-chatitem-actions.is-visible,
+.lc-chatitem-wrapper:hover .lc-chatitem-actions {
+  opacity: 1;
+}
+
+.lc-chatitem-rename,
+.lc-chatitem-delete {
   width: 28px;
   height: 28px;
   border: none;
@@ -511,15 +526,14 @@ select {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  opacity: 0;
-  transition: opacity 0.2s, background-color 0.2s, color 0.2s;
-  z-index: 10;
+  transition: background-color 0.2s, color 0.2s;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.lc-chatitem-delete.is-visible,
-.lc-chatitem-wrapper:hover .lc-chatitem-delete {
-  opacity: 1;
+.lc-chatitem-rename:hover {
+  background: var(--beige-soft);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .lc-chatitem-delete:hover {

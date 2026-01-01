@@ -3214,12 +3214,12 @@ export default function App() {
                 key={c.id}
                 className={`lc-chatitem-wrapper ${c.id === activeChatId ? "is-active" : ""}`}
                 onMouseEnter={(e) => {
-                  const deleteBtn = e.currentTarget.querySelector('.lc-chatitem-delete');
-                  if (deleteBtn) deleteBtn.classList.add('is-visible');
+                  const actions = e.currentTarget.querySelector('.lc-chatitem-actions');
+                  if (actions) actions.classList.add('is-visible');
                 }}
                 onMouseLeave={(e) => {
-                  const deleteBtn = e.currentTarget.querySelector('.lc-chatitem-delete');
-                  if (deleteBtn) deleteBtn.classList.remove('is-visible');
+                  const actions = e.currentTarget.querySelector('.lc-chatitem-actions');
+                  if (actions) actions.classList.remove('is-visible');
                 }}
               >
                 <button
@@ -3234,20 +3234,39 @@ export default function App() {
                 >
                   <div className="lc-chatitem-title">{c.title}</div>
                 </button>
-                <button
-                  className="lc-chatitem-delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteChat(c.id);
-                  }}
-                  aria-label="Delete chat"
-                  title="Delete chat"
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M6 7V11M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
+                <div className="lc-chatitem-actions">
+                  <button
+                    className="lc-chatitem-rename"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newTitle = window.prompt('Enter new chat title:', c.title || '');
+                      if (newTitle !== null && newTitle.trim()) {
+                        handleRenameChat(c.id, newTitle.trim());
+                      }
+                    }}
+                    aria-label="Rename chat"
+                    title="Rename chat"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <button
+                    className="lc-chatitem-delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteChat(c.id);
+                    }}
+                    aria-label="Delete chat"
+                    title="Delete chat"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 11V17M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -3530,9 +3549,9 @@ export default function App() {
                           handleDeleteChat(activeChatId);
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M6 7V11M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M10 11V17M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                         <span>Delete</span>
                       </button>
