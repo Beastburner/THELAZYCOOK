@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
+import { FiCopy, FiDownload, FiEdit2, FiSave, FiX } from 'react-icons/fi';
 
 // Import base/core languages first (no dependencies)
 import 'prismjs/components/prism-markup'; // Base for HTML/XML
@@ -391,8 +392,10 @@ export default function CodeBlock({
                 ? 'is-error'
                 : ''
             }`}
+            title={copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy code'}
+            aria-label={copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy code'}
           >
-            {copyStatus === 'copied' ? 'Copied' : 'Copy'}
+            <FiCopy aria-hidden="true" />
           </button>
 
           {allowActions && (
@@ -400,30 +403,38 @@ export default function CodeBlock({
               <button
                 className="lc-code-block-btn"
                 onClick={handleDownload}
+                title="Download code"
+                aria-label="Download code"
               >
-                Download
+                <FiDownload aria-hidden="true" />
               </button>
 
               {!isEditing ? (
                 <button
                   className="lc-code-block-btn"
                   onClick={handleEdit}
+                  title="Edit code"
+                  aria-label="Edit code"
                 >
-                  Edit
+                  <FiEdit2 aria-hidden="true" />
                 </button>
               ) : (
                 <>
                   <button
                     className="lc-code-block-btn"
                     onClick={handleSave}
+                    title="Save changes"
+                    aria-label="Save changes"
                   >
-                    Save
+                    <FiSave aria-hidden="true" />
                   </button>
                   <button
                     className="lc-code-block-btn"
                     onClick={handleCancel}
+                    title="Cancel editing"
+                    aria-label="Cancel editing"
                   >
-                    Cancel
+                    <FiX aria-hidden="true" />
                   </button>
                 </>
               )}

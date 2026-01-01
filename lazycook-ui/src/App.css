@@ -819,6 +819,7 @@ select {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  position: relative;
 
   /* ❌ remove pill styling - force remove all padding/background */
   padding: 0 !important;
@@ -1270,7 +1271,7 @@ div.lc-topbar-model .lc-dropdown-icon {
 .lc-model-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  right: 0;
   background: var(--white);
   border: 1px solid var(--border-light);
   border-radius: 12px;
@@ -2006,13 +2007,15 @@ div.lc-topbar-model .lc-dropdown-icon {
   align-items: center;
   justify-content: space-between;
   padding: 0.5em 0.75em;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 2px solid var(--border-medium);
   min-height: 36px;
   gap: 8px;
   flex-wrap: wrap;
   max-width: 100%;
   overflow: hidden;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
 
 .lc-code-block-language {
@@ -2032,10 +2035,10 @@ div.lc-topbar-model .lc-dropdown-icon {
 }
 
 .lc-code-block-btn {
-  padding: 0.35em 0.65em;
+  padding: 0.4em 0.6em;
   font-size: 0.8em;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-medium);
+  background: rgba(255, 255, 255, 0.9);
   color: var(--text);
   border-radius: 6px;
   cursor: pointer;
@@ -2043,18 +2046,26 @@ div.lc-topbar-model .lc-dropdown-icon {
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.3em;
   outline: none;
   white-space: nowrap; /* Prevent button text from wrapping */
   flex-shrink: 0; /* Prevent buttons from shrinking */
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.lc-code-block-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .lc-code-block-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 1);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .lc-code-block-btn:focus {
@@ -2080,16 +2091,28 @@ div.lc-topbar-model .lc-dropdown-icon {
   font-size: 12px;
 }
 
+.lc-code-block-btn.is-copied {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.6);
+  color: rgba(129, 199, 132, 1);
+}
+
+.lc-code-block-btn.is-error {
+  background: rgba(244, 67, 54, 0.3);
+  border-color: rgba(244, 67, 54, 0.6);
+  color: rgba(239, 154, 154, 1);
+}
+
 .lc-code-block-btn-copy.is-copied {
-  background: rgba(76, 175, 80, 0.2);
-  border-color: rgba(76, 175, 80, 0.4);
-  color: rgba(129, 199, 132, 0.95);
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.6);
+  color: rgba(129, 199, 132, 1);
 }
 
 .lc-code-block-btn-copy.is-error {
-  background: rgba(244, 67, 54, 0.2);
-  border-color: rgba(244, 67, 54, 0.4);
-  color: rgba(239, 154, 154, 0.95);
+  background: rgba(244, 67, 54, 0.3);
+  border-color: rgba(244, 67, 54, 0.6);
+  color: rgba(239, 154, 154, 1);
 }
 
 .lc-code-block-btn-save {
@@ -3372,9 +3395,12 @@ code,
 }
 
 /* Optional: Red accent on hover */
-.lc-composer-send:hover:not(:disabled) svg,
-.lc-composer-send:hover:not(:disabled) .lc-loading-spinner {
+.lc-composer-send:hover:not(:disabled) svg {
   color: var(--white);
+}
+
+.lc-composer-send:hover:not(:disabled) .lc-loading-spinner {
+  color: var(--red);
 }
 
 .lc-composer-send svg {
@@ -3389,7 +3415,7 @@ code,
 
 .lc-loading-spinner {
   animation: spin 1s linear infinite;
-  color: var(--white);
+  color: var(--red);
 }
 
 @keyframes spin {

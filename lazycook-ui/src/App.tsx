@@ -56,6 +56,7 @@ type Message = {
   content: string;
   confidenceScore?: number;
   highlights?: Highlight[];
+  attachedFile?: { id: string; filename: string };
 };
 
 type Chat = {
@@ -597,12 +598,17 @@ function cleanProResponse(content: string): string {
   cleaned = cleaned.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
 
   // Step 6: Remove confidence ratings and metadata at the end (preserve markdown)
-  // Remove patterns like "Confidence Rating: 0.92" at the end
+  // Remove patterns like "Confidence Rating: 0.92" or "Confidence Score: 0.92" anywhere in the content
+  // Remove at the end of lines
   cleaned = cleaned.replace(/\n\s*Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/i, '');
   cleaned = cleaned.replace(/\n\s*Rating\s*:?\s*[\d.]+\s*$/i, '');
   cleaned = cleaned.replace(/\n\s*Score\s*:?\s*[\d.]+\s*$/i, '');
-  // Remove standalone confidence lines (but not if part of markdown)
+  // Remove standalone confidence lines anywhere in the content (but not if part of markdown)
   cleaned = cleaned.replace(/^Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/gim, '');
+  // Remove confidence score patterns that might appear inline or in the middle of text
+  cleaned = cleaned.replace(/Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi, '');
+  // Remove any remaining "Confidence Score: X.XX" patterns (case insensitive, with or without colon)
+  cleaned = cleaned.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, '');
   
   // Step 7: Remove other metadata patterns
   cleaned = cleaned.replace(/\n\s*Quality\s*Score\s*:?\s*[\d.]+\s*$/i, '');
@@ -884,13 +890,21 @@ function MessageItem({
   onRegenerate,
   onUpdateHighlights,
   highlightEnabled = true,
-  onAskChatGPT
+  onAskChatGPT,
+  apiBase,
+  firebaseUser,
+  plan,
+  getIdToken
 }: { 
   message: Message; 
   onRegenerate?: () => void;
   onUpdateHighlights?: (highlights: Highlight[]) => void;
   highlightEnabled?: boolean;
   onAskChatGPT?: (text: string) => void;
+  apiBase?: string;
+  firebaseUser?: User | null;
+  plan?: Plan | null;
+  getIdToken?: () => Promise<string>;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
@@ -1193,7 +1207,62 @@ function MessageItem({
               </>
             ) : null
           ) : (
-            message.content
+            <>
+              {message.content}
+              {message.attachedFile && apiBase && (
+                <div className="lc-attached-file" style={{ marginTop: '8px' }}>
+                  <FiFileText className="lc-attached-file-icon" />
+                  <a
+                    href={`${apiBase}/download-file/${message.attachedFile.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="lc-attached-file-name"
+                    style={{ 
+                      textDecoration: 'none',
+                      color: 'var(--text)',
+                      cursor: 'pointer'
+                    }}
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      if (!apiBase || !getIdToken) return;
+                      try {
+                        const token = await getIdToken();
+                        const headers: HeadersInit = {
+                          'X-User-ID': firebaseUser?.uid || '',
+                          'X-User-Plan': plan || 'GO',
+                        };
+                        if (token) {
+                          headers['Authorization'] = `Bearer ${token}`;
+                        }
+                        const response = await fetch(`${apiBase}/download-file/${message.attachedFile!.id}`, {
+                          headers,
+                        });
+                        if (response.ok) {
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = message.attachedFile!.filename;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+                        } else {
+                          // Fallback: try opening in new tab
+                          window.open(`${apiBase}/download-file/${message.attachedFile!.id}`, '_blank');
+                        }
+                      } catch (err) {
+                        console.error('Error downloading file:', err);
+                        // Fallback: try opening in new tab
+                        window.open(`${apiBase}/download-file/${message.attachedFile!.id}`, '_blank');
+                      }
+                    }}
+                  >
+                    {message.attachedFile.filename}
+                  </a>
+                </div>
+              )}
+            </>
           )}
         </div>
         {showToolbar && message.role === "assistant" && highlightEnabled && (
@@ -2257,7 +2326,12 @@ export default function App() {
     setLoading(true);
     setError(null);
 
-    const userMsg: Message = { id: uid("m"), role: "user", content: text };
+    const userMsg: Message = { 
+      id: uid("m"), 
+      role: "user", 
+      content: text,
+      attachedFile: attachedFile || undefined
+    };
     const assistantMsg: Message = { id: uid("m"), role: "assistant", content: "" };
 
     // Add messages immediately to local state
@@ -2410,6 +2484,14 @@ export default function App() {
       
       // Extract confidence score from API response
       const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
+      
+      // Remove confidence score from content if it appears in the text (for all plans)
+      // This ensures it only appears once in the UI, not in both content and separately
+      if (confidenceScore !== undefined) {
+        // Remove any confidence score text patterns from content
+        content = content.replace(/Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi, '');
+        content = content.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, '');
+      }
       
       // Enhance content with emojis for better engagement (applies to all plans including PRO)
       // This ensures PRO responses get emojis just like GO responses
@@ -2646,6 +2728,14 @@ export default function App() {
       
       // Extract confidence score from API response
       const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
+      
+      // Remove confidence score from content if it appears in the text (for all plans)
+      // This ensures it only appears once in the UI, not in both content and separately
+      if (confidenceScore !== undefined) {
+        // Remove any confidence score text patterns from content
+        content = content.replace(/Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi, '');
+        content = content.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, '');
+      }
       
       // Enhance content with emojis for better engagement (applies to all plans including PRO)
       // This ensures PRO responses get emojis just like GO responses
@@ -3582,6 +3672,11 @@ export default function App() {
                       textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 100);
                   } : undefined}
+                  highlightEnabled={highlightEnabled}
+                  apiBase={API_BASE}
+                  firebaseUser={firebaseUser}
+                  plan={plan}
+                  getIdToken={getIdToken}
                 />
               ))}
               {activeChat && activeChat.messages.length > 0 && (
