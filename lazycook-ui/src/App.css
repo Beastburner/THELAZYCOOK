@@ -307,6 +307,13 @@ select {
   display: block;
 }
 
+.lc-sidebar-logo-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+}
+
 .lc-sidebar-toggle {
   width: 32px;
   height: 32px;
@@ -787,7 +794,7 @@ select {
 .lc-topbar {
   height: var(--lc-header-height);
   min-height: var(--lc-header-height);
-  padding: 0 16px;
+  padding: 0 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -810,7 +817,7 @@ select {
 .lc-topbar-model {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   cursor: pointer;
 
   /* ❌ remove pill styling */
@@ -831,6 +838,314 @@ select {
   transition: background 0.2s;
   position: relative;
   font-weight: var(--fw-semibold);
+}
+
+.lc-topbar-logo-text {
+  height: 26px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Model selector - Desktop only */
+.lc-model-selector-desktop {
+  display: block;
+}
+
+.lc-model-mobile {
+  display: none;
+}
+
+/* Hide chat title on mobile */
+/* ============================================
+   RESPONSIVE TOPBAR STYLES
+   Layout: [Menu] [Logo-text] [Model] [3 Dots]
+   ============================================ */
+
+/* Tablet (769px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .lc-topbar {
+    padding: 0 1rem;
+  }
+
+  .lc-topbar-left {
+    gap: 0.875rem;
+  }
+
+  /* Make logo dominant */
+  .lc-topbar-left .lc-logo-text {
+    height: 2.125rem; /* 34px - bigger */
+    max-width: 14rem;
+  }
+
+  /* Make Gemini smaller */
+  .lc-topbar-left .lc-topbar-model {
+    padding: 0.375rem 0.625rem; /* 6px 10px */
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.8125rem; /* 13px - smaller than logo */
+    font-weight: 500;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}
+
+/* Mobile (up to 768px) */
+@media (max-width: 768px) {
+  .lc-topbar-title-mobile-hide {
+    display: none;
+  }
+
+  /* Mobile topbar layout - ChatGPT style */
+  /* Layout: [Menu Button] [Logo-text (Orange)] [Model (Red)] [3 Dots (Green)] */
+  .lc-topbar {
+    padding: 0 0.625rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.375rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  /* Hamburger Menu Button */
+  .lc-topbar .lc-iconbtn.mobile-only {
+    flex-shrink: 0 !important;
+    min-width: 2.5rem !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    padding: 0.5rem !important;
+    margin-right: 0.25rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Left section: Logo-text (Orange area) + Model (Red area) */
+  .lc-topbar-left {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Logo should visually lead */
+  .lc-topbar-left .lc-logo-text {
+    height: 1.875rem !important; /* 30px - clearly larger */
+    max-width: 12rem !important;
+    width: auto !important;
+    object-fit: contain !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Model pill should be secondary */
+  .lc-topbar-left .lc-topbar-model {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.25rem 0.5rem !important; /* 4px 8px */
+    font-size: 0.6875rem !important;
+    border-radius: 999px !important;
+    background: var(--beige-soft) !important;
+    border: 1px solid var(--border-light) !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    box-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.6875rem !important; /* 11px - noticeably smaller */
+    white-space: nowrap !important;
+    font-weight: 500 !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
+    width: 0.75rem !important; /* 12px */
+    height: 0.75rem !important; /* 12px */
+    flex-shrink: 0 !important;
+  }
+
+  /* Right section: 3 Dots (Green area) */
+  .lc-topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+  }
+
+  .lc-model-selector-desktop {
+    display: none !important;
+  }
+
+  .lc-model-mobile {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.3125rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+    border-radius: 999px !important;
+    background: var(--beige-soft) !important;
+    border: 1px solid var(--border-light) !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    white-space: nowrap !important;
+  }
+
+  .lc-topbar-menu-btn {
+    padding: 0.375rem !important;
+    min-width: 2rem !important;
+    min-height: 2rem !important;
+    width: 2rem !important;
+    height: 2rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Small Mobile (up to 640px) */
+@media (max-width: 640px) {
+  .lc-topbar {
+    padding: 0 0.5rem !important;
+    gap: 0.25rem !important;
+  }
+
+  /* Hamburger Menu Button */
+  .lc-topbar .lc-iconbtn.mobile-only {
+    min-width: 2.25rem !important;
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    padding: 0.375rem !important;
+    margin-right: 0.125rem !important;
+  }
+
+  .lc-topbar-left {
+    gap: 0.5rem !important;
+    flex: 1 1 auto !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .lc-topbar-left .lc-logo-text {
+    height: 5rem !important;
+    max-width: 24rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 0.25rem !important;
+    padding: 0.3125rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+    border-radius: 999px !important;
+    background: var(--beige-soft) !important;
+    border: 1px solid var(--border-light) !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    cursor: pointer !important;
+    justify-content: space-evenly !important;
+    flex-wrap: nowrap !important;
+    flex-direction: row-reverse !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.6875rem !important;
+    font-weight: 500 !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
+    width: 0.625rem !important;
+    height: 0.625rem !important;
+  }
+
+  .lc-topbar-menu-btn {
+    padding: 0.3125rem !important;
+    min-width: 1.75rem !important;
+    min-height: 1.75rem !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+}
+
+/* Very Small Mobile (up to 360px) */
+@media (max-width: 360px) {
+  .lc-topbar {
+    padding: 0 0.375rem !important;
+    gap: 0.1875rem !important;
+  }
+
+  /* Hamburger Menu Button */
+  .lc-topbar .lc-iconbtn.mobile-only {
+    min-width: 2rem !important;
+    width: 2rem !important;
+    height: 2rem !important;
+    padding: 0.3125rem !important;
+    margin-right: 0.125rem !important;
+  }
+
+  .lc-topbar-left {
+    gap: 0.375rem !important;
+    flex: 1 1 auto !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .lc-topbar-left .lc-logo-text {
+    height: 1.625rem !important; /* 26px */
+    max-width: 10rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model {
+    padding: 0.3125rem 0.5rem !important;
+    font-size: 0.625rem !important;
+    gap: 0.25rem !important;
+    font-weight: 500 !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.625rem !important; /* 10px */
+    font-weight: 500 !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
+    width: 0.625rem !important;
+    height: 0.625rem !important;
+  }
+
+  .lc-topbar-menu-btn {
+    padding: 0.25rem !important;
+    min-width: 1.5rem !important;
+    min-height: 1.5rem !important;
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+  }
 }
 
 .lc-topbar-model:hover {
@@ -3155,11 +3470,12 @@ code,
   /* Ensure hamburger button is visible */
   .lc-topbar .mobile-only {
     display: inline-flex !important;
-    margin-right: 8px;
-    min-width: 40px;
-    min-height: 40px;
-    font-size: 20px;
-    color: var(--text);
+    margin-right: 8px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    font-size: 20px !important;
+    color: var(--text) !important;
+    flex-shrink: 0 !important;
   }
   
   /* Scroll to bottom button - center on mobile */
@@ -5070,30 +5386,98 @@ code,
     height: 18px;
   }
   
-  /* Topbar improvements */
+  /* Topbar improvements - Mobile layout fix (640px) */
+  /* Layout: [Menu Button] [Logo-text (Orange)] [Model (Red)] [3 Dots (Green)] */
   .lc-topbar {
-    padding: 0 12px;
+    padding: 0 10px !important;
     height: 56px;
     min-height: 56px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
   }
   
+  /* Left section: Logo-text (Orange area) + Model (Red area) */
   .lc-topbar-left {
-    gap: 8px;
-    flex: 1;
-    min-width: 0; /* Allow shrinking */
+    flex: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-width: 0 !important;
   }
   
-  .lc-topbar-model {
-    font-size: 13px;
-    padding: 8px 10px;
-    min-height: 40px;
-    max-width: calc(100% - 60px); /* Prevent overlap with actions */
-    flex-shrink: 1;
+  /* Logo-text - Orange area */
+  .lc-topbar-left .lc-logo-text {
+    height: 5rem !important; /* Dominant size */
+    max-width: 12rem !important;
+    width: auto !important;
+    object-fit: contain !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
   
-  .lc-logo-text {
-    max-height: 45px;
-    height: 45px;
+  /* Model - Red area (secondary to logo) */
+  .lc-topbar-left .lc-topbar-model {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important; /* 4px */
+    padding: 0.25rem 0.5rem !important; /* 4px 8px */
+    font-size: 0.6875rem !important; /* 11px - smaller than logo */
+    border-radius: 999px !important;
+    background: var(--beige-soft) !important;
+    border: 1px solid var(--border-light) !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    cursor: pointer !important;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.6875rem !important; /* 11px - noticeably smaller */
+    font-weight: 500;
+  }
+
+  .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
+    width: 0.75rem !important; /* 12px */
+    height: 0.75rem !important; /* 12px */
+  }
+  
+  /* Right section: 3 Dots (Green area) */
+  .lc-topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .lc-model-selector-desktop {
+    display: none !important;
+  }
+  
+  .lc-model-mobile {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+    border-radius: 999px !important;
+    background: var(--beige-soft) !important;
+    border: 1px solid var(--border-light) !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+  }
+  
+  .lc-topbar-menu-btn {
+    padding: 5px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   .lc-logo-icon {
@@ -5107,12 +5491,6 @@ code,
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  
-  .lc-topbar-actions {
-    gap: 4px;
-    flex-shrink: 0; /* Prevent actions from shrinking */
-    margin-left: 8px; /* Add spacing from model button */
   }
   
   .lc-topbar-action-btn {
@@ -5618,3 +5996,144 @@ code,
 }
 
 
+
+/* ===== ADDITIONAL TOPBAR RESPONSIVE STYLES ===== */
+
+/* Topbar Responsive Styles */
+.lc-topbar-logo-text {
+  height: 24px;
+  width: auto;
+  object-fit: contain;
+}
+
+.lc-model-selector-desktop {
+  display: block;
+}
+
+.lc-model-mobile {
+  display: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--beige-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.lc-topbar-title-mobile-hide {
+  display: block;
+}
+
+/* Desktop (1025px and above) - Full experience */
+@media (min-width: 1025px) {
+  .lc-topbar-logo-text {
+    height: 24px;
+  }
+  
+  .lc-model-selector-desktop {
+    display: block;
+  }
+  
+  .lc-model-mobile {
+    display: none;
+  }
+  
+  .lc-topbar-title-mobile-hide {
+    display: block;
+  }
+}
+
+/* Tablet (769px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* Make logo dominant */
+  .lc-topbar-logo-text {
+    height: 2.125rem; /* 34px - bigger */
+  }
+  
+  /* Make Gemini smaller */
+  .lc-model-selector-desktop {
+    font-size: 0.8125rem; /* 13px - smaller than logo */
+    padding: 0.375rem 0.625rem; /* 6px 10px */
+    font-weight: 500;
+  }
+  
+  .lc-topbar-title-mobile-hide {
+    font-size: 1rem; /* 16px */
+  }
+}
+
+/* Small Tablet (641px - 768px) */
+@media (max-width: 768px) {
+  /* Logo should visually lead */
+  .lc-topbar-logo-text {
+    height: 1.875rem; /* 30px - clearly larger */
+  }
+  
+  /* Model pill should be secondary */
+  .lc-topbar-left .lc-topbar-model {
+    padding: 0.25rem 0.5rem; /* 4px 8px */
+  }
+  
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.6875rem; /* 11px - noticeably smaller */
+    font-weight: 500;
+  }
+  
+  .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
+    width: 0.75rem; /* 12px */
+    height: 0.75rem; /* 12px */
+  }
+  
+  .lc-model-selector-desktop {
+    font-size: 0.8125rem; /* 13px */
+    padding: 0.375rem 0.625rem; /* 6px 10px */
+  }
+  
+  .lc-topbar-title-mobile-hide {
+    font-size: 0.9375rem; /* 15px */
+  }
+}
+
+/* Mobile (up to 640px) */
+@media (max-width: 640px) {
+  .lc-topbar-logo-text {
+    height: 5rem !important; /* Dominant size */
+    max-width: 12rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Hide desktop model selector, show mobile pill */
+  .lc-model-selector-desktop {
+    display: none;
+  }
+  
+  .lc-model-mobile {
+    display: block;
+    font-size: 0.6875rem; /* 11px - secondary to logo */
+    padding: 0.25rem 0.5rem; /* 4px 8px */
+  }
+  
+  /* Hide title on very small screens */
+  .lc-topbar-title-mobile-hide {
+    display: none;
+  }
+}
+
+/* Very Small Mobile (up to 360px) */
+@media (max-width: 360px) {
+  .lc-topbar-logo-text {
+    height: 1.625rem; /* 26px */
+    max-width: 10rem;
+  }
+  
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    font-size: 0.625rem !important; /* 10px */
+  }
+  
+  .lc-model-mobile {
+    font-size: 0.625rem; /* 10px */
+    padding: 0.25rem 0.625rem; /* 4px 10px */
+  }
+}

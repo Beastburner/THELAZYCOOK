@@ -3128,7 +3128,7 @@ export default function App() {
         {/* Logo and Collapse Button */}
         <div className="lc-sidebar-header">
           <div className="lc-sidebar-logo">
-            <img src={logoImg} alt="LazyCook" className="lc-logo-icon" />
+            <img src={logoImg} alt="LazyCook" className="lc-sidebar-logo-icon" />
           </div>
           <button 
             className="lc-sidebar-toggle" 
@@ -3405,8 +3405,11 @@ export default function App() {
           </button>
 
           <div className="lc-topbar-left">
+            {/* Logo-text - Orange area */}
+            <img src={logoTextImg} alt="LazyCook" className="lc-logo-text" />
+            
+            {/* Model - Red area */}
             <div className="lc-topbar-model" ref={modelDropdownRef} onClick={() => setShowModelDropdown(!showModelDropdown)}>
-              <img src={logoTextImg} alt="LazyCook" className="lc-logo-text" />
               <span className="lc-model-version">{model === 'gemini' ? 'Gemini' : model === 'grok' ? 'Grok' : 'Mixed'}</span>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-dropdown-icon">
                 <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>

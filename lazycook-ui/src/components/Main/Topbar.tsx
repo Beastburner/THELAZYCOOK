@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { FiMoreVertical } from 'react-icons/fi';
 import { useConversations } from '../../context/ConversationsContext';
+import logoTextImg from "../../assets/logo-text.png";
+
 
 interface TopbarProps {
   onRename?: (newTitle: string) => void;
@@ -29,7 +31,34 @@ export default function Topbar({ onRename, onDelete, onExport }: TopbarProps) {
 
   return (
     <div className="h-14 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface flex items-center justify-between px-4">
-      <div className="flex items-center gap-4 flex-1 min-w-0">
+      <div className="flex items-center gap-3">
+        {/* Logo-text - Orange area */}
+        <img
+          src={logoTextImg}
+          alt="Lazycook"
+          className="lc-topbar-logo-text"
+        />
+
+        {/* Model Selector - Desktop - Red area */}
+        <select
+          value={model}
+          onChange={(e) => setModel(e.target.value as any)}
+          className="lc-model-selector-desktop px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-dark-text"
+          aria-label="Select model"
+        >
+          <option value="gemini">Gemini</option>
+          <option value="grok">Grok</option>
+          <option value="mixed">Mixed</option>
+        </select>
+
+        {/* Model Pill - Mobile - Red area */}
+        <div className="lc-model-mobile">
+          {model === "gemini" ? "Gemini" : model === "grok" ? "Grok" : "Mixed"}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Existing title / rename logic */}
         {isRenaming ? (
           <div className="flex items-center gap-2 flex-1">
             <input
@@ -50,26 +79,14 @@ export default function Topbar({ onRename, onDelete, onExport }: TopbarProps) {
             />
           </div>
         ) : (
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+          <h1 className="lc-topbar-title-mobile-hide text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
             {activeChat?.title || 'New Conversation'}
           </h1>
         )}
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Model Selector */}
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value as any)}
-          className="px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-surface-2 border border-gray-200 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-dark-text"
-          aria-label="Select model"
-        >
-          <option value="gemini">Gemini</option>
-          <option value="grok">Grok</option>
-          <option value="mixed">Mixed</option>
-        </select>
-
-        {/* Actions Menu */}
+        {/* Actions Menu - Green area (3 dots) */}
         <div className="relative">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -132,4 +149,3 @@ export default function Topbar({ onRename, onDelete, onExport }: TopbarProps) {
     </div>
   );
 }
-
