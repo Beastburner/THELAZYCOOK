@@ -3,6 +3,7 @@ uvicorn[standard]
 python-jose[cryptography]
 passlib
 python-dotenv
+python-multipart
 regex
 PyPDF2
 rich

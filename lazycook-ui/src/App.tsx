@@ -1341,6 +1341,16 @@ export default function App() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Ensure file input ref is available after render
+  useEffect(() => {
+    if (!fileInputRef.current) {
+      const input = document.getElementById('lc-file-upload-input') as HTMLInputElement;
+      if (input && !fileInputRef.current) {
+        fileInputRef.current = input;
+      }
+    }
+  }, []);
+  
   // Highlight feature toggle (default: enabled)
   const [highlightEnabled, setHighlightEnabled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -3631,93 +3641,121 @@ export default function App() {
         <footer className="lc-composer">
           {error && <div className="lc-error lc-error-inline">{error}</div>}
           <div className="lc-composer-row">
-            {/* Upload files */}
-            <div className="lc-upload-wrapper">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".py,.js,.ts,.jsx,.tsx,.java,.c,.cpp,.h,.hpp,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.bash,.ps1,.bat,.cmd,.html,.css,.xml,.json,.yaml,.yml,.txt,.md,.markdown,.csv,.pdf,.log,.ini,.conf,.config,.sql,.r,.m,.lua,.pl,.dart,.elm,.hs,.ml,.fs,.vb,.tex,.make,.cmake,.properties,.env"
-                style={{ display: 'none' }}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  
-                  if (!plan) {
-                    setShowPlanSelector(true);
-                    setError("Please select a plan to upload files");
-                    return;
-                  }
-                  
-                  setUploadingFile(true);
-                  setError(null);
-                  
-                  try {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    
-                    const token = await getIdToken();
-                    const headers: HeadersInit = {
-                      'X-User-ID': firebaseUser?.uid || '',
-                      'X-User-Plan': plan || 'GO',
-                    };
-                    
-                    if (token) {
-                      headers['Authorization'] = `Bearer ${token}`;
-                    }
-                    
-                    const response = await fetch(`${API_BASE}/upload-file`, {
-                      method: 'POST',
-                      headers,
-                      body: formData,
-                    });
-                    
-                    if (!response.ok) {
-                      const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
-                      throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
-                    }
-                    
-                    const result = await response.json();
-                    setError(null);
-                    // Show success message briefly
-                    const successMsg = result.message || `File '${file.name}' uploaded successfully`;
-                    setError(successMsg);
-                    setTimeout(() => setError(null), 3000);
-                    
-                    // Clear file input
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  } catch (err: any) {
-                    console.error('File upload error:', err);
-                    setError(err.message || 'Failed to upload file. Please try again.');
-                  } finally {
-                    setUploadingFile(false);
-                  }
-                }}
-              />
-
-              <button
-                type="button"
-                className="lc-upload-plus"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!plan || uploadingFile || loading}
-                title="Upload files"
-                aria-label="Upload files"
-              >
-                {uploadingFile ? (
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-loading-spinner">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="9.42" strokeDashoffset="9.42">
-                      <animate attributeName="stroke-dasharray" values="0 25.13;12.57 12.57;0 25.13" dur="1.5s" repeatCount="indefinite"/>
-                      <animate attributeName="stroke-dashoffset" values="0;-12.57;-25.13" dur="1.5s" repeatCount="indefinite"/>
-                    </circle>
-                  </svg>
-                ) : (
-                  <FiPlus />
-                )}
-              </button>
-            </div>
             <div className="lc-textarea-wrapper">
+              {/* Upload files */}
+              <div className="lc-upload-wrapper">
+                <input
+                  ref={fileInputRef}
+                  id="lc-file-upload-input"
+                  type="file"
+                  multiple
+                  accept=".py,.js,.ts,.jsx,.tsx,.java,.c,.cpp,.h,.hpp,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.bash,.ps1,.bat,.cmd,.html,.css,.xml,.json,.yaml,.yml,.txt,.md,.markdown,.csv,.pdf,.log,.ini,.conf,.config,.sql,.r,.m,.lua,.pl,.dart,.elm,.hs,.ml,.fs,.vb,.tex,.make,.cmake,.properties,.env"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    if (!plan) {
+                      setShowPlanSelector(true);
+                      setError("Please select a plan to upload files");
+                      return;
+                    }
+                    
+                    setUploadingFile(true);
+                    setError(null);
+                    
+                    try {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      
+                      const token = await getIdToken();
+                      const headers: HeadersInit = {
+                        'X-User-ID': firebaseUser?.uid || '',
+                        'X-User-Plan': plan || 'GO',
+                      };
+                      
+                      if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                      }
+                      
+                      const response = await fetch(`${API_BASE}/upload-file`, {
+                        method: 'POST',
+                        headers,
+                        body: formData,
+                      });
+                      
+                      if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
+                        throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
+                      }
+                      
+                      const result = await response.json();
+                      setError(null);
+                      // Show success message briefly
+                      const successMsg = result.message || `File '${file.name}' uploaded successfully`;
+                      setError(successMsg);
+                      setTimeout(() => setError(null), 3000);
+                      
+                      // Clear file input
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    } catch (err: any) {
+                      console.error('File upload error:', err);
+                      setError(err.message || 'Failed to upload file. Please try again.');
+                    } finally {
+                      setUploadingFile(false);
+                    }
+                  }}
+                />
+
+                <button
+                  type="button"
+                  className="lc-upload-plus"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!plan) {
+                      setShowPlanSelector(true);
+                      setError("Please select a plan to upload files");
+                      return;
+                    }
+                    if (uploadingFile || loading) {
+                      return;
+                    }
+                    // Try ref first, then fallback to DOM query
+                    let input = fileInputRef.current;
+                    if (!input) {
+                      // Fallback: try to find the input element by ID
+                      input = document.getElementById('lc-file-upload-input') as HTMLInputElement;
+                    }
+                    if (!input) {
+                      // Last resort: find any file input
+                      input = document.querySelector('input[type="file"]') as HTMLInputElement;
+                    }
+                    if (input) {
+                      input.click();
+                    } else {
+                      console.error('File input not found');
+                      setError("File upload not available. Please refresh the page.");
+                    }
+                  }}
+                  disabled={!plan || uploadingFile || loading}
+                  title="Upload files"
+                  aria-label="Upload files"
+                >
+                  {uploadingFile ? (
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-loading-spinner">
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="9.42" strokeDashoffset="9.42">
+                        <animate attributeName="stroke-dasharray" values="0 25.13;12.57 12.57;0 25.13" dur="1.5s" repeatCount="indefinite"/>
+                        <animate attributeName="stroke-dashoffset" values="0;-12.57;-25.13" dur="1.5s" repeatCount="indefinite"/>
+                      </circle>
+                    </svg>
+                  ) : (
+                    <FiPlus />
+                  )}
+                </button>
+              </div>
               <textarea
                 ref={textareaRef}
                 className="lc-textarea"

@@ -2481,6 +2481,21 @@ code,
   vertical-align: bottom;
 }
 
+/* Mobile adjustments for composer row */
+@media (max-width: 768px) {
+  .lc-composer-row {
+    padding: 0 16px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lc-composer-row {
+    padding: 0 12px;
+    gap: 6px;
+  }
+}
+
 /* On larger screens, maintain readable width */
 @media (min-width: 1200px) {
   .lc-composer-row {
@@ -2544,6 +2559,20 @@ code,
   min-width: 0;
   /* Ensure proper alignment */
   vertical-align: bottom;
+  pointer-events: auto;
+}
+
+.lc-textarea-wrapper .lc-upload-wrapper {
+  position: absolute;
+  left: 8px;
+  bottom: 50%;
+  transform: translateY(50%);
+  z-index: 10;
+  margin: 0;
+  display: flex !important; /* Always visible */
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 /* =========================================
@@ -2553,26 +2582,25 @@ code,
 .lc-upload-wrapper {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  justify-content: center;
 }
 
 .lc-upload-plus {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border: 1px solid var(--border-light);
-  background: var(--panel);
+  border: none;
+  background: transparent;
   color: var(--text);
 
   cursor: pointer;
+  pointer-events: auto !important;
   transition: background 0.2s ease,
-              border-color 0.2s ease,
-              box-shadow 0.2s ease,
               transform 0.1s ease,
               color 0.2s ease;
 }
@@ -2602,9 +2630,7 @@ code,
 }
 
 .lc-upload-plus:hover:not(:disabled) {
-  background: var(--beige-soft);
-  border-color: var(--border-medium);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--accent);
 }
 
@@ -2615,6 +2641,118 @@ code,
 .lc-upload-plus:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  pointer-events: none;
+}
+
+.lc-upload-plus:not(:disabled) {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* =========================================
+   RESPONSIVE UPLOAD BUTTON
+========================================= */
+
+/* Mobile devices (≤768px) */
+@media (max-width: 768px) {
+  .lc-textarea-wrapper .lc-upload-wrapper {
+    left: 8px;
+    display: flex !important; /* Ensure it's visible on mobile */
+  }
+
+  .lc-upload-plus {
+    width: 40px !important;
+    height: 40px !important;
+    /* Ensure minimum touch target size for mobile accessibility */
+    min-width: 40px !important;
+    min-height: 40px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+  }
+
+  .lc-upload-plus svg {
+    width: 22px !important;
+    height: 22px !important;
+    display: block !important;
+  }
+
+  .lc-textarea {
+    padding: 12px 48px 12px 56px !important; /* Adjust padding for mobile - ensure space for button */
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* Small mobile devices (≤480px) */
+@media (max-width: 480px) {
+  .lc-textarea-wrapper .lc-upload-wrapper {
+    left: 6px;
+    display: flex !important; /* Ensure it's visible on small mobile */
+  }
+
+  .lc-upload-plus {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+  }
+
+  .lc-upload-plus svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+  }
+
+  .lc-textarea {
+    padding: 10px 44px 10px 52px !important; /* Tighter padding but ensure space for button */
+    min-height: 40px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* Tablet devices (769px - 1023px) */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .lc-textarea-wrapper .lc-upload-wrapper {
+    left: 10px;
+  }
+
+  .lc-upload-plus {
+    width: 34px;
+    height: 34px;
+  }
+
+  .lc-upload-plus svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+/* Large desktop (≥1400px) */
+@media (min-width: 1400px) {
+  .lc-textarea-wrapper .lc-upload-wrapper {
+    left: 12px;
+  }
+
+  .lc-upload-plus {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lc-upload-plus svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Touch devices - ensure proper hover states */
+@media (hover: none) and (pointer: coarse) {
+  .lc-upload-plus:active:not(:disabled) {
+    background: rgba(0, 0, 0, 0.1);
+    transform: scale(0.95);
+  }
 }
 
 .lc-textarea {
@@ -2622,7 +2760,7 @@ code,
   resize: none;
   min-height: 44px;
   max-height: 200px;
-  padding: 12px 52px 12px 16px;
+  padding: 12px 52px 12px 56px;
   border-radius: 24px;
   border: 1px solid var(--border-light);
   background: var(--white);
