@@ -812,11 +812,11 @@ select {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 8px;
-  transition: background 0.2s;
-  position: relative; /* Required for dropdown positioning */
-  font-weight: var(--fw-semibold);
+
+  /* ❌ remove pill styling */
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .lc-logo-text {
@@ -824,15 +824,17 @@ select {
   object-fit: contain;
   display: block;
   cursor: pointer;
-  padding: 0.375rem 0.75rem; /* 6px 12px */
-  border-radius: 0.5rem; /* 8px */
+  /* ❌ remove background spacing */
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   transition: background 0.2s;
   position: relative;
   font-weight: var(--fw-semibold);
 }
 
 .lc-topbar-model:hover {
-  background: var(--beige-soft);
+  background: transparent;
 }
 
 .lc-model-dropdown {
@@ -893,6 +895,13 @@ select {
   height: 16px;
   color: var(--muted);
   flex-shrink: 0;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.lc-topbar-model:hover .lc-dropdown-icon {
+  background: var(--beige-soft);
 }
 
 .lc-topbar-title {
@@ -4399,8 +4408,19 @@ code,
     display: none; /* Hide title on very small screens */
   }
   
-  .lc-topbar-actions {
+  .lc-topbar-left {
     flex: 1;
+    min-width: 0;
+  }
+  
+  .lc-topbar-model {
+    max-width: calc(100% - 60px);
+    flex-shrink: 1;
+  }
+  
+  .lc-topbar-actions {
+    flex-shrink: 0;
+    margin-left: 8px;
     justify-content: flex-end;
   }
   
@@ -5059,12 +5079,16 @@ code,
   
   .lc-topbar-left {
     gap: 8px;
+    flex: 1;
+    min-width: 0; /* Allow shrinking */
   }
   
   .lc-topbar-model {
     font-size: 13px;
     padding: 8px 10px;
     min-height: 40px;
+    max-width: calc(100% - 60px); /* Prevent overlap with actions */
+    flex-shrink: 1;
   }
   
   .lc-logo-text {
@@ -5087,6 +5111,8 @@ code,
   
   .lc-topbar-actions {
     gap: 4px;
+    flex-shrink: 0; /* Prevent actions from shrinking */
+    margin-left: 8px; /* Add spacing from model button */
   }
   
   .lc-topbar-action-btn {

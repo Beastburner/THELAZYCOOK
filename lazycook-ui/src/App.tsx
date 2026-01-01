@@ -3137,13 +3137,6 @@ export default function App() {
           >
             <FiX aria-hidden="true" />
           </button>
-          <button
-            className="lc-sidebar-close"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            ←
-          </button>
         </div>
 
         {/* Navigation Buttons */}
