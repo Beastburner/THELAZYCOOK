@@ -6,9 +6,11 @@ import logging
 from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
+import tempfile
+from pathlib import Path
 
 import auth
 from plans import FUNCTIONS, allowed_function_for_plan, normalize_requested_function
@@ -311,3 +313,79 @@ def ai_run_legacy(
     x_user_plan: Optional[str] = Header(default=None, alias="X-User-Plan"),
 ) -> Any:
     return _ai_run_handler(payload, user, x_user_id, x_user_plan)
+
+
+@app.post("/upload-file")
+async def upload_file(
+    file: UploadFile = File(...),
+    user: Dict[str, Any] = Depends(auth.get_current_user),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-ID"),
+    x_user_plan: Optional[str] = Header(default=None, alias="X-User-Plan"),
+) -> Dict[str, Any]:
+    """
+    Upload a file and process it for AI context.
+    Supports: programming languages (.py, .js, .ts, .java, .cpp, .go, .rs, etc.), 
+    CSV, PDF, TXT, JSON, and other text files.
+    """
+    try:
+        user_id = (x_user_id or user["user_id"]).strip() or user["user_id"]
+        user_plan = (x_user_plan or user.get("plan") or "GO").upper().strip()
+        
+        # Determine which AI module to use based on plan
+        expected_model = allowed_function_for_plan(user_plan)
+        model_to_module = {
+            "gemini": "lazycook6",
+            "grok": "lazycook7_grok",
+            "mixed": "lazycook_grok_gemini_2"
+        }
+        module_name = model_to_module.get(expected_model, "lazycook6")
+        
+        # Import the appropriate module
+        try:
+            ai_module = importlib.import_module(module_name)
+        except ModuleNotFoundError as e:
+            raise HTTPException(status_code=500, detail=f"AI module import failed: {e}") from e
+        
+        # Import TextFileManager for proper file processing (handles PDF, text, etc.)
+        from lazycook7_grok import TextFileManager
+        file_manager = TextFileManager(document_limit=2)
+        
+        # Save uploaded file to temporary location
+        file_extension = Path(file.filename).suffix if file.filename else ""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Process the file using the file manager (handles PDF, text files, etc.)
+            document = file_manager.process_uploaded_file(tmp_path, user_id)
+            
+            if document is None:
+                raise HTTPException(status_code=400, detail="Failed to process file")
+            
+            # Clean up temp file
+            Path(tmp_path).unlink(missing_ok=True)
+            
+            return {
+                "success": True,
+                "document": {
+                    "id": document.id,
+                    "filename": document.filename,
+                    "file_type": document.file_type,
+                    "file_size": document.file_size,
+                    "upload_time": document.upload_time.isoformat(),
+                },
+                "message": f"File '{document.filename}' uploaded and processed successfully"
+            }
+        except Exception as e:
+            # Clean up temp file on error
+            Path(tmp_path).unlink(missing_ok=True)
+            logger.error(f"Error processing uploaded file: {e}")
+            raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}") from e
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading file: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}") from e

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { FiFileText, FiX } from 'react-icons/fi';
 
 type HighlightColor = "yellow" | "blue" | "green" | "pink" | "purple";
 
@@ -102,23 +103,7 @@ export default function HighlightToolbar({ position, onColorSelect, onClose, onR
           aria-label="Add note"
           title="Add note to highlight"
         >
-          <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Stack of notes (background layer) */}
-            <rect x="2.5" y="3.5" width="10" height="10" rx="0.5" fill="#FFD700" opacity="0.5" stroke="currentColor" strokeWidth="0.8"/>
-            {/* Main sticky note */}
-            <rect x="2" y="2.5" width="10" height="10" rx="0.5" fill="#FFEB3B" stroke="currentColor" strokeWidth="1"/>
-            {/* Curled corner effect */}
-            <path d="M11.5 12L12.5 13L11.5 13Z" fill="#FFC107"/>
-            <path d="M12 12L13 13L12.5 13Z" fill="#FFC107"/>
-            {/* Three horizontal lines (text lines) */}
-            <line x1="4" y1="5.5" x2="10.5" y2="5.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="4" y1="7.5" x2="10.5" y2="7.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="4" y1="9.5" x2="10.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            {/* Pink thumbtack */}
-            <circle cx="8" cy="4" r="1.2" fill="#FF4081" stroke="currentColor" strokeWidth="0.3"/>
-            <circle cx="7.7" cy="3.7" r="0.3" fill="#FFB3D9" opacity="0.8"/>
-            <line x1="8" y1="5.2" x2="8.4" y2="6" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-          </svg>
+          <FiFileText size={20} aria-hidden="true" />
         </button>
       )}
       {showRemove && onRemove && (
@@ -131,9 +116,7 @@ export default function HighlightToolbar({ position, onColorSelect, onClose, onR
           aria-label="Remove highlight"
           title="Remove highlight"
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <FiX size={14} aria-hidden="true" />
         </button>
       )}
     </div>

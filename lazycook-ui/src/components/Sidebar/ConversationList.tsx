@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiPlus } from 'react-icons/fi';
 import { useConversations } from '../../context/ConversationsContext';
 
 interface ConversationListProps {
@@ -23,9 +24,7 @@ export default function ConversationList({ onNewConversation, onSelectConversati
           className="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label="New conversation"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <FiPlus className="w-5 h-5" aria-hidden="true" />
           New Conversation
         </button>
       </div>

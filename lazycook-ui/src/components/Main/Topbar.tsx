@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiMoreVertical } from 'react-icons/fi';
 import { useConversations } from '../../context/ConversationsContext';
 
 interface TopbarProps {
@@ -76,9 +77,7 @@ export default function Topbar({ onRename, onDelete, onExport }: TopbarProps) {
             aria-label="Conversation menu"
             aria-expanded={isMenuOpen}
           >
-            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
+            <FiMoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
 
           {isMenuOpen && (

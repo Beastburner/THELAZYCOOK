@@ -2539,10 +2539,82 @@ code,
   position: relative;
   display: flex;
   align-items: flex-end;
+  gap: 8px;
   /* Ensure only this middle area grows */
   min-width: 0;
   /* Ensure proper alignment */
   vertical-align: bottom;
+}
+
+/* =========================================
+   PLUS UPLOAD BUTTON (ChatGPT style)
+========================================= */
+
+.lc-upload-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.lc-upload-plus {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-light);
+  background: var(--panel);
+  color: var(--text);
+
+  cursor: pointer;
+  transition: background 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease,
+              transform 0.1s ease,
+              color 0.2s ease;
+}
+
+/* React Icons sizing - ensure consistent sizing via CSS */
+.lc-upload-plus svg,
+.lc-msg-action-btn svg,
+.lc-nav-btn svg,
+.lc-chat-action-icon,
+.lc-user-menu-item svg,
+.lc-sidebar-toggle svg,
+.lc-scroll-to-bottom svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.lc-upload-plus svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.lc-scroll-to-bottom svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lc-upload-plus:hover:not(:disabled) {
+  background: var(--beige-soft);
+  border-color: var(--border-medium);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  color: var(--accent);
+}
+
+.lc-upload-plus:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.lc-upload-plus:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .lc-textarea {

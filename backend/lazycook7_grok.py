@@ -697,6 +697,10 @@ class TextFileManager:
             if file_type.startswith('text/'):
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
+            elif file_type == 'application/json':
+                # JSON files are application/json, not text/*
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
             elif file_type == 'application/pdf':
                 try:
                     reader = PdfReader(file_path)

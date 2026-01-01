@@ -6,7 +6,28 @@ import HighlightNoteEditor from "./components/HighlightNoteEditor";
 import AskChatGPTButton from "./components/AskChatGPTButton";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { FiArrowRight, FiTrash2, FiEdit2 } from "react-icons/fi";
+import { 
+  FiArrowRight, 
+  FiTrash2, 
+  FiEdit2, 
+  FiPlus, 
+  FiThumbsUp, 
+  FiThumbsDown, 
+  FiCopy, 
+  FiRefreshCw, 
+  FiMoreVertical,
+  FiSearch,
+  FiImage,
+  FiHelpCircle,
+  FiUser,
+  FiShare2,
+  FiDownload,
+  FiChevronDown,
+  FiX,
+  FiStar,
+  FiClock,
+  FiSettings
+} from "react-icons/fi";
 import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
 import logoTextImg from "./assets/logo-text.png";
@@ -1231,11 +1252,7 @@ function MessageItem({
               aria-label="Copy message"
               title="Copy"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <FiCopy aria-hidden="true" />
             </button>
             <button
               className={`lc-msg-action-btn ${liked ? 'is-active' : ''}`}
@@ -1243,10 +1260,7 @@ function MessageItem({
               aria-label="Thumbs up"
               title="Good response"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2.5 7.5H4.5V13.5H2.5C2.22386 13.5 2 13.2761 2 13V8C2 7.72386 2.22386 7.5 2.5 7.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M4.5 7.5V6.5C4.5 5.67157 5.17157 5 6 5H7.5C7.77614 5 8 5.22386 8 5.5V6.5L6.5 10.5H11.5C12.3284 10.5 13 9.82843 13 9V8.5C13 8.22386 12.7761 8 12.5 8H9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <FiThumbsUp aria-hidden="true" />
             </button>
             <button
               className="lc-msg-action-btn"
@@ -1254,10 +1268,7 @@ function MessageItem({
               aria-label="Thumbs down"
               title="Bad response"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13.5 8.5H11.5V2.5H13.5C13.7761 2.5 14 2.72386 14 3V8C14 8.27614 13.7761 8.5 13.5 8.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M11.5 8.5V9.5C11.5 10.3284 10.8284 11 10 11H8.5C8.22386 11 8 10.7761 8 10.5V9.5L9.5 5.5H4.5C3.67157 5.5 3 6.17157 3 7V7.5C3 7.77614 3.22386 8 3.5 8H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <FiThumbsDown aria-hidden="true" />
             </button>
             <button
               className="lc-msg-action-btn"
@@ -1265,12 +1276,7 @@ function MessageItem({
               aria-label="Share"
               title="Share"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11 8C11.8284 8 12.5 7.32843 12.5 6.5C12.5 5.67157 11.8284 5 11 5C10.1716 5 9.5 5.67157 9.5 6.5C9.5 7.32843 10.1716 8 11 8Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M5 11C5.82843 11 6.5 10.3284 6.5 9.5C6.5 8.67157 5.82843 8 5 8C4.17157 8 3.5 8.67157 3.5 9.5C3.5 10.3284 4.17157 11 5 11Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M11 3L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M11 8L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <FiShare2 aria-hidden="true" />
             </button>
             <button
               className="lc-msg-action-btn"
@@ -1278,12 +1284,7 @@ function MessageItem({
               aria-label="Regenerate"
               title="Regenerate response"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1.5 8C1.5 11.5899 4.41015 14.5 8 14.5C9.61061 14.5 11.0899 13.9528 12.2803 13.0196" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C6.38939 1.5 4.91015 2.04724 3.71967 2.98039" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M5.5 11.5L1.5 8L5.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10.5 4.5L14.5 8L10.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <FiRefreshCw aria-hidden="true" />
             </button>
             <button
               className="lc-msg-action-btn"
@@ -1291,11 +1292,7 @@ function MessageItem({
               aria-label="More options"
               title="More"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="8" cy="4" r="1" fill="currentColor"/>
-                <circle cx="8" cy="8" r="1" fill="currentColor"/>
-                <circle cx="8" cy="12" r="1" fill="currentColor"/>
-              </svg>
+              <FiMoreVertical aria-hidden="true" />
             </button>
           </div>
         )}
@@ -1341,6 +1338,8 @@ export default function App() {
   const [prompt, setPrompt] = useState("");
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Highlight feature toggle (default: enabled)
   const [highlightEnabled, setHighlightEnabled] = useState<boolean>(() => {
@@ -3115,9 +3114,7 @@ export default function App() {
             onClick={() => setSidebarOpen((v) => !v)} 
             aria-label="Toggle sidebar"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 8H12M8 4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <FiX aria-hidden="true" />
           </button>
           <button
             className="lc-sidebar-close"
@@ -3131,9 +3128,7 @@ export default function App() {
         {/* Navigation Buttons */}
         <div className="lc-sidebar-nav">
           <button className="lc-nav-btn" onClick={newChat}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <FiPlus aria-hidden="true" />
             <span>New chat</span>
           </button>
           <button 
@@ -3143,17 +3138,11 @@ export default function App() {
               searchInput?.focus();
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M10 10L13 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <FiSearch aria-hidden="true" />
             <span>Search chats</span>
           </button>
           <button className="lc-nav-btn" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M6 8L7 9L10 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <FiImage aria-hidden="true" />
             <span>Images</span>
             <span className="lc-badge" style={{ background: 'var(--muted)', color: 'var(--white)' }}>Coming Soon</span>
           </button>
@@ -3166,15 +3155,7 @@ export default function App() {
               }
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="2.5" width="10" height="10" rx="0.5" fill="#FFEB3B" stroke="currentColor" strokeWidth="1"/>
-              <path d="M11.5 12L12.5 13L11.5 13Z" fill="#FFC107"/>
-              <path d="M12 12L13 13L12.5 13Z" fill="#FFC107"/>
-              <line x1="4" y1="5.5" x2="10.5" y2="5.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-              <line x1="4" y1="7.5" x2="10.5" y2="7.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-              <line x1="4" y1="9.5" x2="10.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-              <circle cx="8" cy="4" r="1.2" fill="#FF4081" stroke="currentColor" strokeWidth="0.3"/>
-            </svg>
+            <FiHelpCircle aria-hidden="true" />
             <span>Highlights & Notes</span>
           </button>
           <button 
@@ -3183,10 +3164,7 @@ export default function App() {
               setShowUserMenu(!showUserMenu);
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M3 14C3 11.5 5.2 9.5 8 9.5C10.8 9.5 13 11.5 13 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <FiUser aria-hidden="true" />
             <span>Profile</span>
           </button>
         </div>
@@ -3625,11 +3603,7 @@ export default function App() {
                     aria-label="Download chat as PDF"
                     title="Download as PDF"
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-chat-action-icon">
-                      <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <FiDownload aria-hidden="true" className="lc-chat-action-icon" />
                     <span>Download PDF</span>
                   </button>
                 </div>
@@ -3650,15 +3624,99 @@ export default function App() {
             aria-label="Scroll to bottom"
             tabIndex={showScrollToBottom ? 0 : -1}
           >
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <FiChevronDown aria-hidden="true" />
           </button>
         </section>
 
         <footer className="lc-composer">
           {error && <div className="lc-error lc-error-inline">{error}</div>}
           <div className="lc-composer-row">
+            {/* Upload files */}
+            <div className="lc-upload-wrapper">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".py,.js,.ts,.jsx,.tsx,.java,.c,.cpp,.h,.hpp,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.bash,.ps1,.bat,.cmd,.html,.css,.xml,.json,.yaml,.yml,.txt,.md,.markdown,.csv,.pdf,.log,.ini,.conf,.config,.sql,.r,.m,.lua,.pl,.dart,.elm,.hs,.ml,.fs,.vb,.tex,.make,.cmake,.properties,.env"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  if (!plan) {
+                    setShowPlanSelector(true);
+                    setError("Please select a plan to upload files");
+                    return;
+                  }
+                  
+                  setUploadingFile(true);
+                  setError(null);
+                  
+                  try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const token = await getIdToken();
+                    const headers: HeadersInit = {
+                      'X-User-ID': firebaseUser?.uid || '',
+                      'X-User-Plan': plan || 'GO',
+                    };
+                    
+                    if (token) {
+                      headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    
+                    const response = await fetch(`${API_BASE}/upload-file`, {
+                      method: 'POST',
+                      headers,
+                      body: formData,
+                    });
+                    
+                    if (!response.ok) {
+                      const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
+                      throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    setError(null);
+                    // Show success message briefly
+                    const successMsg = result.message || `File '${file.name}' uploaded successfully`;
+                    setError(successMsg);
+                    setTimeout(() => setError(null), 3000);
+                    
+                    // Clear file input
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  } catch (err: any) {
+                    console.error('File upload error:', err);
+                    setError(err.message || 'Failed to upload file. Please try again.');
+                  } finally {
+                    setUploadingFile(false);
+                  }
+                }}
+              />
+
+              <button
+                type="button"
+                className="lc-upload-plus"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!plan || uploadingFile || loading}
+                title="Upload files"
+                aria-label="Upload files"
+              >
+                {uploadingFile ? (
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-loading-spinner">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="9.42" strokeDashoffset="9.42">
+                      <animate attributeName="stroke-dasharray" values="0 25.13;12.57 12.57;0 25.13" dur="1.5s" repeatCount="indefinite"/>
+                      <animate attributeName="stroke-dashoffset" values="0;-12.57;-25.13" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                  </svg>
+                ) : (
+                  <FiPlus />
+                )}
+              </button>
+            </div>
             <div className="lc-textarea-wrapper">
               <textarea
                 ref={textareaRef}

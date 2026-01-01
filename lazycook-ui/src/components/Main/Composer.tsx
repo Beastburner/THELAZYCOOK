@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
+import { FiSend, FiMic } from 'react-icons/fi';
 
 interface ComposerProps {
   onSend: (message: string) => void;
@@ -90,9 +91,7 @@ export default function Composer({ onSend, disabled = false, placeholder = "Ask 
               className="absolute right-2 bottom-2 p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="Send message"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
+              <FiSend className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           {/* Microphone placeholder */}
@@ -102,9 +101,7 @@ export default function Composer({ onSend, disabled = false, placeholder = "Ask 
             disabled
             title="Voice input (coming soon)"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
+            <FiMic className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
         <div className="max-w-6xl mx-auto mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
