@@ -1403,6 +1403,8 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showTopbarMenu, setShowTopbarMenu] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLink, setShareLink] = useState("");
   const [prompt, setPrompt] = useState("");
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -2788,6 +2790,42 @@ export default function App() {
     }
   };
 
+  const handleShareChat = async () => {
+    if (!activeChatId || !activeChat) {
+      setError("No chat to share");
+      return;
+    }
+
+    try {
+      // Generate shareable link using the chat ID
+      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${activeChatId}`;
+      setShareLink(shareUrl);
+      setShowShareModal(true);
+      
+      // Try Web Share API first if available
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: activeChat.title || "Shared Chat",
+            text: `Check out this chat: ${activeChat.title}`,
+            url: shareUrl,
+          });
+          setShowShareModal(false);
+          return;
+        } catch (shareError: any) {
+          // User cancelled or share failed, continue with modal
+          if (shareError.name !== 'AbortError') {
+            console.log("Share API failed, showing modal");
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Share failed:", err);
+      setError("Failed to share chat. Please try again.");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
   const downloadChatAsPDF = async () => {
     if (!activeChat) {
       alert('No active chat to download.');
@@ -3551,7 +3589,11 @@ export default function App() {
 
           <div className="lc-topbar-actions">
             {/* Desktop: Direct buttons (≥1024px) */}
-            <button className="lc-topbar-action-btn lc-topbar-action-direct" aria-label="Share">
+            <button 
+              className="lc-topbar-action-btn lc-topbar-action-direct" 
+              aria-label="Share"
+              onClick={handleShareChat}
+            >
               <FiShare2 aria-hidden="true" />
               <span>Share</span>
             </button>
@@ -3597,7 +3639,7 @@ export default function App() {
                     aria-label="Share"
                     onClick={() => {
                       setShowTopbarMenu(false);
-                      // Add Share functionality here if needed
+                      handleShareChat();
                     }}
                   >
                     <FiShare2 aria-hidden="true" />
@@ -4023,6 +4065,54 @@ export default function App() {
               >
                 Got it!
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="lc-share-modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="lc-share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="lc-share-modal-header">
+              <h2>Share Chat</h2>
+              <button 
+                className="lc-share-modal-close"
+                onClick={() => setShowShareModal(false)}
+                aria-label="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+            <div className="lc-share-modal-content">
+              <p>Copy this link to share:</p>
+              <div className="lc-share-link-container">
+                <input 
+                  type="text" 
+                  value={shareLink} 
+                  readOnly 
+                  className="lc-share-link-input"
+                  onClick={(e) => e.currentTarget.select()}
+                />
+                <button
+                  className="lc-share-copy-btn"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(shareLink);
+                      setError("Link copied to clipboard!");
+                      setTimeout(() => setError(null), 2000);
+                    } catch (err) {
+                      console.error("Copy failed:", err);
+                      setError("Failed to copy link");
+                      setTimeout(() => setError(null), 2000);
+                    }
+                  }}
+                  title="Copy link"
+                  aria-label="Copy link"
+                >
+                  <FiCopy />
+                </button>
+              </div>
             </div>
           </div>
         </div>

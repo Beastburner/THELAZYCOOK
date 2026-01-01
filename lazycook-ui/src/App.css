@@ -4614,7 +4614,150 @@ code,
   transform: translateY(0);
 }
 
+/* Share Modal */
+.lc-share-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+  padding: 20px;
+}
+
+.lc-share-modal {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  animation: slideUp 0.3s ease-out;
+}
+
+.lc-share-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.lc-share-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.lc-share-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+  width: 32px;
+  height: 32px;
+}
+
+.lc-share-modal-close:hover {
+  background: var(--beige-soft);
+  color: var(--text);
+}
+
+.lc-share-modal-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lc-share-modal-content {
+  padding: 24px;
+}
+
+.lc-share-modal-content p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.lc-share-link-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.lc-share-link-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  background: var(--white);
+  color: var(--text);
+  outline: none;
+}
+
+.lc-share-link-input:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px var(--red-subtle);
+}
+
+.lc-share-copy-btn {
+  padding: 10px 16px;
+  background: var(--red);
+  color: var(--white);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.lc-share-copy-btn:hover {
+  background: var(--red-hover);
+}
+
+.lc-share-copy-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-width: 768px) {
+  .lc-share-modal {
+    max-width: 100%;
+    margin: 10px;
+  }
+
+  .lc-share-modal-header {
+    padding: 16px 20px;
+  }
+
+  .lc-share-modal-content {
+    padding: 20px;
+  }
+
+  .lc-share-link-container {
+    flex-direction: column;
+  }
+
+  .lc-share-copy-btn {
+    width: 100%;
+  }
+
   .lc-help-modal {
     max-width: 100%;
     margin: 10px;
