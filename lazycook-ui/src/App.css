@@ -820,10 +820,46 @@ select {
   gap: 0.5rem;
   cursor: pointer;
 
-  /* ❌ remove pill styling */
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
+  /* ❌ remove pill styling - force remove all padding/background */
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  line-height: 1 !important;
+}
+
+/* Force override any inherited or computed styles with maximum specificity */
+div.lc-topbar-model,
+.lc-topbar-left .lc-topbar-model,
+.lc-topbar-left div.lc-topbar-model,
+div.lc-topbar-left div.lc-topbar-model,
+.lc-topbar div.lc-topbar-left div.lc-topbar-model {
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Also target any child elements that might have padding/background */
+.lc-topbar-model .lc-model-version,
+.lc-topbar-model .lc-dropdown-icon,
+div.lc-topbar-model .lc-model-version,
+div.lc-topbar-model .lc-dropdown-icon {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .lc-logo-text {
@@ -880,7 +916,12 @@ select {
 
   /* Make Gemini smaller */
   .lc-topbar-left .lc-topbar-model {
-    padding: 0.375rem 0.625rem; /* 6px 10px */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   .lc-topbar-left .lc-topbar-model .lc-model-version {
@@ -891,6 +932,9 @@ select {
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
     width: 0.875rem;
     height: 0.875rem;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
 }
 
@@ -958,11 +1002,12 @@ select {
     display: flex !important;
     align-items: center !important;
     gap: 0.375rem !important;
-    padding: 0.25rem 0.5rem !important; /* 4px 8px */
+    padding: 0 !important;
+    margin: 0 !important;
     font-size: 0.6875rem !important;
-    border-radius: 999px !important;
-    background: var(--beige-soft) !important;
-    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
     font-weight: 500 !important;
     color: var(--text) !important;
     cursor: pointer !important;
@@ -970,19 +1015,34 @@ select {
     flex-shrink: 0 !important;
     visibility: visible !important;
     opacity: 1 !important;
-    box-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.05) !important;
+    box-shadow: none !important;
+    outline: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    line-height: 1 !important;
   }
-
+  
   .lc-topbar-left .lc-topbar-model .lc-model-version {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
     font-size: 0.6875rem !important; /* 11px - noticeably smaller */
     white-space: nowrap !important;
     font-weight: 500 !important;
   }
 
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
-    width: 0.75rem !important; /* 12px */
-    height: 0.75rem !important; /* 12px */
+    width: 1.125rem !important; /* 18px - bigger */
+    height: 1.125rem !important; /* 18px - bigger */
     flex-shrink: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
 
   /* Right section: 3 Dots (Green area) */
@@ -1001,14 +1061,16 @@ select {
   .lc-model-mobile {
     display: inline-flex !important;
     align-items: center !important;
-    padding: 0.3125rem 0.5rem !important;
+    padding: 0 !important;
+    margin: 0 !important;
     font-size: 0.6875rem !important;
-    border-radius: 999px !important;
-    background: var(--beige-soft) !important;
-    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
     font-weight: 500 !important;
     color: var(--text) !important;
     white-space: nowrap !important;
+    box-shadow: none !important;
   }
 
   .lc-topbar-menu-btn {
@@ -1055,31 +1117,61 @@ select {
     opacity: 1 !important;
   }
 
-  .lc-topbar-left .lc-topbar-model {
+  .lc-topbar-left .lc-topbar-model,
+  div.lc-topbar-left div.lc-topbar-model,
+  .lc-topbar div.lc-topbar-left div.lc-topbar-model {
     display: flex !important;
     align-items: stretch !important;
     gap: 0.25rem !important;
-    padding: 0.3125rem 0.5rem !important;
+    padding: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    margin: 0 !important;
     font-size: 0.6875rem !important;
-    border-radius: 999px !important;
-    background: var(--beige-soft) !important;
-    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
     font-weight: 500 !important;
     color: var(--text) !important;
     cursor: pointer !important;
     justify-content: space-evenly !important;
     flex-wrap: nowrap !important;
     flex-direction: row-reverse !important;
+    box-shadow: none !important;
+    outline: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    line-height: 1 !important;
   }
-
-  .lc-topbar-left .lc-topbar-model .lc-model-version {
+  
+  .lc-topbar-left .lc-topbar-model .lc-model-version,
+  div.lc-topbar-left div.lc-topbar-model .lc-model-version {
+    padding: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
     font-size: 0.6875rem !important;
     font-weight: 500 !important;
   }
 
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
-    width: 0.625rem !important;
-    height: 0.625rem !important;
+    width: 1.125rem !important; /* 18px - bigger */
+    height: 1.125rem !important; /* 18px - bigger */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
 
   .lc-topbar-menu-btn {
@@ -1123,10 +1215,30 @@ select {
   }
 
   .lc-topbar-left .lc-topbar-model {
-    padding: 0.3125rem 0.5rem !important;
+    padding: 0 !important;
+    margin: 0 !important;
     font-size: 0.625rem !important;
     gap: 0.25rem !important;
     font-weight: 500 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    line-height: 1 !important;
+  }
+  
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
   }
 
   .lc-topbar-left .lc-topbar-model .lc-model-version {
@@ -1135,8 +1247,11 @@ select {
   }
 
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
-    width: 0.625rem !important;
-    height: 0.625rem !important;
+    width: 1rem !important; /* 16px - bigger */
+    height: 1rem !important; /* 16px - bigger */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
 
   .lc-topbar-menu-btn {
@@ -1203,6 +1318,14 @@ select {
   font-size: 14px;
   font-weight: 500;
   color: var(--text);
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  line-height: 1 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
 }
 
 .lc-dropdown-icon {
@@ -1210,13 +1333,14 @@ select {
   height: 16px;
   color: var(--muted);
   flex-shrink: 0;
-  padding: 4px;
-  border-radius: 6px;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
   transition: background 0.2s;
 }
 
 .lc-topbar-model:hover .lc-dropdown-icon {
-  background: var(--beige-soft);
+  background: transparent;
 }
 
 .lc-topbar-title {
@@ -5423,28 +5547,58 @@ code,
   }
   
   /* Model - Red area (secondary to logo) */
-  .lc-topbar-left .lc-topbar-model {
+  .lc-topbar-left .lc-topbar-model,
+  div.lc-topbar-left div.lc-topbar-model,
+  .lc-topbar div.lc-topbar-left div.lc-topbar-model {
     display: flex !important;
     align-items: center !important;
     gap: 0.25rem !important; /* 4px */
-    padding: 0.25rem 0.5rem !important; /* 4px 8px */
+    padding: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    margin: 0 !important;
     font-size: 0.6875rem !important; /* 11px - smaller than logo */
-    border-radius: 999px !important;
-    background: var(--beige-soft) !important;
-    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
     font-weight: 500 !important;
     color: var(--text) !important;
     cursor: pointer !important;
+    box-shadow: none !important;
+    outline: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    line-height: 1 !important;
   }
-
-  .lc-topbar-left .lc-topbar-model .lc-model-version {
+  
+  .lc-topbar-left .lc-topbar-model .lc-model-version,
+  div.lc-topbar-left div.lc-topbar-model .lc-model-version {
+    padding: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
     font-size: 0.6875rem !important; /* 11px - noticeably smaller */
-    font-weight: 500;
+    font-weight: 500 !important;
   }
 
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
-    width: 0.75rem !important; /* 12px */
-    height: 0.75rem !important; /* 12px */
+    width: 1.125rem !important; /* 18px - bigger */
+    height: 1.125rem !important; /* 18px - bigger */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
   
   /* Right section: 3 Dots (Green area) */
@@ -5462,14 +5616,17 @@ code,
   .lc-model-mobile {
     display: inline-flex !important;
     align-items: center !important;
-    padding: 5px 8px !important;
+    padding: 0 !important;
+    margin: 0 !important;
     font-size: 11px !important;
-    border-radius: 999px !important;
-    background: var(--beige-soft) !important;
-    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
     font-weight: 500 !important;
     color: var(--text) !important;
+    box-shadow: none !important;
   }
+  
   
   .lc-topbar-menu-btn {
     padding: 5px !important;
@@ -5875,33 +6032,7 @@ code,
   }
 }
 
-/* Very Small Mobile (up to 360px) */
-@media (max-width: 360px) {
-  .lc-sidebar {
-    max-width: 100%;
-  }
-  
-  .lc-plan-selector-header h2 {
-    font-size: 18px;
-  }
-  
-  .lc-plan-name {
-    font-size: 20px;
-  }
-  
-  .lc-plan-price {
-    font-size: 16px;
-  }
-  
-  .lc-topbar-title {
-    font-size: 11px;
-    max-width: 100px;
-  }
-  
-  .lc-empty-title {
-    font-size: 20px;
-  }
-}
+/* Very Small Mobile (up to 360px) - Consolidated into main 360px query above */
 
 /* Landscape Mobile (640px - 900px, landscape) */
 @media (max-width: 900px) and (orientation: landscape) {
@@ -6072,7 +6203,21 @@ code,
   
   /* Model pill should be secondary */
   .lc-topbar-left .lc-topbar-model {
-    padding: 0.25rem 0.5rem; /* 4px 8px */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  .lc-topbar-left .lc-topbar-model .lc-model-version {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
   
   .lc-topbar-left .lc-topbar-model .lc-model-version {
@@ -6081,8 +6226,11 @@ code,
   }
   
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
-    width: 0.75rem; /* 12px */
-    height: 0.75rem; /* 12px */
+    width: 1.125rem !important; /* 18px - bigger */
+    height: 1.125rem !important; /* 18px - bigger */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
   }
   
   .lc-model-selector-desktop {
@@ -6112,12 +6260,45 @@ code,
   .lc-model-mobile {
     display: block;
     font-size: 0.6875rem; /* 11px - secondary to logo */
-    padding: 0.25rem 0.5rem; /* 4px 8px */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
   
   /* Hide title on very small screens */
   .lc-topbar-title-mobile-hide {
     display: none;
+  }
+}
+
+/* Very Small Mobile (up to 360px) */
+@media (max-width: 360px) {
+  .lc-sidebar {
+    max-width: 100%;
+  }
+  
+  .lc-plan-selector-header h2 {
+    font-size: 18px;
+  }
+  
+  .lc-plan-name {
+    font-size: 20px;
+  }
+  
+  .lc-plan-price {
+    font-size: 16px;
+  }
+  
+  .lc-topbar-title {
+    font-size: 11px;
+    max-width: 100px;
+  }
+  
+  .lc-empty-title {
+    font-size: 20px;
   }
 }
 
@@ -6134,6 +6315,11 @@ code,
   
   .lc-model-mobile {
     font-size: 0.625rem; /* 10px */
-    padding: 0.25rem 0.625rem; /* 4px 10px */
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 }
