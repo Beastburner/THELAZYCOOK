@@ -904,7 +904,7 @@ function MessageItem({
   apiBase?: string;
   firebaseUser?: User | null;
   plan?: Plan | null;
-  getIdToken?: () => Promise<string>;
+  getIdToken?: () => Promise<string | null>;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
@@ -1670,6 +1670,30 @@ export default function App() {
 
   // Track local message updates to prevent Firestore from overwriting them
   const localMessageUpdates = useRef<Map<string, { messages: Message[], timestamp: number }>>(new Map());
+
+  // ---- Handle share parameter from URL ----
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareChatId = urlParams.get('share');
+    
+    if (shareChatId && chats.length > 0) {
+      // Check if the shared chat exists in the user's chats
+      const sharedChat = chats.find(c => c.id === shareChatId);
+      if (sharedChat) {
+        setActiveChatId(shareChatId);
+        // Clean up URL by removing the share parameter
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      } else {
+        // Chat not found - could show an error message
+        setError("Shared chat not found or you don't have access to it.");
+        setTimeout(() => setError(null), 5000);
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [chats]);
 
   // ---- Load chats from Firestore when user is authenticated ----
   useEffect(() => {
@@ -2798,7 +2822,10 @@ export default function App() {
 
     try {
       // Generate shareable link using the chat ID
-      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${activeChatId}`;
+      // Works on both localhost and Vercel deployments
+      const baseUrl = window.location.origin;
+      const path = window.location.pathname || '/';
+      const shareUrl = `${baseUrl}${path}?share=${activeChatId}`;
       setShareLink(shareUrl);
       setShowShareModal(true);
       
