@@ -20,6 +20,7 @@ import {
   FiImage,
   FiHelpCircle,
   FiUser,
+  FiUserPlus,
   FiShare2,
   FiDownload,
   FiChevronDown,
@@ -3461,16 +3462,11 @@ export default function App() {
           <div className="lc-topbar-actions">
             {/* Desktop: Direct buttons (≥1024px) */}
             <button className="lc-topbar-action-btn lc-topbar-action-direct" aria-label="Share">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 2V10M5 5L8 2L11 5M3 8H13M3 11H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <FiShare2 aria-hidden="true" />
               <span>Share</span>
             </button>
             <button className="lc-topbar-action-btn lc-topbar-action-direct" aria-label="Add people">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
+              <FiUserPlus aria-hidden="true" />
               <span>Add people</span>
             </button>
             
@@ -3481,11 +3477,7 @@ export default function App() {
                 aria-label="More options"
                 onClick={() => setShowTopbarMenu(!showTopbarMenu)}
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="8" cy="4" r="1" fill="currentColor"/>
-                  <circle cx="8" cy="8" r="1" fill="currentColor"/>
-                  <circle cx="8" cy="12" r="1" fill="currentColor"/>
-                </svg>
+                <FiMoreVertical aria-hidden="true" />
               </button>
               
               {/* Dropdown menu - visible on mobile, contains Share and Add people */}
@@ -3518,9 +3510,7 @@ export default function App() {
                       // Add Share functionality here if needed
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 2V10M5 5L8 2L11 5M3 8H13M3 11H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <FiShare2 aria-hidden="true" />
                     <span>Share</span>
                   </button>
                   <button 
@@ -3531,10 +3521,7 @@ export default function App() {
                       // Add Add people functionality here if needed
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
+                    <FiUserPlus aria-hidden="true" />
                     <span>Add people</span>
                   </button>
                   {activeChatId && (
@@ -3605,11 +3592,7 @@ export default function App() {
                     aria-label="Copy whole chat"
                     title={chatCopyStatus === 'copied' ? 'Copied!' : chatCopyStatus === 'error' ? 'Copy failed' : 'Copy chat'}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-chat-action-icon">
-                      <path d="M5.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V12.5C2 13.3284 2.67157 14 3.5 14H10C10.8284 14 11.5 13.3284 11.5 12.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2H12.5C13.3284 2 14 2.67157 14 3.5V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2C5.5 1.72386 5.72386 1.5 6 1.5H12.5C12.7761 1.5 13 1.72386 13 2V3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <FiCopy aria-hidden="true" className="lc-chat-action-icon" />
                     <span>{chatCopyStatus === 'copied' ? 'Copied' : chatCopyStatus === 'error' ? 'Failed' : 'Copy Chat'}</span>
                   </button>
                   <button

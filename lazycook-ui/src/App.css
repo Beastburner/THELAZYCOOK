@@ -308,8 +308,8 @@ select {
 }
 
 .lc-sidebar-logo-icon {
-  width: 28px;
-  height: 28px;
+  width: 50px;
+  height: 50px;
   object-fit: contain;
   display: block;
 }
@@ -3559,6 +3559,11 @@ code,
     transform: translateX(0);
   }
   
+  .lc-sidebar-logo-icon {
+    width: 50px !important;
+    height: 50px !important;
+  }
+  
   /* Sidebar overlay/backdrop */
   .lc-sidebar-overlay {
     display: block;
@@ -5491,6 +5496,11 @@ code,
   
   .lc-sidebar-header {
     padding: 0 12px;
+  }
+  
+  .lc-sidebar-logo-icon {
+    width: 50px !important;
+    height: 50px !important;
   }
   
   .lc-sidebar-close {
