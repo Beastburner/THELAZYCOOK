@@ -70,7 +70,7 @@ export default function Composer({ onSend, disabled = false, placeholder = "Ask 
 
       {/* Input Area */}
       <div className="px-4 py-4">
-        <div className="max-w-3xl mx-auto flex items-end gap-2">
+        <div className="max-w-6xl mx-auto flex items-end gap-2 w-full">
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -107,7 +107,7 @@ export default function Composer({ onSend, disabled = false, placeholder = "Ask 
             </svg>
           </button>
         </div>
-        <div className="max-w-3xl mx-auto mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+        <div className="max-w-6xl mx-auto mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
           Press Enter to send, Shift+Enter for new line
         </div>
       </div>

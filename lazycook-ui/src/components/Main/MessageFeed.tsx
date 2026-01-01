@@ -30,7 +30,7 @@ export default function MessageFeed({ loading, onRegenerate, onEdit }: MessageFe
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto w-full">
         {activeChat.messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

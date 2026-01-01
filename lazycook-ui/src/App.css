@@ -1080,14 +1080,14 @@ select {
 .lc-thread {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto;          /* ✅ allow left-right scroll */
-  white-space: nowrap; /* Prevent horizontal scrolling */
+  overflow-x: hidden; /* Prevent horizontal scroll, allow natural wrapping */
+  white-space: normal; /* Allow text to wrap naturally */
   padding: 18px 0 0 0; /* Remove horizontal padding, let messages handle it */
   min-width: 0; /* Allow flex shrinking */
   max-width: 100%;
+  width: 100%; /* Ensure full width */
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  display: block; /* NOT flex - prevents centering/clamping */
   position: relative; /* For scroll-to-bottom button positioning */
   /* Modern scrollbar styling - ChatGPT style */
   scrollbar-width: thin;
@@ -1190,9 +1190,10 @@ select {
 }
 
 .lc-empty {
-  max-width: 700px; /* Match messages max-width */
+  width: 100%; /* Match messages width */
+  max-width: 1200px; /* Match messages max-width for consistency */
   margin: 0 auto; /* Keep centered */
-  padding: 40px 24px;
+  padding: 40px 32px;
   text-align: center;
   box-sizing: border-box;
 }
@@ -1200,7 +1201,8 @@ select {
 /* On larger screens, adjust empty state */
 @media (min-width: 1200px) {
   .lc-empty {
-    max-width: 720px;
+    width: 100%;
+    max-width: 1200px;
     padding: 40px 32px;
   }
 }
@@ -1215,13 +1217,13 @@ select {
 }
 
 .lc-messages {
-  width: 100%;
-  max-width: 720px; /* Exact ChatGPT content width */
+  width: 100%; /* Use full available width */
+  max-width: 1200px; /* Controls readability, matches ChatGPT desktop feel */
   margin: 0 auto; /* Centered */
   display: flex;
   flex-direction: column;
   gap: 0; /* Use margin-bottom on messages instead */
-  padding: 0 24px 32px; /* Desktop: 24px horizontal, 32px bottom */
+  padding: 24px 40px 40px; /* Better spacing: top, horizontal, bottom */
   box-sizing: border-box;
 }
 
@@ -2706,10 +2708,10 @@ code,
 /* Large Desktop (1400px and above) */
 @media (min-width: 1400px) {
   .lc-messages {
-    max-width: 900px;
+    max-width: 1400px; /* Wider for large screens */
   }
   .lc-empty {
-    max-width: 800px;
+    max-width: 1400px; /* Match messages width */
   }
   /* Messages use default styles */
 }
@@ -4640,12 +4642,13 @@ code,
   }
   
   .lc-composer-row {
-    max-width: 90%;
+    max-width: 100%;
     padding: 0 20px;
   }
   
   .lc-messages {
-    max-width: 90%;
+    width: 100%;
+    max-width: 1200px; /* Match main width setting */
     padding: 0 20px 20px;
   }
   
