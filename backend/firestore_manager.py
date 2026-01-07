@@ -429,8 +429,9 @@ class FirestoreManager:
 
         # Add document context
         current_doc_id = getattr(self, '_current_document_id', None)
-        logger.info(f"📄 [FIRESTORE] get_conversation_context: _current_document_id = {current_doc_id}")
-        docs_context = self.get_documents_context(user_id, self.document_limit, full_content=True, document_id=current_doc_id)  # Use full content and prioritize specific document
+        current_doc_ids = getattr(self, '_current_document_ids', None)
+        logger.info(f"📄 [FIRESTORE] get_conversation_context: _current_document_id = {current_doc_id}, _current_document_ids = {current_doc_ids}")
+        docs_context = self.get_documents_context(user_id, self.document_limit, full_content=True, document_id=current_doc_id, document_ids=current_doc_ids)  # Use full content and prioritize specific documents
         if docs_context:
             context_parts.append(f"\n--- 📄 RELEVANT DOCUMENTS ---")
             context_parts.append(docs_context)
@@ -562,10 +563,19 @@ class FirestoreManager:
             logger.error(f"Failed to delete document: {e}")
             return False
 
-    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True, document_id: Optional[str] = None) -> str:
+    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True, document_id: Optional[str] = None, document_ids: Optional[List[str]] = None) -> str:
         """Get formatted document context for AI."""
-        logger.info(f"📄 [FIRESTORE] get_documents_context called: user_id={user_id}, document_id={document_id}, limit={limit}, full_content={full_content}")
-        documents = self.get_user_documents(user_id, limit * 2)  # Get more to ensure we find the specific one
+        # Support both document_id (single, backward compatibility) and document_ids (multiple)
+        # Prioritize document_ids if provided (even if empty), otherwise fall back to document_id
+        if document_ids is None:
+            if document_id:
+                document_ids = [document_id]
+            else:
+                document_ids = None
+        # If document_ids is provided (even if empty list), use it as-is
+        
+        logger.info(f"📄 [FIRESTORE] get_documents_context called: user_id={user_id}, document_id={document_id}, document_ids={document_ids}, limit={limit}, full_content={full_content}")
+        documents = self.get_user_documents(user_id, limit * 2)  # Get more to ensure we find the specific ones
         logger.info(f"📄 [FIRESTORE] Retrieved {len(documents)} documents from Firestore")
         
         # Log document IDs for debugging
@@ -573,24 +583,25 @@ class FirestoreManager:
             doc_ids = [doc.id for doc in documents]
             logger.info(f"📄 [FIRESTORE] Document IDs found: {doc_ids[:5]}... (showing first 5)")
         
-        # If document_id is provided, ONLY use that document (like ChatGPT)
-        if document_id:
-            logger.info(f"📄 [FIRESTORE] Looking for specific document_id: {document_id}")
-            # Find the specific document
-            specific_doc = None
-            for doc in documents:
-                if doc.id == document_id:
-                    specific_doc = doc
-                    logger.info(f"📄 [FIRESTORE] ✅ Found attached document: {doc.filename} (id: {doc.id})")
-                    break
+        # If document_ids is provided, ONLY use those documents (like ChatGPT with multiple files)
+        if document_ids:
+            logger.info(f"📄 [FIRESTORE] Looking for specific document_ids: {document_ids}")
+            # Find the specific documents
+            specific_docs = []
+            for doc_id in document_ids:
+                for doc in documents:
+                    if doc.id == doc_id:
+                        specific_docs.append(doc)
+                        logger.info(f"📄 [FIRESTORE] ✅ Found attached document: {doc.filename} (id: {doc.id})")
+                        break
             
-            # ONLY use the attached document, no other documents
-            if specific_doc:
-                documents = [specific_doc]  # ChatGPT behavior: only the attached file
-                logger.info(f"📄 [FIRESTORE] Using ONLY attached document: {specific_doc.filename}, content length: {len(specific_doc.content)} chars")
+            # ONLY use the attached documents, no other documents
+            if specific_docs:
+                documents = specific_docs  # ChatGPT behavior: only the attached files
+                logger.info(f"📄 [FIRESTORE] Using ONLY attached documents: {len(specific_docs)} files, total content length: {sum(len(doc.content) for doc in specific_docs)} chars")
             else:
-                # If not found, return empty (document might not be in Firestore yet)
-                logger.warning(f"📄 [FIRESTORE] ⚠️ Attached document_id '{document_id}' not found in Firestore! Available IDs: {[doc.id for doc in documents[:5]]}")
+                # If not found, return empty (documents might not be in Firestore yet)
+                logger.warning(f"📄 [FIRESTORE] ⚠️ Attached document_ids '{document_ids}' not found in Firestore! Available IDs: {[doc.id for doc in documents[:5]]}")
                 documents = []
         else:
             documents = documents[:limit]
@@ -601,7 +612,7 @@ class FirestoreManager:
 
         context_parts = []
         for i, doc in enumerate(documents):
-            priority_marker = " (ATTACHED)" if document_id and doc.id == document_id else ""
+            priority_marker = " (ATTACHED)" if document_ids and doc.id in document_ids else ""
             context_parts.append(f"\n--- Document {i + 1}: {doc.filename}{priority_marker} ---")
 
             if full_content:

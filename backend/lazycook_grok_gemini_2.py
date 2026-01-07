@@ -440,8 +440,10 @@ class TextFileManager:
         # Add document context
         current_doc_id = getattr(self, '_current_document_id', None)
         logger.info(f"📄 [TEXTFILE] get_conversation_context: _current_document_id = {current_doc_id}")
+        current_doc_ids = getattr(self, '_current_document_ids', None)
+        logger.info(f"📄 [TEXTFILE] get_conversation_context: _current_document_id = {current_doc_id}, _current_document_ids = {current_doc_ids}")
         docs_context = self.get_documents_context(user_id, self.document_limit,
-                                                  full_content=True, document_id=current_doc_id)  # Use full content and prioritize specific document
+                                                  full_content=True, document_id=current_doc_id, document_ids=current_doc_ids)  # Use full content and prioritize specific documents
         if docs_context:
             context_parts.append(f"\n--- 📄 RELEVANT DOCUMENTS ---")
             context_parts.append(docs_context)
@@ -685,9 +687,18 @@ class TextFileManager:
 
     @log_errors
     @log_errors
-    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True, document_id: Optional[str] = None) -> str:
-        logger.info(f"📄 [TEXTFILE] get_documents_context called: user_id={user_id}, document_id={document_id}, limit={limit}, full_content={full_content}")
-        documents = self.get_user_documents(user_id, limit * 2)  # Get more to ensure we find the specific one
+    def get_documents_context(self, user_id: str, limit: int = 50, full_content: bool = True, document_id: Optional[str] = None, document_ids: Optional[List[str]] = None) -> str:
+        # Support both document_id (single, backward compatibility) and document_ids (multiple)
+        # Prioritize document_ids if provided (even if empty), otherwise fall back to document_id
+        if document_ids is None:
+            if document_id:
+                document_ids = [document_id]
+            else:
+                document_ids = None
+        # If document_ids is provided (even if empty list), use it as-is
+        
+        logger.info(f"📄 [TEXTFILE] get_documents_context called: user_id={user_id}, document_id={document_id}, document_ids={document_ids}, limit={limit}, full_content={full_content}")
+        documents = self.get_user_documents(user_id, limit * 2)  # Get more to ensure we find the specific ones
         logger.info(f"📄 [TEXTFILE] Retrieved {len(documents)} documents from local JSON")
         
         # Log document IDs for debugging
@@ -695,24 +706,25 @@ class TextFileManager:
             doc_ids = [doc.id for doc in documents]
             logger.info(f"📄 [TEXTFILE] Document IDs found: {doc_ids[:5]}... (showing first 5)")
         
-        # If document_id is provided, ONLY use that document (like ChatGPT)
-        if document_id:
-            logger.info(f"📄 [TEXTFILE] Looking for specific document_id: {document_id}")
-            # Find the specific document
-            specific_doc = None
-            for doc in documents:
-                if doc.id == document_id:
-                    specific_doc = doc
-                    logger.info(f"📄 [TEXTFILE] ✅ Found attached document: {doc.filename} (id: {doc.id})")
-                    break
+        # If document_ids is provided, ONLY use those documents (like ChatGPT with multiple files)
+        if document_ids:
+            logger.info(f"📄 [TEXTFILE] Looking for specific document_ids: {document_ids}")
+            # Find the specific documents
+            specific_docs = []
+            for doc_id in document_ids:
+                for doc in documents:
+                    if doc.id == doc_id:
+                        specific_docs.append(doc)
+                        logger.info(f"📄 [TEXTFILE] ✅ Found attached document: {doc.filename} (id: {doc.id})")
+                        break
             
-            # ONLY use the attached document, no other documents
-            if specific_doc:
-                documents = [specific_doc]  # ChatGPT behavior: only the attached file
-                logger.info(f"📄 [TEXTFILE] Using ONLY attached document: {specific_doc.filename}, content length: {len(specific_doc.content)} chars")
+            # ONLY use the attached documents, no other documents
+            if specific_docs:
+                documents = specific_docs  # ChatGPT behavior: only the attached files
+                logger.info(f"📄 [TEXTFILE] Using ONLY attached documents: {len(specific_docs)} files, total content length: {sum(len(doc.content) for doc in specific_docs)} chars")
             else:
-                # If not found, return empty (document might not be in local JSON yet)
-                logger.warning(f"📄 [TEXTFILE] ⚠️ Attached document_id '{document_id}' not found in local JSON! Available IDs: {[doc.id for doc in documents[:5]]}")
+                # If not found, return empty (documents might not be in local JSON yet)
+                logger.warning(f"📄 [TEXTFILE] ⚠️ Attached document_ids '{document_ids}' not found in local JSON! Available IDs: {[doc.id for doc in documents[:5]]}")
                 documents = []
         else:
             documents = documents[:limit]
@@ -723,7 +735,7 @@ class TextFileManager:
 
         context_parts = []
         for i, doc in enumerate(documents):
-            priority_marker = " (ATTACHED)" if document_id and doc.id == document_id else ""
+            priority_marker = " (ATTACHED)" if document_ids and doc.id in document_ids else ""
             context_parts.append(f"\n--- Document {i + 1}: {doc.filename}{priority_marker} ---")
 
             if full_content:
@@ -2304,14 +2316,19 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     async def process_user_message(self, user_id: str, message: str, reset_context: bool = False,
-                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None, document_id: Optional[str] = None) -> str:
+                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None, document_id: Optional[str] = None, document_ids: Optional[List[str]] = None) -> str:
         if reset_context:
             self.clear_cached_context(user_id)
 
-        # Set document_id for context retrieval
-        if document_id:
+        # Set document_ids for context retrieval (support both single and multiple)
+        if document_ids:
+            self.file_manager._current_document_ids = document_ids
+            self.file_manager._current_document_id = document_ids[0] if document_ids else None  # Backward compatibility
+        elif document_id:
+            self.file_manager._current_document_ids = [document_id]
             self.file_manager._current_document_id = document_id
         else:
+            self.file_manager._current_document_ids = None
             self.file_manager._current_document_id = None
 
         # Get context filtered by chat_id (if provided)

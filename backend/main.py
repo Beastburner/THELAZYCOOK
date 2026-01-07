@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import importlib
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File
@@ -186,7 +186,8 @@ class AIRunIn(BaseModel):
     # Client may send a model; backend will validate against plan.
     model: Optional[str] = None
     chat_id: Optional[str] = None  # Link conversation to a specific chat
-    document_id: Optional[str] = None  # Explicitly reference an uploaded document
+    document_id: Optional[str] = None  # Explicitly reference an uploaded document (backward compatibility)
+    document_ids: Optional[List[str]] = None  # Multiple document IDs for multi-file support
 
 
 def _ai_run_handler(
@@ -251,7 +252,15 @@ def _ai_run_handler(
         
         logger.info(f"📥 [BACKEND] Received chat_id from payload: {payload.chat_id}")
         logger.info(f"📥 [BACKEND] Received document_id from payload: {payload.document_id}")
-        logger.info(f"📥 [BACKEND] Payload contents: prompt={payload.prompt[:50]}..., model={payload.model}, chat_id={payload.chat_id}, document_id={payload.document_id}")
+        logger.info(f"📥 [BACKEND] Received document_ids from payload: {payload.document_ids}")
+        
+        # Support both document_id (single, backward compatibility) and document_ids (multiple)
+        # Prioritize document_ids if provided, otherwise use document_id
+        document_ids = payload.document_ids if payload.document_ids else ([payload.document_id] if payload.document_id else None)
+        # Only pass document_id if document_ids is not provided (for backward compatibility)
+        document_id_to_pass = None if document_ids else payload.document_id
+        
+        logger.info(f"📥 [BACKEND] Payload contents: prompt={payload.prompt[:50]}..., model={payload.model}, chat_id={payload.chat_id}, document_ids={document_ids}")
         
         result = baby_final.run_assistant_by_plan(
             plan=user_plan,
@@ -260,7 +269,8 @@ def _ai_run_handler(
             conversation_limit=conversation_limit,
             document_limit=2,
             chat_id=payload.chat_id,  # Pass chat_id to filter context by chat
-            document_id=payload.document_id  # Pass document_id to prioritize specific file
+            document_id=document_id_to_pass,  # Only pass if document_ids is not provided
+            document_ids=document_ids  # Pass document_ids for multi-file support
         )
         
         # Map model to file name based on actual imports in baby_final.py

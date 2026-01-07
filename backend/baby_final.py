@@ -18,7 +18,7 @@ import asyncio
 import traceback
 import logging
 import concurrent.futures
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
 # Set up logging
@@ -68,7 +68,8 @@ def gemini(
     document_limit: int = 2,
     user_id: str = "user_001",
     chat_id: Optional[str] = None,
-    document_id: Optional[str] = None
+    document_id: Optional[str] = None,
+    document_ids: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Call Gemini-only implementation (lazycook6.py)
@@ -122,7 +123,7 @@ def gemini(
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
                     run_in_new_loop,
-                    assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id)
+                    assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id, document_ids=document_ids)
                 )
                 response = future.result(timeout=300)  # 5 minute timeout
         except RuntimeError:
@@ -164,7 +165,8 @@ def grok(
     document_limit: int = 2,
     user_id: str = "user_001",
     chat_id: Optional[str] = None,
-    document_id: Optional[str] = None
+    document_id: Optional[str] = None,
+    document_ids: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Call Grok-only implementation (lazycook7_grok.py)
@@ -218,7 +220,7 @@ def grok(
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
                     run_in_new_loop,
-                    assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id)
+                    assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id, document_ids=document_ids)
                 )
                 response = future.result(timeout=300)  # 5 minute timeout
         except RuntimeError:
@@ -262,7 +264,8 @@ def mixed(
     user_id: str = "user_001",
     run_parallel: bool = False,
     chat_id: Optional[str] = None,
-    document_id: Optional[str] = None
+    document_id: Optional[str] = None,
+    document_ids: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Call Grok+Gemini mixed implementation (lazycook_grok_gemini_2.py)
@@ -323,7 +326,7 @@ def mixed(
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
                     run_in_new_loop,
-                    assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id)
+                    assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id, document_ids=document_ids)
                 )
                 response = future.result(timeout=300)  # 5 minute timeout
         except RuntimeError:
@@ -367,7 +370,8 @@ def run_assistant_by_plan(
     conversation_limit: int = 70,
     document_limit: int = 2,
     chat_id: Optional[str] = None,
-    document_id: Optional[str] = None
+    document_id: Optional[str] = None,
+    document_ids: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     logger.info(f"🔗 [BABY_FINAL] run_assistant_by_plan called with chat_id: {chat_id}")
     """
@@ -400,11 +404,11 @@ def run_assistant_by_plan(
     
     # Route to the appropriate function
     if model == "gemini":
-        return gemini(prompt, conversation_limit, document_limit, user_id, chat_id, document_id)
+        return gemini(prompt, conversation_limit, document_limit, user_id, chat_id, document_id, document_ids)
     elif model == "grok":
-        return grok(prompt, conversation_limit, document_limit, user_id, chat_id, document_id)
+        return grok(prompt, conversation_limit, document_limit, user_id, chat_id, document_id, document_ids)
     elif model == "mixed":
-        return mixed(prompt, conversation_limit, document_limit, user_id, chat_id, document_id)
+        return mixed(prompt, conversation_limit, document_limit, user_id, chat_id, document_id, document_ids)
     else:
         raise ValueError(f"Unknown model: {model}")
 

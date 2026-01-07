@@ -6,15 +6,15 @@ import HighlightNoteEditor from "./components/HighlightNoteEditor";
 import AskChatGPTButton from "./components/AskChatGPTButton";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { 
-  FiArrowRight, 
-  FiTrash2, 
-  FiEdit2, 
-  FiPlus, 
-  FiThumbsUp, 
-  FiThumbsDown, 
-  FiCopy, 
-  FiRefreshCw, 
+import {
+  FiArrowRight,
+  FiTrash2,
+  FiEdit2,
+  FiPlus,
+  FiThumbsUp,
+  FiThumbsDown,
+  FiCopy,
+  FiRefreshCw,
   FiMoreVertical,
   FiSearch,
   FiImage,
@@ -28,13 +28,30 @@ import {
   FiStar,
   FiClock,
   FiSettings,
-  FiFileText
+  FiFileText,
 } from "react-icons/fi";
 import emojisData from "./emojis.json";
 import logoImg from "./assets/logo.png";
 import logoTextImg from "./assets/logo-text.png";
-import { signIn, signUp, signInWithGoogle, logOut, onAuthChange, getIdToken } from "./firebase";
-import { setUserDoc, getUserDoc, updateUserPlan, updateUserSubscription, setChatDoc, subscribeToUserChats, deleteChatDoc, getSharedChat, shareChat } from "./firebase";
+import {
+  signIn,
+  signUp,
+  signInWithGoogle,
+  logOut,
+  onAuthChange,
+  getIdToken,
+} from "./firebase";
+import {
+  setUserDoc,
+  getUserDoc,
+  updateUserPlan,
+  updateUserSubscription,
+  setChatDoc,
+  subscribeToUserChats,
+  deleteChatDoc,
+  getSharedChat,
+  shareChat,
+} from "./firebase";
 import type { User } from "firebase/auth";
 import PlanSelector from "./components/PlanSelector";
 
@@ -57,6 +74,7 @@ type Message = {
   confidenceScore?: number;
   highlights?: Highlight[];
   attachedFile?: { id: string; filename: string };
+  attachedFiles?: { id: string; filename: string }[];
 };
 
 type Chat = {
@@ -74,7 +92,9 @@ const PLAN_MODELS: Record<Plan, Model[]> = {
 };
 
 function uid(prefix = "id") {
-  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+  return `${prefix}_${Math.random()
+    .toString(16)
+    .slice(2)}_${Date.now().toString(16)}`;
 }
 
 /**
@@ -100,7 +120,7 @@ function getPlanFromEmail(email: string): Plan {
 
 /**
  * Emotional & Unique Title Generation
- * 
+ *
  * Generates chat titles that are emotional, unique, and memorable:
  * - 3-6 words with emotional context
  * - Varied patterns for uniqueness
@@ -112,22 +132,23 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
   if (aiResponse && aiResponse.trim().length > 20) {
     // Clean and normalize AI response
     let aiText = aiResponse
-      .replace(/[#*`\[\]()]/g, '') // Remove markdown formatting
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/[#*`\[\]()]/g, "") // Remove markdown formatting
+      .replace(/\n+/g, " ") // Replace newlines with spaces
+      .replace(/\s+/g, " ") // Normalize whitespace
       .trim();
-    
+
     // Take first 300 characters for better topic extraction
     aiText = aiText.substring(0, 300);
-    
+
     // Analyze sentiment from AI response for emotional context
     const sentiment = analyzeSentiment(aiText);
-    
+
     // Extract key topic phrases and concepts
     const extractedTopics: string[] = [];
-    
+
     // Pattern 1: Look for "about X", "regarding X", "on X", etc.
-    const topicPattern1 = /(?:about|regarding|on|concerning|discussing|exploring|understanding|learning|studying|topic|subject|focus|centers?|revolves?)\s+(?:the\s+)?([a-z0-9]+(?:\s+[a-z0-9]+){0,4})/gi;
+    const topicPattern1 =
+      /(?:about|regarding|on|concerning|discussing|exploring|understanding|learning|studying|topic|subject|focus|centers?|revolves?)\s+(?:the\s+)?([a-z0-9]+(?:\s+[a-z0-9]+){0,4})/gi;
     let match;
     while ((match = topicPattern1.exec(aiText)) !== null) {
       const topic = match[1]?.trim().toLowerCase();
@@ -135,26 +156,41 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
         extractedTopics.push(topic);
       }
     }
-    
+
     // Pattern 2: Extract capitalized phrases (proper nouns, important concepts like "4th Dimension", "Einstein")
     const capitalizedPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g;
     while ((match = capitalizedPattern.exec(aiText)) !== null) {
       const phrase = match[1]?.trim().toLowerCase();
       // Skip common sentence starters
-      if (phrase && !['hello', 'again', 'it', 'looks', 'like', 'we\'re', 'we', 'that\'s', 'really'].includes(phrase) && phrase.length > 2) {
+      if (
+        phrase &&
+        ![
+          "hello",
+          "again",
+          "it",
+          "looks",
+          "like",
+          "we're",
+          "we",
+          "that's",
+          "really",
+        ].includes(phrase) &&
+        phrase.length > 2
+      ) {
         extractedTopics.push(phrase);
       }
     }
-    
+
     // Pattern 3: Numbered concepts (like "4th dimension", "3D space", "first dimension")
-    const numberedPattern = /\b(\d+(?:st|nd|rd|th)?\s+[a-z]+(?:\s+[a-z]+){0,2})\b/gi;
+    const numberedPattern =
+      /\b(\d+(?:st|nd|rd|th)?\s+[a-z]+(?:\s+[a-z]+){0,2})\b/gi;
     while ((match = numberedPattern.exec(aiText)) !== null) {
       const phrase = match[1]?.trim().toLowerCase();
       if (phrase && phrase.length > 3) {
         extractedTopics.push(phrase);
       }
     }
-    
+
     // Pattern 4: Technical terms and compound phrases with hyphens
     const compoundPattern = /\b([a-z]+(?:-[a-z]+)+(?:\s+[a-z]+){0,2})\b/gi;
     while ((match = compoundPattern.exec(aiText)) !== null) {
@@ -163,7 +199,7 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
         extractedTopics.push(phrase);
       }
     }
-    
+
     // Pattern 5: Look for key phrases after colons or in quotes (often main topics)
     const colonPattern = /[:]\s*([A-Z][a-z]+(?:\s+[a-z]+){0,3})/g;
     while ((match = colonPattern.exec(aiText)) !== null) {
@@ -172,177 +208,327 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
         extractedTopics.push(phrase);
       }
     }
-    
+
     // Also extract important words (nouns, technical terms)
-    const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just', 'with', 'for', 'from', 'about', 'have', 'been', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall', 'hello', 'again', 'looks', 'like', 'we\'re', 'we', 'are', 'our', 'previous', 'chat', 'and', 'to', 'a', 'fascinating', 'new', 'topic', 'that\'s', 'really', 'intriguing', 'question', 'shifting', 'gears'];
-    const stopWords = ['here', 'there', 'where', 'when', 'what', 'how', 'why', 'which', 'who', 'these', 'those', 'them', 'they', 'their', 'theirs', 'its', 'it', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'done'];
-    
+    const fillerWords = [
+      "the",
+      "a",
+      "an",
+      "this",
+      "that",
+      "my",
+      "me",
+      "i",
+      "you",
+      "your",
+      "very",
+      "really",
+      "just",
+      "with",
+      "for",
+      "from",
+      "about",
+      "have",
+      "been",
+      "will",
+      "would",
+      "can",
+      "could",
+      "should",
+      "may",
+      "might",
+      "must",
+      "shall",
+      "hello",
+      "again",
+      "looks",
+      "like",
+      "we're",
+      "we",
+      "are",
+      "our",
+      "previous",
+      "chat",
+      "and",
+      "to",
+      "a",
+      "fascinating",
+      "new",
+      "topic",
+      "that's",
+      "really",
+      "intriguing",
+      "question",
+      "shifting",
+      "gears",
+    ];
+    const stopWords = [
+      "here",
+      "there",
+      "where",
+      "when",
+      "what",
+      "how",
+      "why",
+      "which",
+      "who",
+      "these",
+      "those",
+      "them",
+      "they",
+      "their",
+      "theirs",
+      "its",
+      "it",
+      "is",
+      "are",
+      "was",
+      "were",
+      "be",
+      "been",
+      "being",
+      "has",
+      "had",
+      "having",
+      "do",
+      "does",
+      "did",
+      "doing",
+      "done",
+    ];
+
     // Extract meaningful words, prioritizing longer and capitalized words
     const words = aiText.split(/\s+/);
     const importantWords: string[] = [];
-    
+
     words.forEach((word, index) => {
-      const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
-      
+      const cleanWord = word.toLowerCase().replace(/[^\w]/g, "");
+
       // Prioritize capitalized words (likely proper nouns or important concepts)
-      if (word[0] === word[0]?.toUpperCase() && word[0] !== word[0]?.toLowerCase() && cleanWord.length > 2) {
-        if (!fillerWords.includes(cleanWord) && !stopWords.includes(cleanWord)) {
+      if (
+        word[0] === word[0]?.toUpperCase() &&
+        word[0] !== word[0]?.toLowerCase() &&
+        cleanWord.length > 2
+      ) {
+        if (
+          !fillerWords.includes(cleanWord) &&
+          !stopWords.includes(cleanWord)
+        ) {
           importantWords.push(cleanWord);
         }
       }
       // Also collect longer meaningful words
-      else if (cleanWord.length > 4 && !fillerWords.includes(cleanWord) && !stopWords.includes(cleanWord)) {
+      else if (
+        cleanWord.length > 4 &&
+        !fillerWords.includes(cleanWord) &&
+        !stopWords.includes(cleanWord)
+      ) {
         importantWords.push(cleanWord);
       }
     });
-    
+
     // Prioritize topics: prefer longer phrases and those appearing earlier in text
     const prioritizedTopics = extractedTopics
       .filter((topic, index, self) => self.indexOf(topic) === index) // Remove duplicates
       .sort((a, b) => {
         // Prioritize longer topics (more specific)
-        if (b.split(' ').length !== a.split(' ').length) {
-          return b.split(' ').length - a.split(' ').length;
+        if (b.split(" ").length !== a.split(" ").length) {
+          return b.split(" ").length - a.split(" ").length;
         }
         // Then prioritize by length
         return b.length - a.length;
       })
       .slice(0, 3); // Take top 3 candidates
-    
+
     // Combine extracted topics and important words
     let candidateWords = [...prioritizedTopics, ...importantWords];
-    
+
     // Remove duplicates
     candidateWords = [...new Set(candidateWords)];
-    
+
     // If we found topic phrases, use the best one
     if (prioritizedTopics.length > 0) {
       const topicPhrase = prioritizedTopics[0];
       const topicWords = topicPhrase.split(/\s+/).slice(0, 4);
-      
+
       if (topicWords.length >= 2) {
         const baseTitle = topicWords
           .map((word, index) => {
             // Capitalize first letter of each word
             return word.charAt(0).toUpperCase() + word.slice(1);
           })
-          .join(' ');
-        
+          .join(" ");
+
         if (baseTitle.length >= 5) {
           return addEmotionalContext(baseTitle, sentiment);
         }
       }
     }
-    
+
     // Use important words if we have enough
     if (candidateWords.length >= 2) {
       const targetLength = Math.min(candidateWords.length, 4);
       const titleWords = candidateWords.slice(0, targetLength);
-      
+
       const baseTitle = titleWords
         .map((word, index) => {
           return word.charAt(0).toUpperCase() + word.slice(1);
         })
-        .join(' ');
-      
+        .join(" ");
+
       if (baseTitle.length >= 5) {
         return addEmotionalContext(baseTitle, sentiment);
       }
     }
-    
+
     // Fallback: extract any meaningful words longer than 3 chars
-    const allWords = aiText.toLowerCase()
+    const allWords = aiText
+      .toLowerCase()
       .split(/\s+/)
-      .map(w => w.replace(/[^\w]/g, ''))
-      .filter(w => w.length > 3 && !fillerWords.includes(w) && !stopWords.includes(w));
-    
+      .map((w) => w.replace(/[^\w]/g, ""))
+      .filter(
+        (w) =>
+          w.length > 3 && !fillerWords.includes(w) && !stopWords.includes(w)
+      );
+
     if (allWords.length >= 2) {
       const targetLength = Math.min(allWords.length, 4);
       const titleWords = allWords.slice(0, targetLength);
-      
+
       const baseTitle = titleWords
         .map((word, index) => {
           return word.charAt(0).toUpperCase() + word.slice(1);
         })
-        .join(' ');
-      
+        .join(" ");
+
       if (baseTitle.length >= 5) {
         return addEmotionalContext(baseTitle, sentiment);
       }
     }
   }
-  
+
   // Fallback to user message if AI response is not available or not meaningful enough
   if (!userMessage || !userMessage.trim()) return "New chat";
-  
+
   // Analyze sentiment for emotional context
   const sentiment = analyzeSentiment(userMessage);
-  
+
   // Normalize whitespace
   let text = userMessage.trim().replace(/\s+/g, " ");
-  
+
   // Remove emojis, quotes, and excessive punctuation (keep hyphens for compound words)
-  text = text.replace(/[^\w\s\-]/g, ' ').replace(/\s+/g, ' ').trim();
-  
+  text = text
+    .replace(/[^\w\s\-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   // Check if message is just a greeting/politeness (hard safety)
   const greetingPatterns = [
     /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)\s*$/i,
     /^(please|thanks|thank you|thx|ty)\s*$/i,
     /^(ok|okay|sure|yes|no|yep|nope)\s*$/i,
   ];
-  
-  if (greetingPatterns.some(pattern => pattern.test(text))) {
+
+  if (greetingPatterns.some((pattern) => pattern.test(text))) {
     return "New chat";
   }
-  
+
   // Remove greeting/politeness prefixes (but keep the rest)
-  text = text.replace(/^(hi|hello|hey|greetings|good morning|good afternoon|good evening)[\s,]+/i, '');
-  text = text.replace(/^(please|thanks|thank you|thx|ty)[\s,]+/i, '');
-  text = text.replace(/^(i want|i need|i would like|i\'d like|can you|could you|would you|help me|help with|assist|please help|tell me|explain|show me)[\s,]+/i, '');
+  text = text.replace(
+    /^(hi|hello|hey|greetings|good morning|good afternoon|good evening)[\s,]+/i,
+    ""
+  );
+  text = text.replace(/^(please|thanks|thank you|thx|ty)[\s,]+/i, "");
+  text = text.replace(
+    /^(i want|i need|i would like|i\'d like|can you|could you|would you|help me|help with|assist|please help|tell me|explain|show me)[\s,]+/i,
+    ""
+  );
   text = text.trim();
-  
+
   // Remove question words at start (convert questions to statements)
-  text = text.replace(/^(what|how|why|when|where|which|who|can|could|would|should|is|are|do|does|did|will|tell|explain|show)\s+/i, '');
-  text = text.replace(/\?+$/, '').trim();
-  
+  text = text.replace(
+    /^(what|how|why|when|where|which|who|can|could|would|should|is|are|do|does|did|will|tell|explain|show)\s+/i,
+    ""
+  );
+  text = text.replace(/\?+$/, "").trim();
+
   if (!text || text.length < 3) {
     return "New chat";
   }
-  
+
   // Split into words
-  const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-  
+  const words = text
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+
   // Remove only the most common filler words (be selective)
-  const fillerWords = ['the', 'a', 'an', 'this', 'that', 'my', 'me', 'i', 'you', 'your', 'very', 'really', 'just', 'with', 'for', 'from', 'about'];
-  let meaningfulWords = words.filter(w => !fillerWords.includes(w) && w.length > 1);
-  
+  const fillerWords = [
+    "the",
+    "a",
+    "an",
+    "this",
+    "that",
+    "my",
+    "me",
+    "i",
+    "you",
+    "your",
+    "very",
+    "really",
+    "just",
+    "with",
+    "for",
+    "from",
+    "about",
+  ];
+  let meaningfulWords = words.filter(
+    (w) => !fillerWords.includes(w) && w.length > 1
+  );
+
   // If we removed too many words, use original words but skip obvious fillers
   if (meaningfulWords.length < 3) {
-    meaningfulWords = words.filter(w => !['i', 'me', 'my', 'you', 'your', 'the', 'a', 'an', 'this', 'that'].includes(w) && w.length > 1);
+    meaningfulWords = words.filter(
+      (w) =>
+        ![
+          "i",
+          "me",
+          "my",
+          "you",
+          "your",
+          "the",
+          "a",
+          "an",
+          "this",
+          "that",
+        ].includes(w) && w.length > 1
+    );
   }
-  
+
   // If still not enough, include all words except single characters
   if (meaningfulWords.length < 3) {
-    meaningfulWords = words.filter(w => w.length > 1);
+    meaningfulWords = words.filter((w) => w.length > 1);
   }
-  
+
   if (meaningfulWords.length === 0) return "New chat";
-  
+
   // Extract 3-5 meaningful words (optimal for readability)
   const targetLength = Math.min(Math.max(meaningfulWords.length, 3), 5);
   const titleWords = meaningfulWords.slice(0, targetLength);
-  
+
   // Ensure we have at least 3 words (hard safety)
   if (titleWords.length < 3) {
     // Try to include more words from original if needed
-    const additionalWords = words.filter(w => !titleWords.includes(w) && w.length > 1).slice(0, 3 - titleWords.length);
+    const additionalWords = words
+      .filter((w) => !titleWords.includes(w) && w.length > 1)
+      .slice(0, 3 - titleWords.length);
     titleWords.push(...additionalWords);
-    
+
     if (titleWords.length < 3) {
       return "New chat";
     }
   }
-  
+
   // Generate base title
   const baseTitle = titleWords
     .map((word, index) => {
@@ -352,13 +538,13 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
       }
       return word;
     })
-    .join(' ');
-  
+    .join(" ");
+
   // Final validation: ensure title is meaningful
-  if (baseTitle.length < 5 || baseTitle.split(' ').length < 3) {
+  if (baseTitle.length < 5 || baseTitle.split(" ").length < 3) {
     return "New chat";
   }
-  
+
   // Add emotional context to make it unique and memorable
   return addEmotionalContext(baseTitle, sentiment);
 }
@@ -367,88 +553,161 @@ function generateChatTitle(userMessage: string, aiResponse?: string): string {
  * Adds emotional context and uniqueness to titles
  * Ensures titles stay within 3-6 words while being emotional and memorable
  */
-function addEmotionalContext(baseTitle: string, sentiment: { sentiment: 'positive' | 'neutral' | 'negative' | 'question' | 'excited'; score: number }): string {
+function addEmotionalContext(
+  baseTitle: string,
+  sentiment: {
+    sentiment: "positive" | "neutral" | "negative" | "question" | "excited";
+    score: number;
+  }
+): string {
   // Use hash of base title + timestamp for uniqueness while maintaining consistency per title
-  const hash = baseTitle.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = baseTitle
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const patternIndex = hash % 5; // 5 different patterns for maximum variety
-  
+
   const sentimentType = sentiment.sentiment;
-  const baseWords = baseTitle.split(' ');
+  const baseWords = baseTitle.split(" ");
   const wordCount = baseWords.length;
-  
+
   // Emotional adjectives that can be inserted naturally
   const emotionalAdjectives = {
-    positive: ['brilliant', 'wonderful', 'amazing', 'fantastic', 'excellent', 'great', 'inspiring', 'valuable'],
-    excited: ['thrilling', 'incredible', 'fascinating', 'remarkable', 'extraordinary', 'exciting', 'captivating', 'stunning'],
-    question: ['curious', 'intriguing', 'mysterious', 'puzzling', 'thought-provoking', 'wondering', 'exploring', 'investigating'],
-    negative: ['challenging', 'complex', 'tricky', 'difficult', 'demanding', 'troublesome', 'problematic'],
-    neutral: ['interesting', 'notable', 'noteworthy', 'significant', 'relevant', 'important', 'noteworthy', 'compelling']
+    positive: [
+      "brilliant",
+      "wonderful",
+      "amazing",
+      "fantastic",
+      "excellent",
+      "great",
+      "inspiring",
+      "valuable",
+    ],
+    excited: [
+      "thrilling",
+      "incredible",
+      "fascinating",
+      "remarkable",
+      "extraordinary",
+      "exciting",
+      "captivating",
+      "stunning",
+    ],
+    question: [
+      "curious",
+      "intriguing",
+      "mysterious",
+      "puzzling",
+      "thought-provoking",
+      "wondering",
+      "exploring",
+      "investigating",
+    ],
+    negative: [
+      "challenging",
+      "complex",
+      "tricky",
+      "difficult",
+      "demanding",
+      "troublesome",
+      "problematic",
+    ],
+    neutral: [
+      "interesting",
+      "notable",
+      "noteworthy",
+      "significant",
+      "relevant",
+      "important",
+      "noteworthy",
+      "compelling",
+    ],
   };
-  
+
   // Action verbs for variety
   const actionVerbs = {
-    positive: ['Exploring', 'Discovering', 'Unveiling', 'Unlocking', 'Celebrating'],
-    excited: ['Amazing', 'Incredible', 'Fascinating', 'Thrilling', 'Wonderful'],
-    question: ['Wondering', 'Exploring', 'Investigating', 'Understanding', 'Learning'],
-    negative: ['Troubleshooting', 'Fixing', 'Resolving', 'Addressing'],
-    neutral: ['Discussing', 'Exploring', 'Thinking', 'Considering', 'Reflecting']
+    positive: [
+      "Exploring",
+      "Discovering",
+      "Unveiling",
+      "Unlocking",
+      "Celebrating",
+    ],
+    excited: ["Amazing", "Incredible", "Fascinating", "Thrilling", "Wonderful"],
+    question: [
+      "Wondering",
+      "Exploring",
+      "Investigating",
+      "Understanding",
+      "Learning",
+    ],
+    negative: ["Troubleshooting", "Fixing", "Resolving", "Addressing"],
+    neutral: [
+      "Discussing",
+      "Exploring",
+      "Thinking",
+      "Considering",
+      "Reflecting",
+    ],
   };
-  
-  const adjectives = emotionalAdjectives[sentimentType] || emotionalAdjectives.neutral;
+
+  const adjectives =
+    emotionalAdjectives[sentimentType] || emotionalAdjectives.neutral;
   const verbs = actionVerbs[sentimentType] || actionVerbs.neutral;
-  
+
   // Pattern 1: Replace first word with emotional verb (if base has 3+ words)
   if (patternIndex === 0 && wordCount >= 3 && sentiment.score > 0) {
     const verb = verbs[hash % verbs.length];
-    const rest = baseWords.slice(1).join(' ').toLowerCase();
+    const rest = baseWords.slice(1).join(" ").toLowerCase();
     const result = `${verb} ${rest}`;
-    if (result.split(' ').length <= 6) return result;
+    if (result.split(" ").length <= 6) return result;
   }
-  
+
   // Pattern 2: Insert emotional adjective before last word (natural flow)
   if (patternIndex === 1 && wordCount >= 2) {
     const adjective = adjectives[hash % adjectives.length];
     if (wordCount >= 3) {
-      const before = baseWords.slice(0, -1).join(' ');
+      const before = baseWords.slice(0, -1).join(" ");
       const last = baseWords[baseWords.length - 1];
       const result = `${before} ${adjective} ${last}`;
-      if (result.split(' ').length <= 6) return result;
+      if (result.split(" ").length <= 6) return result;
     }
     // For 2-word titles, prepend adjective
     const result = `${adjective} ${baseTitle.toLowerCase()}`;
-    if (result.split(' ').length <= 6) return result;
+    if (result.split(" ").length <= 6) return result;
   }
-  
+
   // Pattern 3: Replace first word with emotional adjective
   if (patternIndex === 2 && wordCount >= 2) {
     const adjective = adjectives[hash % adjectives.length];
-    const rest = baseWords.slice(1).join(' ');
-    const result = `${adjective.charAt(0).toUpperCase() + adjective.slice(1)} ${rest}`;
-    if (result.split(' ').length <= 6) return result;
+    const rest = baseWords.slice(1).join(" ");
+    const result = `${
+      adjective.charAt(0).toUpperCase() + adjective.slice(1)
+    } ${rest}`;
+    if (result.split(" ").length <= 6) return result;
   }
-  
+
   // Pattern 4: Add emotional adjective at the end (if space allows)
   if (patternIndex === 3 && wordCount <= 4) {
     const adjective = adjectives[hash % adjectives.length];
     const result = `${baseTitle} ${adjective}`;
-    if (result.split(' ').length <= 6) return result;
+    if (result.split(" ").length <= 6) return result;
   }
-  
+
   // Pattern 5: Enhance with emotional prefix (single word)
   if (patternIndex === 4 && wordCount <= 5) {
     const prefixes = {
-      positive: ['Brilliant', 'Wonderful', 'Amazing', 'Fantastic'],
-      excited: ['Thrilling', 'Incredible', 'Fascinating', 'Remarkable'],
-      question: ['Curious', 'Intriguing', 'Mysterious', 'Exploring'],
-      negative: ['Challenging', 'Complex', 'Troubleshooting'],
-      neutral: ['Interesting', 'Notable', 'Noteworthy', 'Significant']
+      positive: ["Brilliant", "Wonderful", "Amazing", "Fantastic"],
+      excited: ["Thrilling", "Incredible", "Fascinating", "Remarkable"],
+      question: ["Curious", "Intriguing", "Mysterious", "Exploring"],
+      negative: ["Challenging", "Complex", "Troubleshooting"],
+      neutral: ["Interesting", "Notable", "Noteworthy", "Significant"],
     };
     const prefixList = prefixes[sentimentType] || prefixes.neutral;
     const prefix = prefixList[hash % prefixList.length];
     const result = `${prefix} ${baseTitle.toLowerCase()}`;
-    if (result.split(' ').length <= 6) return result;
+    if (result.split(" ").length <= 6) return result;
   }
-  
+
   // Fallback: return base title (already good enough)
   return baseTitle;
 }
@@ -462,76 +721,166 @@ function LazyCookText({ className }: { className?: string }) {
   );
 }
 
-function analyzeSentiment(text: string): { sentiment: 'positive' | 'neutral' | 'negative' | 'question' | 'excited'; score: number } {
+function analyzeSentiment(text: string): {
+  sentiment: "positive" | "neutral" | "negative" | "question" | "excited";
+  score: number;
+} {
   const lowerText = text.toLowerCase();
-  
+
   // Positive sentiment indicators
-  const positiveWords = ['great', 'excellent', 'wonderful', 'amazing', 'perfect', 'awesome', 'fantastic', 'brilliant', 'outstanding', 'superb', 'delighted', 'pleased', 'happy', 'glad', 'success', 'solved', 'fixed', 'working', 'good', 'nice', 'helpful', 'useful', 'efficient', 'optimized', 'streamlined'];
-  const positivePhrases = ['well done', 'good job', 'thank you', 'thanks', 'appreciate', 'love it', 'exactly what', 'perfect solution'];
-  
+  const positiveWords = [
+    "great",
+    "excellent",
+    "wonderful",
+    "amazing",
+    "perfect",
+    "awesome",
+    "fantastic",
+    "brilliant",
+    "outstanding",
+    "superb",
+    "delighted",
+    "pleased",
+    "happy",
+    "glad",
+    "success",
+    "solved",
+    "fixed",
+    "working",
+    "good",
+    "nice",
+    "helpful",
+    "useful",
+    "efficient",
+    "optimized",
+    "streamlined",
+  ];
+  const positivePhrases = [
+    "well done",
+    "good job",
+    "thank you",
+    "thanks",
+    "appreciate",
+    "love it",
+    "exactly what",
+    "perfect solution",
+  ];
+
   // Negative sentiment indicators
-  const negativeWords = ['error', 'failed', 'broken', 'wrong', 'bad', 'terrible', 'awful', 'horrible', 'problem', 'issue', 'bug', 'crash', 'doesn\'t work', 'not working', 'disappointed', 'frustrated', 'confused', 'stuck'];
-  const negativePhrases = ['not working', 'doesn\'t work', 'can\'t', 'cannot', 'unable to', 'failed to', 'error occurred'];
-  
+  const negativeWords = [
+    "error",
+    "failed",
+    "broken",
+    "wrong",
+    "bad",
+    "terrible",
+    "awful",
+    "horrible",
+    "problem",
+    "issue",
+    "bug",
+    "crash",
+    "doesn't work",
+    "not working",
+    "disappointed",
+    "frustrated",
+    "confused",
+    "stuck",
+  ];
+  const negativePhrases = [
+    "not working",
+    "doesn't work",
+    "can't",
+    "cannot",
+    "unable to",
+    "failed to",
+    "error occurred",
+  ];
+
   // Question indicators
-  const questionWords = ['how', 'what', 'why', 'when', 'where', 'which', 'who', 'can you', 'could you', 'would you', 'should i', 'is it', 'are you'];
-  
+  const questionWords = [
+    "how",
+    "what",
+    "why",
+    "when",
+    "where",
+    "which",
+    "who",
+    "can you",
+    "could you",
+    "would you",
+    "should i",
+    "is it",
+    "are you",
+  ];
+
   // Excitement indicators
-  const excitedWords = ['wow', 'awesome', 'amazing', 'incredible', 'fantastic', 'brilliant', 'excellent'];
-  const hasExclamation = text.includes('!');
-  
+  const excitedWords = [
+    "wow",
+    "awesome",
+    "amazing",
+    "incredible",
+    "fantastic",
+    "brilliant",
+    "excellent",
+  ];
+  const hasExclamation = text.includes("!");
+
   let positiveScore = 0;
   let negativeScore = 0;
   let questionScore = 0;
   let excitedScore = 0;
-  
+
   // Count positive indicators
-  positiveWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+  positiveWords.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
     positiveScore += (text.match(regex) || []).length;
   });
-  positivePhrases.forEach(phrase => {
+  positivePhrases.forEach((phrase) => {
     if (lowerText.includes(phrase)) positiveScore += 2;
   });
-  
+
   // Count negative indicators
-  negativeWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+  negativeWords.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
     negativeScore += (text.match(regex) || []).length;
   });
-  negativePhrases.forEach(phrase => {
+  negativePhrases.forEach((phrase) => {
     if (lowerText.includes(phrase)) negativeScore += 2;
   });
-  
+
   // Count question indicators
-  questionWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+  questionWords.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
     questionScore += (text.match(regex) || []).length;
   });
-  if (text.includes('?')) questionScore += 2;
-  
+  if (text.includes("?")) questionScore += 2;
+
   // Count excitement indicators
-  excitedWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+  excitedWords.forEach((word) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
     excitedScore += (text.match(regex) || []).length;
   });
   if (hasExclamation) excitedScore += 1;
-  
+
   // Determine sentiment
-  if (questionScore > 0 && questionScore >= Math.max(positiveScore, negativeScore)) {
-    return { sentiment: 'question', score: questionScore };
+  if (
+    questionScore > 0 &&
+    questionScore >= Math.max(positiveScore, negativeScore)
+  ) {
+    return { sentiment: "question", score: questionScore };
   }
   if (excitedScore > 0 && excitedScore >= 2) {
-    return { sentiment: 'excited', score: excitedScore };
+    return { sentiment: "excited", score: excitedScore };
   }
   if (negativeScore > positiveScore && negativeScore > 0) {
-    return { sentiment: 'negative', score: negativeScore };
+    return { sentiment: "negative", score: negativeScore };
   }
   if (positiveScore > 0) {
-    return { sentiment: 'positive', score: positiveScore };
+    return { sentiment: "positive", score: positiveScore };
   }
-  
-  return { sentiment: 'neutral', score: 0 };
+
+  return { sentiment: "neutral", score: 0 };
 }
 
 function cleanProResponse(content: string): string {
@@ -543,9 +892,9 @@ function cleanProResponse(content: string): string {
 
   // Step 1: Only remove JSON code blocks (not regular markdown code blocks)
   // Check if content is wrapped in ```json blocks (which should be removed)
-  if (cleaned.trim().startsWith('```json') && cleaned.includes('```')) {
-    const start = cleaned.indexOf('```json') + 7;
-    const end = cleaned.lastIndexOf('```');
+  if (cleaned.trim().startsWith("```json") && cleaned.includes("```")) {
+    const start = cleaned.indexOf("```json") + 7;
+    const end = cleaned.lastIndexOf("```");
     if (end > start) {
       cleaned = cleaned.substring(start, end).trim();
     }
@@ -554,19 +903,20 @@ function cleanProResponse(content: string): string {
   // Step 2: Try to extract from JSON if it's still JSON (but preserve markdown in the content)
   try {
     const data = JSON.parse(cleaned);
-    if (typeof data === 'object' && data !== null) {
+    if (typeof data === "object" && data !== null) {
       // Try multiple possible field names from PRO optimizer responses
-      cleaned = data.optimized_solution || 
-                data.optimization || 
-                data.content || 
-                data.response || 
-                (typeof data === 'string' ? data : JSON.stringify(data));
+      cleaned =
+        data.optimized_solution ||
+        data.optimization ||
+        data.content ||
+        data.response ||
+        (typeof data === "string" ? data : JSON.stringify(data));
       // If extracted content is still JSON, try to get the actual text
-      if (typeof cleaned === 'object') {
+      if (typeof cleaned === "object") {
         cleaned = JSON.stringify(cleaned);
       }
       // Ensure it's a string
-      if (typeof cleaned !== 'string') {
+      if (typeof cleaned !== "string") {
         cleaned = String(cleaned);
       }
     }
@@ -576,60 +926,69 @@ function cleanProResponse(content: string): string {
 
   // Step 3: Remove JSON field names if they leaked through (but preserve markdown syntax)
   // Only remove if they appear at the start of lines or in specific JSON patterns
-  cleaned = cleaned.replace(/^"optimized_solution":\s*"?/gm, '');
-  cleaned = cleaned.replace(/^"optimization":\s*"?/gm, '');
-  cleaned = cleaned.replace(/^"content":\s*"?/gm, '');
-  cleaned = cleaned.replace(/^"response":\s*"?/gm, '');
-  cleaned = cleaned.replace(/^"changes_made":\s*\[/gm, '');
-  cleaned = cleaned.replace(/^"errors_fixed":\s*\[/gm, '');
-  cleaned = cleaned.replace(/^"enhancements":\s*\[/gm, '');
+  cleaned = cleaned.replace(/^"optimized_solution":\s*"?/gm, "");
+  cleaned = cleaned.replace(/^"optimization":\s*"?/gm, "");
+  cleaned = cleaned.replace(/^"content":\s*"?/gm, "");
+  cleaned = cleaned.replace(/^"response":\s*"?/gm, "");
+  cleaned = cleaned.replace(/^"changes_made":\s*\[/gm, "");
+  cleaned = cleaned.replace(/^"errors_fixed":\s*\[/gm, "");
+  cleaned = cleaned.replace(/^"enhancements":\s*\[/gm, "");
   // Also remove inline patterns
-  cleaned = cleaned.replace(/"optimized_solution":\s*"?/g, '');
-  cleaned = cleaned.replace(/"optimization":\s*"?/g, '');
-  cleaned = cleaned.replace(/"content":\s*"?/g, '');
+  cleaned = cleaned.replace(/"optimized_solution":\s*"?/g, "");
+  cleaned = cleaned.replace(/"optimization":\s*"?/g, "");
+  cleaned = cleaned.replace(/"content":\s*"?/g, "");
 
   // Step 4: Remove trailing quotes/commas from JSON artifacts (only at start/end of content)
-  cleaned = cleaned.replace(/^["']+/g, ''); // Remove leading quotes
-  cleaned = cleaned.replace(/["']+$/g, ''); // Remove trailing quotes
-  cleaned = cleaned.replace(/^[,}\]]+/g, ''); // Remove leading JSON punctuation
-  cleaned = cleaned.replace(/[,}\]]+$/g, ''); // Remove trailing JSON punctuation
+  cleaned = cleaned.replace(/^["']+/g, ""); // Remove leading quotes
+  cleaned = cleaned.replace(/["']+$/g, ""); // Remove trailing quotes
+  cleaned = cleaned.replace(/^[,}\]]+/g, ""); // Remove leading JSON punctuation
+  cleaned = cleaned.replace(/[,}\]]+$/g, ""); // Remove trailing JSON punctuation
 
   // Step 5: Fix escaped characters (but preserve actual newlines)
-  cleaned = cleaned.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+  cleaned = cleaned.replace(/\\n/g, "\n").replace(/\\t/g, "\t");
 
   // Step 6: Remove confidence ratings and metadata at the end (preserve markdown)
   // Remove patterns like "Confidence Rating: 0.92" or "Confidence Score: 0.92" anywhere in the content
   // Remove at the end of lines
-  cleaned = cleaned.replace(/\n\s*Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/i, '');
-  cleaned = cleaned.replace(/\n\s*Rating\s*:?\s*[\d.]+\s*$/i, '');
-  cleaned = cleaned.replace(/\n\s*Score\s*:?\s*[\d.]+\s*$/i, '');
+  cleaned = cleaned.replace(
+    /\n\s*Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/i,
+    ""
+  );
+  cleaned = cleaned.replace(/\n\s*Rating\s*:?\s*[\d.]+\s*$/i, "");
+  cleaned = cleaned.replace(/\n\s*Score\s*:?\s*[\d.]+\s*$/i, "");
   // Remove standalone confidence lines anywhere in the content (but not if part of markdown)
-  cleaned = cleaned.replace(/^Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/gim, '');
+  cleaned = cleaned.replace(
+    /^Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*$/gim,
+    ""
+  );
   // Remove confidence score patterns that might appear inline or in the middle of text
-  cleaned = cleaned.replace(/Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi, '');
+  cleaned = cleaned.replace(
+    /Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi,
+    ""
+  );
   // Remove any remaining "Confidence Score: X.XX" patterns (case insensitive, with or without colon)
-  cleaned = cleaned.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, '');
-  
+  cleaned = cleaned.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, "");
+
   // Step 7: Remove other metadata patterns
-  cleaned = cleaned.replace(/\n\s*Quality\s*Score\s*:?\s*[\d.]+\s*$/i, '');
-  cleaned = cleaned.replace(/\n\s*Iterations\s*:?\s*\d+\s*$/i, '');
-  cleaned = cleaned.replace(/\n\s*Processing\s*Time\s*:?\s*[\d.]+s?\s*$/i, '');
+  cleaned = cleaned.replace(/\n\s*Quality\s*Score\s*:?\s*[\d.]+\s*$/i, "");
+  cleaned = cleaned.replace(/\n\s*Iterations\s*:?\s*\d+\s*$/i, "");
+  cleaned = cleaned.replace(/\n\s*Processing\s*Time\s*:?\s*[\d.]+s?\s*$/i, "");
 
   // Step 8: Normalize excessive line breaks (but preserve markdown double newlines)
-  cleaned = cleaned.replace(/\n{4,}/g, '\n\n\n'); // Max 3 newlines
+  cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n"); // Max 3 newlines
 
   // Step 9: Remove any remaining JSON array syntax at the very end
-  cleaned = cleaned.replace(/\s*\],?\s*$/g, '');
+  cleaned = cleaned.replace(/\s*\],?\s*$/g, "");
 
   // Step 10: Ensure proper paragraph breaks for better readability
   // Only add double newlines between sentences if there's a single newline
   // This helps with readability without breaking markdown lists/code blocks
-  cleaned = cleaned.replace(/([.!?])\s*\n([A-Z][a-z])/g, '$1\n\n$2');
+  cleaned = cleaned.replace(/([.!?])\s*\n([A-Z][a-z])/g, "$1\n\n$2");
 
   // Step 11: Clean up excessive whitespace (but preserve markdown indentation)
   // Only clean up multiple spaces in the middle of lines, not at line starts (for markdown lists)
-  cleaned = cleaned.replace(/([^\n])[ \t]{2,}([^\n])/g, '$1 $2'); // Multiple spaces to single space (not at line start)
-  
+  cleaned = cleaned.replace(/([^\n])[ \t]{2,}([^\n])/g, "$1 $2"); // Multiple spaces to single space (not at line start)
+
   // Step 12: Final trim
   cleaned = cleaned.trim();
 
@@ -646,47 +1005,50 @@ function enhanceWithEmojis(content: string): string {
     emojisData.reaction.SPARKLES,
     emojisData.reaction.THINKING,
     emojisData.reaction.FIRE,
-    emojisData.professional.CONCEPT
+    emojisData.professional.CONCEPT,
   ];
-  
+
   // Split content by code blocks to preserve them
   const codeBlockRegex = /(```[\s\S]*?```|`[^`]+`)/g;
-  const parts: Array<{ type: 'code' | 'text'; content: string }> = [];
+  const parts: Array<{ type: "code" | "text"; content: string }> = [];
   let lastIndex = 0;
   let match;
-  
+
   while ((match = codeBlockRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
-      parts.push({ type: 'text', content: content.substring(lastIndex, match.index) });
+      parts.push({
+        type: "text",
+        content: content.substring(lastIndex, match.index),
+      });
     }
-    parts.push({ type: 'code', content: match[0] });
+    parts.push({ type: "code", content: match[0] });
     lastIndex = match.index + match[0].length;
   }
-  
+
   if (lastIndex < content.length) {
-    parts.push({ type: 'text', content: content.substring(lastIndex) });
+    parts.push({ type: "text", content: content.substring(lastIndex) });
   }
-  
+
   // If no code blocks found, treat entire content as text
   if (parts.length === 0) {
-    parts.push({ type: 'text', content });
+    parts.push({ type: "text", content });
   }
-  
+
   // Process only text parts
-  const processedParts = parts.map(part => {
-    if (part.type === 'code') {
+  const processedParts = parts.map((part) => {
+    if (part.type === "code") {
       return part.content; // Keep code blocks unchanged
     }
-    
+
     let text = part.content;
-    
+
     // Split text into sentences for better sentiment analysis
     // Better sentence splitting that handles various punctuation and line breaks
     const sentenceRegex = /([.!?]+\s+|\.\n|\n\n+|\.\s+$)/g;
     const sentences: string[] = [];
     let lastIndex = 0;
     let match;
-    
+
     while ((match = sentenceRegex.exec(text)) !== null) {
       const sentence = text.substring(lastIndex, match.index + match[0].length);
       if (sentence.trim().length > 0) {
@@ -694,7 +1056,7 @@ function enhanceWithEmojis(content: string): string {
       }
       lastIndex = match.index + match[0].length;
     }
-    
+
     // Add remaining text
     if (lastIndex < text.length) {
       const remaining = text.substring(lastIndex);
@@ -702,152 +1064,176 @@ function enhanceWithEmojis(content: string): string {
         sentences.push(remaining);
       }
     }
-    
+
     // If no sentences found, treat entire text as one sentence
     if (sentences.length === 0) {
       sentences.push(text);
     }
-    
+
     // First, add emojis to numbered steps in the text (not too frequently)
     // Pattern: "1.", "2.", "3." or "1)", "2)", "3)" at the start of a line or after whitespace
     const stepEmojis = stepEmojisFromJSON;
     let stepEmojiIndex = 0;
     let processedText = text;
-    
+
     // Find all numbered steps
     const stepPattern = /(^|\n|\s)(\d+)([.)])\s+/g;
-    const stepMatches: Array<{ fullMatch: string; number: number; replacement: string }> = [];
+    const stepMatches: Array<{
+      fullMatch: string;
+      number: number;
+      replacement: string;
+    }> = [];
     let stepMatch;
-    
+
     while ((stepMatch = stepPattern.exec(text)) !== null) {
       const stepNumber = parseInt(stepMatch[2], 10);
-      if (stepNumber >= 1 && stepNumber <= 50) { // Reasonable step range
+      if (stepNumber >= 1 && stepNumber <= 50) {
+        // Reasonable step range
         stepMatches.push({
           fullMatch: stepMatch[0],
           number: stepNumber,
-          replacement: stepMatch[0] // Will be updated if emoji is added
+          replacement: stepMatch[0], // Will be updated if emoji is added
         });
       }
     }
-    
+
     // Add emojis to steps, but not too frequently
     // If there are many steps (5+), add emoji to every 2nd or 3rd step
     // If there are few steps (1-4), add emoji to all of them
     const stepEmojiInterval = stepMatches.length > 5 ? 2 : 1;
-    
+
     stepMatches.forEach((match) => {
       // Add emoji to steps: first 3 always get emoji, then every Nth step
       if (match.number <= 3 || (match.number - 1) % stepEmojiInterval === 0) {
         const emoji = stepEmojis[stepEmojiIndex % stepEmojis.length];
         stepEmojiIndex++;
         // Replace the step pattern with step + emoji
-        match.replacement = match.fullMatch.replace(/(\d+)([.)])\s+/, `$1$2 ${emoji} `);
+        match.replacement = match.fullMatch.replace(
+          /(\d+)([.)])\s+/,
+          `$1$2 ${emoji} `
+        );
         // Replace in processed text
-        processedText = processedText.replace(match.fullMatch, match.replacement);
+        processedText = processedText.replace(
+          match.fullMatch,
+          match.replacement
+        );
       }
     });
-    
+
     // Now process sentences for other emojis (sentiment-based)
     const processedSentences: string[] = [];
     let emojiCount = 0;
     // Calculate max emojis based on text length - more emojis for longer responses
     const textLength = processedText.length;
     const maxEmojis = Math.min(Math.max(2, Math.floor(textLength / 200)), 8); // 2-8 emojis based on length
-    
+
     // Re-split processed text into sentences (since we modified it)
     const processedSentenceRegex = /([.!?]+\s+|\.\n|\n\n+|\.\s+$)/g;
     const processedSentencesList: string[] = [];
     let lastIdx = 0;
     let procMatch;
-    
+
     while ((procMatch = processedSentenceRegex.exec(processedText)) !== null) {
-      const sentence = processedText.substring(lastIdx, procMatch.index + procMatch[0].length);
+      const sentence = processedText.substring(
+        lastIdx,
+        procMatch.index + procMatch[0].length
+      );
       if (sentence.trim().length > 0) {
         processedSentencesList.push(sentence);
       }
       lastIdx = procMatch.index + procMatch[0].length;
     }
-    
+
     if (lastIdx < processedText.length) {
       const remaining = processedText.substring(lastIdx);
       if (remaining.trim().length > 0) {
         processedSentencesList.push(remaining);
       }
     }
-    
+
     if (processedSentencesList.length === 0) {
       processedSentencesList.push(processedText);
     }
-    
+
     // Distribute emojis evenly throughout the text
-    const emojiInterval = processedSentencesList.length > maxEmojis ? Math.floor(processedSentencesList.length / maxEmojis) : 1;
-    
+    const emojiInterval =
+      processedSentencesList.length > maxEmojis
+        ? Math.floor(processedSentencesList.length / maxEmojis)
+        : 1;
+
     processedSentencesList.forEach((sentence, index) => {
       const trimmedSentence = sentence.trim();
-      
+
       if (!trimmedSentence || trimmedSentence.length < 5) {
         processedSentences.push(sentence);
         return;
       }
-      
+
       // Skip if this sentence already has a step emoji (to avoid double emojis)
-      const stepEmojiPattern = new RegExp(`[\\d]+[.)]\\s+[${stepEmojis.join('')}]`, 'g');
+      const stepEmojiPattern = new RegExp(
+        `[\\d]+[.)]\\s+[${stepEmojis.join("")}]`,
+        "g"
+      );
       if (stepEmojiPattern.test(trimmedSentence)) {
         processedSentences.push(sentence);
         return;
       }
-      
+
       // Analyze sentiment for this sentence
       const sentimentResult = analyzeSentiment(trimmedSentence);
-      
+
       // Add emoji if:
       // 1. We haven't exceeded the limit
       // 2. Either sentiment is strong OR it's at an interval position
-      const shouldAddEmoji = emojiCount < maxEmojis && (
-        sentimentResult.score > 0 || 
-        (index > 0 && index % emojiInterval === 0 && emojiCount < maxEmojis - 1)
-      );
-      
+      const shouldAddEmoji =
+        emojiCount < maxEmojis &&
+        (sentimentResult.score > 0 ||
+          (index > 0 &&
+            index % emojiInterval === 0 &&
+            emojiCount < maxEmojis - 1));
+
       if (shouldAddEmoji) {
-        let emoji = '';
-        
+        let emoji = "";
+
         if (sentimentResult.score > 0) {
           switch (sentimentResult.sentiment) {
-            case 'positive':
+            case "positive":
               emoji = [
                 emojisData.reaction.SPARKLES,
                 emojisData.professional.APPROVAL,
                 emojisData.reaction.FIRE,
-                emojisData.reaction.HUNDRED
+                emojisData.reaction.HUNDRED,
               ][Math.floor(Math.random() * 4)];
               break;
-            case 'excited':
+            case "excited":
               emoji = [
                 emojisData.reaction.FIRE,
                 emojisData.reaction.SPARKLES,
                 emojisData.reaction.HUNDRED,
-                emojisData.reaction.LAUGHTER
+                emojisData.reaction.LAUGHTER,
               ][Math.floor(Math.random() * 4)];
               break;
-            case 'question':
+            case "question":
               emoji = [
                 emojisData.reaction.THINKING,
                 emojisData.reaction.EYES,
-                emojisData.professional.EXPLANATION
+                emojisData.professional.EXPLANATION,
               ][Math.floor(Math.random() * 3)];
               break;
-            case 'negative':
+            case "negative":
               emoji = [
                 emojisData.professional.WARNING,
                 emojisData.expressive.MELTING,
-                emojisData.professional.IMPORTANT
+                emojisData.professional.IMPORTANT,
               ][Math.floor(Math.random() * 3)];
               break;
-            case 'neutral':
+            case "neutral":
               // For neutral, only add if it's a greeting or helpful phrase
               if (/^(hello|hi|hey|greetings)\b/gi.test(trimmedSentence)) {
                 emoji = emojisData.expressive.FOLDED_HANDS;
-              } else if (/\b(how can i|what can i|let me know)\b/gi.test(trimmedSentence)) {
+              } else if (
+                /\b(how can i|what can i|let me know)\b/gi.test(trimmedSentence)
+              ) {
                 emoji = emojisData.reaction.SPARKLES;
               }
               break;
@@ -857,18 +1243,25 @@ function enhanceWithEmojis(content: string): string {
           const subtleEmojis = [
             emojisData.reaction.SPARKLES,
             emojisData.professional.CONCEPT,
-            emojisData.professional.KEY_POINT
+            emojisData.professional.KEY_POINT,
           ];
           emoji = subtleEmojis[Math.floor(Math.random() * subtleEmojis.length)];
         }
-        
+
         if (emoji) {
           // Add emoji at the end of the sentence (before punctuation if it exists)
           const hasPunctuation = /[.!?]$/.test(trimmedSentence);
           if (hasPunctuation) {
-            processedSentences.push(sentence.replace(/([.!?]+)$/, ' ' + emoji + '$1'));
+            processedSentences.push(
+              sentence.replace(/([.!?]+)$/, " " + emoji + "$1")
+            );
           } else {
-            processedSentences.push(sentence.trim() + ' ' + emoji + (sentence.endsWith('\n') ? '\n' : ''));
+            processedSentences.push(
+              sentence.trim() +
+                " " +
+                emoji +
+                (sentence.endsWith("\n") ? "\n" : "")
+            );
           }
           emojiCount++;
         } else {
@@ -878,15 +1271,15 @@ function enhanceWithEmojis(content: string): string {
         processedSentences.push(sentence);
       }
     });
-    
-    return processedSentences.join('');
+
+    return processedSentences.join("");
   });
-  
-  return processedParts.join('');
+
+  return processedParts.join("");
 }
 
-function MessageItem({ 
-  message, 
+function MessageItem({
+  message,
   onRegenerate,
   onUpdateHighlights,
   highlightEnabled = true,
@@ -894,9 +1287,9 @@ function MessageItem({
   apiBase,
   firebaseUser,
   plan,
-  getIdToken
-}: { 
-  message: Message; 
+  getIdToken,
+}: {
+  message: Message;
   onRegenerate?: () => void;
   onUpdateHighlights?: (highlights: Highlight[]) => void;
   highlightEnabled?: boolean;
@@ -922,21 +1315,30 @@ function MessageItem({
 
   // Handle clicks on highlighted text and text selection
   useEffect(() => {
-    if (message.role !== "assistant" || !contentRef.current || !highlightEnabled) return;
+    if (
+      message.role !== "assistant" ||
+      !contentRef.current ||
+      !highlightEnabled
+    )
+      return;
 
     // Handle clicks on highlighted text using event delegation
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const highlightElement = target.closest('.lc-highlight');
-      
+      const highlightElement = target.closest(".lc-highlight");
+
       if (highlightElement) {
         // Clicked on a highlight - show toolbar with delete option
         e.preventDefault();
         e.stopPropagation();
-        
-        const highlightText = highlightElement.getAttribute('data-highlight-text') || highlightElement.textContent?.trim() || '';
-        const highlightId = highlightElement.getAttribute('data-highlight-id') || '';
-        
+
+        const highlightText =
+          highlightElement.getAttribute("data-highlight-text") ||
+          highlightElement.textContent?.trim() ||
+          "";
+        const highlightId =
+          highlightElement.getAttribute("data-highlight-id") || "";
+
         if (highlightText && onUpdateHighlights) {
           const rect = highlightElement.getBoundingClientRect();
           setToolbarPosition({
@@ -955,7 +1357,10 @@ function MessageItem({
     const handleTextSelection = (e: MouseEvent | TouchEvent) => {
       // Don't show toolbar if clicking on a highlight or Ask ChatGPT button (that's handled by handleClick)
       const target = e.target as HTMLElement;
-      if (target?.closest('.lc-highlight') || target?.closest('.lc-ask-chatgpt-btn')) {
+      if (
+        target?.closest(".lc-highlight") ||
+        target?.closest(".lc-ask-chatgpt-btn")
+      ) {
         return;
       }
 
@@ -970,16 +1375,19 @@ function MessageItem({
       const selectedText = range.toString().trim();
 
       // Only show toolbar/Ask ChatGPT if text is selected and it's within this message
-      if (selectedText.length > 0 && contentRef.current?.contains(range.commonAncestorContainer)) {
+      if (
+        selectedText.length > 0 &&
+        contentRef.current?.contains(range.commonAncestorContainer)
+      ) {
         // Check if selection is inside code blocks (don't allow highlighting code or asking about code)
         let node: Node | null = range.commonAncestorContainer;
         let isInCodeBlock = false;
         while (node && node !== contentRef.current) {
           if (
             node.nodeType === Node.ELEMENT_NODE &&
-            ((node as Element).tagName === 'CODE' || 
-             (node as Element).closest('.lc-code-block-wrapper') ||
-             (node as Element).closest('pre'))
+            ((node as Element).tagName === "CODE" ||
+              (node as Element).closest(".lc-code-block-wrapper") ||
+              (node as Element).closest("pre"))
           ) {
             isInCodeBlock = true;
             break;
@@ -1030,27 +1438,37 @@ function MessageItem({
     };
 
     const contentElement = contentRef.current;
-    contentElement?.addEventListener('click', handleClick, true); // Use capture phase
-    contentElement?.addEventListener('mouseup', handleMouseUp);
-    contentElement?.addEventListener('touchend', handleTouchEnd);
+    contentElement?.addEventListener("click", handleClick, true); // Use capture phase
+    contentElement?.addEventListener("mouseup", handleMouseUp);
+    contentElement?.addEventListener("touchend", handleTouchEnd);
 
     // Hide Ask ChatGPT when selection is cleared
     const handleSelectionChange = () => {
       const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0 || selection.toString().trim().length === 0) {
+      if (
+        !selection ||
+        selection.rangeCount === 0 ||
+        selection.toString().trim().length === 0
+      ) {
         setShowAskChatGPT(false);
       }
     };
 
-    document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener("selectionchange", handleSelectionChange);
 
     return () => {
-      contentElement?.removeEventListener('click', handleClick, true);
-      contentElement?.removeEventListener('mouseup', handleMouseUp);
-      contentElement?.removeEventListener('touchend', handleTouchEnd);
-      document.removeEventListener('selectionchange', handleSelectionChange);
+      contentElement?.removeEventListener("click", handleClick, true);
+      contentElement?.removeEventListener("mouseup", handleMouseUp);
+      contentElement?.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("selectionchange", handleSelectionChange);
     };
-  }, [message.role, message.content, highlightEnabled, onUpdateHighlights, onAskChatGPT]);
+  }, [
+    message.role,
+    message.content,
+    highlightEnabled,
+    onUpdateHighlights,
+    onAskChatGPT,
+  ]);
 
   // Track mobile state for regenerate button visibility
   useEffect(() => {
@@ -1058,18 +1476,20 @@ function MessageItem({
       setIsMobile(window.innerWidth <= 900);
     };
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const handleColorSelect = (color: Highlight["color"]) => {
     if (!selectedText || !onUpdateHighlights) return;
 
     const currentHighlights = message.highlights || [];
-    
+
     // Check if this exact text is already highlighted (by text or ID)
-    const existingIndex = currentHighlights.findIndex(
-      (h) => selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
+    const existingIndex = currentHighlights.findIndex((h) =>
+      selectedHighlightId
+        ? h.id === selectedHighlightId
+        : h.text === selectedText
     );
 
     let newHighlights: Highlight[];
@@ -1081,24 +1501,27 @@ function MessageItem({
       } else {
         // If different color, update to new color (preserve id, note, createdAt)
         newHighlights = [...currentHighlights];
-        newHighlights[existingIndex] = { 
+        newHighlights[existingIndex] = {
           ...currentHighlights[existingIndex],
-          color 
+          color,
         };
       }
     } else {
       // Add new highlight with id and createdAt
-      newHighlights = [...currentHighlights, { 
-        id: uid("highlight"),
-        text: selectedText, 
-        color,
-        createdAt: Date.now()
-      }];
+      newHighlights = [
+        ...currentHighlights,
+        {
+          id: uid("highlight"),
+          text: selectedText,
+          color,
+          createdAt: Date.now(),
+        },
+      ];
     }
 
     onUpdateHighlights(newHighlights);
     setShowToolbar(false);
-    
+
     // Clear selection
     window.getSelection()?.removeAllRanges();
   };
@@ -1107,24 +1530,28 @@ function MessageItem({
     if (!selectedText || !onUpdateHighlights) return;
 
     const currentHighlights = message.highlights || [];
-    const newHighlights = currentHighlights.filter(
-      (h) => selectedHighlightId ? h.id !== selectedHighlightId : h.text !== selectedText
+    const newHighlights = currentHighlights.filter((h) =>
+      selectedHighlightId
+        ? h.id !== selectedHighlightId
+        : h.text !== selectedText
     );
 
     onUpdateHighlights(newHighlights);
     setShowToolbar(false);
     setShowNoteEditor(false);
-    
+
     // Clear selection
     window.getSelection()?.removeAllRanges();
   };
 
   const handleNoteSave = (note: string) => {
-    if (!selectedHighlightId && !selectedText || !onUpdateHighlights) return;
+    if ((!selectedHighlightId && !selectedText) || !onUpdateHighlights) return;
 
     const currentHighlights = message.highlights || [];
-    const newHighlights = currentHighlights.map(h => {
-      const matches = selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText;
+    const newHighlights = currentHighlights.map((h) => {
+      const matches = selectedHighlightId
+        ? h.id === selectedHighlightId
+        : h.text === selectedText;
       return matches ? { ...h, note: note || undefined } : h;
     });
 
@@ -1133,10 +1560,12 @@ function MessageItem({
   };
 
   const handleOpenNoteEditor = () => {
-    const currentHighlight = message.highlights?.find(
-      h => selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
+    const currentHighlight = message.highlights?.find((h) =>
+      selectedHighlightId
+        ? h.id === selectedHighlightId
+        : h.text === selectedText
     );
-    
+
     if (currentHighlight) {
       setNoteEditorPosition(toolbarPosition);
       setShowNoteEditor(true);
@@ -1145,49 +1574,51 @@ function MessageItem({
   };
 
   // Check if selected text is already highlighted
-  const currentHighlight = message.highlights?.find(
-    h => selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
+  const currentHighlight = message.highlights?.find((h) =>
+    selectedHighlightId ? h.id === selectedHighlightId : h.text === selectedText
   );
   const isAlreadyHighlighted = !!currentHighlight;
 
   return (
-    <div 
-      className={`lc-msg ${message.role === "user" ? "is-user" : "is-assistant"}`}
+    <div
+      className={`lc-msg ${
+        message.role === "user" ? "is-user" : "is-assistant"
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="lc-msg-inner">
         <div className="lc-msg-role">
-          {message.role === "user" ? "You" : (
-            // Show loading text in role area if message is empty
-            (!message.content || message.content.trim().length === 0) ? (
-              <span className="lc-typing-text">
-                <LazyCookText /> is cooking
-                <span className="lc-typing-dots">
-                  <span className="lc-typing-dot">.</span>
-                  <span className="lc-typing-dot">.</span>
-                  <span className="lc-typing-dot">.</span>
-                </span>
+          {message.role === "user" ? (
+            "You"
+          ) : // Show loading text in role area if message is empty
+          !message.content || message.content.trim().length === 0 ? (
+            <span className="lc-typing-text">
+              <LazyCookText /> is cooking
+              <span className="lc-typing-dots">
+                <span className="lc-typing-dot">.</span>
+                <span className="lc-typing-dot">.</span>
+                <span className="lc-typing-dot">.</span>
               </span>
-            ) : (
-              <LazyCookText />
-            )
+            </span>
+          ) : (
+            <LazyCookText />
           )}
         </div>
         <div className="lc-msg-content" ref={contentRef}>
           {message.role === "assistant" ? (
             message.content && message.content.trim().length > 0 ? (
               <>
-                <MarkdownContent 
-                  content={message.content} 
+                <MarkdownContent
+                  content={message.content}
                   highlights={message.highlights}
                   onHighlightClick={(text, event) => {
                     // This is a fallback - main handling is done via event delegation in handleClick
                     if (!highlightEnabled || !onUpdateHighlights) return;
-                    
+
                     event.preventDefault();
                     event.stopPropagation();
-                    
+
                     const target = event.target as HTMLElement;
                     const rect = target.getBoundingClientRect();
                     setToolbarPosition({
@@ -1209,18 +1640,19 @@ function MessageItem({
           ) : (
             <>
               {message.content}
-              {message.attachedFile && apiBase && (
-                <div className="lc-attached-file" style={{ marginTop: '8px' }}>
+              {/* Support both old single file and new multiple files for backward compatibility */}
+              {(message.attachedFiles || (message.attachedFile ? [message.attachedFile] : [])).map((file, idx) => (
+                <div key={idx} className="lc-attached-file" style={{ marginTop: "8px" }}>
                   <FiFileText className="lc-attached-file-icon" />
                   <a
-                    href={`${apiBase}/download-file/${message.attachedFile.id}`}
+                    href={`${apiBase}/download-file/${file.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="lc-attached-file-name"
-                    style={{ 
-                      textDecoration: 'none',
-                      color: 'var(--text)',
-                      cursor: 'pointer'
+                    style={{
+                      textDecoration: "none",
+                      color: "var(--text)",
+                      cursor: "pointer",
                     }}
                     onClick={async (e) => {
                       e.preventDefault();
@@ -1228,40 +1660,49 @@ function MessageItem({
                       try {
                         const token = await getIdToken();
                         const headers: HeadersInit = {
-                          'X-User-ID': firebaseUser?.uid || '',
-                          'X-User-Plan': plan || 'GO',
+                          "X-User-ID": firebaseUser?.uid || "",
+                          "X-User-Plan": plan || "GO",
                         };
                         if (token) {
-                          headers['Authorization'] = `Bearer ${token}`;
+                          headers["Authorization"] = `Bearer ${token}`;
                         }
-                        const response = await fetch(`${apiBase}/download-file/${message.attachedFile!.id}`, {
-                          headers,
-                        });
+                        const response = await fetch(
+                          `${apiBase}/download-file/${file.id}`,
+                          {
+                            headers,
+                          }
+                        );
                         if (response.ok) {
                           const blob = await response.blob();
                           const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
+                          const a = document.createElement("a");
                           a.href = url;
-                          a.download = message.attachedFile!.filename;
+                          a.download = file.filename;
                           document.body.appendChild(a);
                           a.click();
                           window.URL.revokeObjectURL(url);
                           document.body.removeChild(a);
                         } else {
                           // Fallback: try opening in new tab
-                          window.open(`${apiBase}/download-file/${message.attachedFile!.id}`, '_blank');
+                          window.open(
+                            `${apiBase}/download-file/${file.id}`,
+                            "_blank"
+                          );
                         }
                       } catch (err) {
-                        console.error('Error downloading file:', err);
+                        console.error("Error downloading file:", err);
                         // Fallback: try opening in new tab
-                        window.open(`${apiBase}/download-file/${message.attachedFile!.id}`, '_blank');
+                        window.open(
+                          `${apiBase}/download-file/${file.id}`,
+                          "_blank"
+                        );
                       }
                     }}
                   >
-                    {message.attachedFile.filename}
+                    {file.filename}
                   </a>
                 </div>
-              )}
+              ))}
             </>
           )}
         </div>
@@ -1277,16 +1718,19 @@ function MessageItem({
             currentHighlight={currentHighlight}
           />
         )}
-        {showNoteEditor && message.role === "assistant" && highlightEnabled && currentHighlight && (
-          <HighlightNoteEditor
-            position={noteEditorPosition}
-            highlightText={currentHighlight.text}
-            currentNote={currentHighlight.note}
-            onSave={handleNoteSave}
-            onDelete={handleRemoveHighlight}
-            onClose={() => setShowNoteEditor(false)}
-          />
-        )}
+        {showNoteEditor &&
+          message.role === "assistant" &&
+          highlightEnabled &&
+          currentHighlight && (
+            <HighlightNoteEditor
+              position={noteEditorPosition}
+              highlightText={currentHighlight.text}
+              currentNote={currentHighlight.note}
+              onSave={handleNoteSave}
+              onDelete={handleRemoveHighlight}
+              onClose={() => setShowNoteEditor(false)}
+            />
+          )}
         {showAskChatGPT && message.role === "assistant" && onAskChatGPT && (
           <AskChatGPTButton
             position={askChatGPTPosition}
@@ -1309,64 +1753,67 @@ function MessageItem({
             }}
           />
         )}
-        {message.role === "assistant" && (isHovered || isMobile) && message.content && message.content.trim().length > 0 && (
-          <div className="lc-msg-actions">
-            <button
-              className="lc-msg-action-btn"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(message.content);
-                } catch (err) {
-                  console.error('Copy failed:', err);
-                }
-              }}
-              aria-label="Copy message"
-              title="Copy"
-            >
-              <FiCopy aria-hidden="true" />
-            </button>
-            <button
-              className={`lc-msg-action-btn ${liked ? 'is-active' : ''}`}
-              onClick={() => setLiked(!liked)}
-              aria-label="Thumbs up"
-              title="Good response"
-            >
-              <FiThumbsUp aria-hidden="true" />
-            </button>
-            <button
-              className="lc-msg-action-btn"
-              onClick={() => {}}
-              aria-label="Thumbs down"
-              title="Bad response"
-            >
-              <FiThumbsDown aria-hidden="true" />
-            </button>
-            <button
-              className="lc-msg-action-btn"
-              onClick={() => {}}
-              aria-label="Share"
-              title="Share"
-            >
-              <FiShare2 aria-hidden="true" />
-            </button>
-            <button
-              className="lc-msg-action-btn"
-              onClick={onRegenerate}
-              aria-label="Regenerate"
-              title="Regenerate response"
-            >
-              <FiRefreshCw aria-hidden="true" />
-            </button>
-            <button
-              className="lc-msg-action-btn"
-              onClick={() => {}}
-              aria-label="More options"
-              title="More"
-            >
-              <FiMoreVertical aria-hidden="true" />
-            </button>
-          </div>
-        )}
+        {message.role === "assistant" &&
+          (isHovered || isMobile) &&
+          message.content &&
+          message.content.trim().length > 0 && (
+            <div className="lc-msg-actions">
+              <button
+                className="lc-msg-action-btn"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(message.content);
+                  } catch (err) {
+                    console.error("Copy failed:", err);
+                  }
+                }}
+                aria-label="Copy message"
+                title="Copy"
+              >
+                <FiCopy aria-hidden="true" />
+              </button>
+              <button
+                className={`lc-msg-action-btn ${liked ? "is-active" : ""}`}
+                onClick={() => setLiked(!liked)}
+                aria-label="Thumbs up"
+                title="Good response"
+              >
+                <FiThumbsUp aria-hidden="true" />
+              </button>
+              <button
+                className="lc-msg-action-btn"
+                onClick={() => {}}
+                aria-label="Thumbs down"
+                title="Bad response"
+              >
+                <FiThumbsDown aria-hidden="true" />
+              </button>
+              <button
+                className="lc-msg-action-btn"
+                onClick={() => {}}
+                aria-label="Share"
+                title="Share"
+              >
+                <FiShare2 aria-hidden="true" />
+              </button>
+              <button
+                className="lc-msg-action-btn"
+                onClick={onRegenerate}
+                aria-label="Regenerate"
+                title="Regenerate response"
+              >
+                <FiRefreshCw aria-hidden="true" />
+              </button>
+              <button
+                className="lc-msg-action-btn"
+                onClick={() => {}}
+                aria-label="More options"
+                title="More"
+              >
+                <FiMoreVertical aria-hidden="true" />
+              </button>
+            </div>
+          )}
       </div>
     </div>
   );
@@ -1375,14 +1822,17 @@ function MessageItem({
 export default function App() {
   // Use localhost for local testing (change before pushing to production)
   const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
-  
+
   // Track Firestore quota status to prevent excessive writes
   const [firestoreQuotaExceeded, setFirestoreQuotaExceeded] = useState(false);
-  
+
   // Debug: Log API base URL (remove in production if needed)
   if (import.meta.env.DEV) {
     console.log("🔗 [FRONTEND] API_BASE:", API_BASE);
-    console.log("🔗 [FRONTEND] VITE_API_BASE env:", import.meta.env.VITE_API_BASE);
+    console.log(
+      "🔗 [FRONTEND] VITE_API_BASE env:",
+      import.meta.env.VITE_API_BASE
+    );
   }
 
   const [email, setEmail] = useState("");
@@ -1396,7 +1846,9 @@ export default function App() {
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [chatCopyStatus, setChatCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [chatCopyStatus, setChatCopyStatus] = useState<
+    "idle" | "copied" | "error"
+  >("idle");
 
   const [model, setModel] = useState<Model>("gemini");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
@@ -1409,24 +1861,29 @@ export default function App() {
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [attachedFile, setAttachedFile] = useState<{ id: string; filename: string } | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<{
+    id: string;
+    filename: string;
+  }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Ensure file input ref is available after render
   useEffect(() => {
     if (!fileInputRef.current) {
-      const input = document.getElementById('lc-file-upload-input') as HTMLInputElement;
+      const input = document.getElementById(
+        "lc-file-upload-input"
+      ) as HTMLInputElement;
       if (input && !fileInputRef.current) {
         fileInputRef.current = input;
       }
     }
   }, []);
-  
+
   // Highlight feature toggle (default: enabled)
   const [highlightEnabled, setHighlightEnabled] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const saved = localStorage.getItem("lazycook_highlight_enabled");
-      return saved !== null ? saved === 'true' : true; // Default to enabled
+      return saved !== null ? saved === "true" : true; // Default to enabled
     }
     return true;
   });
@@ -1436,12 +1893,12 @@ export default function App() {
 
   // Sidebar starts closed on mobile, open on desktop
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       return window.innerWidth > 900;
     }
     return true;
   });
-  
+
   // Close sidebar on mobile when window resizes to mobile size
   useEffect(() => {
     const handleResize = () => {
@@ -1451,41 +1908,51 @@ export default function App() {
         setSidebarOpen(true);
       }
     };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [sidebarOpen]);
 
   // Close model dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+      if (
+        modelDropdownRef.current &&
+        !modelDropdownRef.current.contains(event.target as Node)
+      ) {
         setShowModelDropdown(false);
       }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
         setShowUserMenu(false);
       }
-      if (topbarMenuRef.current && !topbarMenuRef.current.contains(event.target as Node)) {
+      if (
+        topbarMenuRef.current &&
+        !topbarMenuRef.current.contains(event.target as Node)
+      ) {
         setShowTopbarMenu(false);
       }
     };
 
     if (showModelDropdown || showUserMenu || showTopbarMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showModelDropdown, showUserMenu, showTopbarMenu]);
 
   // Escape key to close topbar menu
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showTopbarMenu) {
+      if (e.key === "Escape" && showTopbarMenu) {
         setShowTopbarMenu(false);
       }
     };
-    
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
   }, [showTopbarMenu]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -1494,21 +1961,18 @@ export default function App() {
   // State for shared chat (loaded from public collection)
   const [sharedChat, setSharedChat] = useState<Chat | null>(null);
 
-  const activeChat = useMemo(
-    () => {
-      // First check user's own chats
-      const userChat = chats.find((c) => c.id === activeChatId);
-      if (userChat) return userChat;
-      
-      // If not found, check shared chat
-      if (sharedChat && sharedChat.id === activeChatId) {
-        return sharedChat;
-      }
-      
-      return null;
-    },
-    [chats, activeChatId, sharedChat]
-  );
+  const activeChat = useMemo(() => {
+    // First check user's own chats
+    const userChat = chats.find((c) => c.id === activeChatId);
+    if (userChat) return userChat;
+
+    // If not found, check shared chat
+    if (sharedChat && sharedChat.id === activeChatId) {
+      return sharedChat;
+    }
+
+    return null;
+  }, [chats, activeChatId, sharedChat]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
@@ -1540,12 +2004,12 @@ export default function App() {
 
   useEffect(() => {
     if (!threadRef.current || !messagesEndRef.current) return;
-    
+
     const { scrollTop, scrollHeight, clientHeight } = threadRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const threshold = window.innerWidth <= 900 ? 50 : 120;
     const isNearBottom = distanceFromBottom < threshold; // User is near bottom
-    
+
     // Only auto-scroll if user is already near bottom
     // Hide arrow when new message arrives AND user is near bottom
     if (isNearBottom) {
@@ -1561,32 +2025,32 @@ export default function App() {
   useEffect(() => {
     const thread = threadRef.current;
     if (!thread) return;
-    
+
     // Initial check
     checkScrollPosition();
-    
+
     // Use passive listener for better performance
     const handleScroll = () => {
       checkScrollPosition();
     };
-    
-    thread.addEventListener('scroll', handleScroll, { passive: true });
+
+    thread.addEventListener("scroll", handleScroll, { passive: true });
     // Also listen to touch events for mobile scrolling
-    thread.addEventListener('touchmove', handleScroll, { passive: true });
+    thread.addEventListener("touchmove", handleScroll, { passive: true });
     // Listen to touch end to catch when user stops scrolling
-    thread.addEventListener('touchend', handleScroll, { passive: true });
-    
+    thread.addEventListener("touchend", handleScroll, { passive: true });
+
     // Also check on resize (mobile orientation change)
     const handleResize = () => {
       setTimeout(checkScrollPosition, 100);
     };
-    window.addEventListener('resize', handleResize);
-    
+    window.addEventListener("resize", handleResize);
+
     return () => {
-      thread.removeEventListener('scroll', handleScroll);
-      thread.removeEventListener('touchmove', handleScroll);
-      thread.removeEventListener('touchend', handleScroll);
-      window.removeEventListener('resize', handleResize);
+      thread.removeEventListener("scroll", handleScroll);
+      thread.removeEventListener("touchmove", handleScroll);
+      thread.removeEventListener("touchend", handleScroll);
+      window.removeEventListener("resize", handleResize);
     };
   }, [activeChat, activeChatId]);
 
@@ -1597,7 +2061,7 @@ export default function App() {
       if (user) {
         setFirebaseUser(user);
         setEmail(user.email || "");
-        
+
         // Get Firebase ID token
         let idToken: string | null = null;
         try {
@@ -1612,7 +2076,7 @@ export default function App() {
           setAuthLoading(false);
           return;
         }
-        
+
         // Check if user document exists in Firestore
         let userDoc;
         try {
@@ -1620,8 +2084,14 @@ export default function App() {
         } catch (error: any) {
           console.error("Error fetching user doc:", error);
           // If it's a permissions error, treat as new user (Firestore rules not set up yet)
-          if (error?.code === 'permission-denied' || error?.message?.includes('permission') || error?.message?.includes('Missing or insufficient permissions')) {
-            console.warn("Firestore permissions error - treating as new user. Please set up Firestore security rules.");
+          if (
+            error?.code === "permission-denied" ||
+            error?.message?.includes("permission") ||
+            error?.message?.includes("Missing or insufficient permissions")
+          ) {
+            console.warn(
+              "Firestore permissions error - treating as new user. Please set up Firestore security rules."
+            );
             userDoc = null;
           } else {
             // Other errors - show warning but continue as new user
@@ -1629,7 +2099,7 @@ export default function App() {
             userDoc = null;
           }
         }
-        
+
         try {
           if (!userDoc || !userDoc.plan) {
             // New user - show plan selector
@@ -1649,17 +2119,17 @@ export default function App() {
             setPlan(savedPlan);
             setIsNewUser(false);
             setShowPlanSelector(false);
-            
+
             // Auto-select allowed model for the plan
             const allowedModel = PLAN_MODELS[savedPlan]?.[0];
             if (allowedModel) {
               setModel(allowedModel);
             }
-            
+
             // Update last login (don't fail if this errors)
             try {
               await setUserDoc(user.uid, {
-                lastLoginAt: new Date().toISOString()
+                lastLoginAt: new Date().toISOString(),
               });
             } catch (error) {
               console.warn("Failed to update last login:", error);
@@ -1682,26 +2152,28 @@ export default function App() {
   }, []);
 
   // Track local message updates to prevent Firestore from overwriting them
-  const localMessageUpdates = useRef<Map<string, { messages: Message[], timestamp: number }>>(new Map());
+  const localMessageUpdates = useRef<
+    Map<string, { messages: Message[]; timestamp: number }>
+  >(new Map());
 
   // ---- Handle share parameter from URL ----
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const shareChatId = urlParams.get('share');
-    
+    const shareChatId = urlParams.get("share");
+
     if (!shareChatId) return;
 
     const loadSharedChat = async () => {
       try {
         // First, check if the chat exists in the user's own chats
         if (chats.length > 0) {
-          const userChat = chats.find(c => c.id === shareChatId);
+          const userChat = chats.find((c) => c.id === shareChatId);
           if (userChat) {
             setActiveChatId(shareChatId);
             setSharedChat(null); // Clear shared chat since it's in user's chats
             // Clean up URL by removing the share parameter
             const newUrl = window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
+            window.history.replaceState({}, "", newUrl);
             return;
           }
         }
@@ -1713,23 +2185,28 @@ export default function App() {
           const convertedChat: Chat = {
             id: sharedChatData.id,
             title: sharedChatData.title || "Shared Chat",
-            createdAt: sharedChatData.createdAt?.toMillis?.() || sharedChatData.createdAt || Date.now(),
+            createdAt:
+              sharedChatData.createdAt?.toMillis?.() ||
+              sharedChatData.createdAt ||
+              Date.now(),
             messages: sharedChatData.messages || [],
           };
-          
+
           setSharedChat(convertedChat);
           setActiveChatId(shareChatId);
-          
+
           // Clean up URL by removing the share parameter
           const newUrl = window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
+          window.history.replaceState({}, "", newUrl);
         } else {
           // Chat not found in public collection either
-          setError("Shared chat not found. The link may be invalid or the chat may have been deleted.");
+          setError(
+            "Shared chat not found. The link may be invalid or the chat may have been deleted."
+          );
           setTimeout(() => setError(null), 5000);
           // Clean up URL
           const newUrl = window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
+          window.history.replaceState({}, "", newUrl);
         }
       } catch (error) {
         console.error("Error loading shared chat:", error);
@@ -1737,7 +2214,7 @@ export default function App() {
         setTimeout(() => setError(null), 5000);
         // Clean up URL
         const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+        window.history.replaceState({}, "", newUrl);
       }
     };
 
@@ -1761,115 +2238,158 @@ export default function App() {
       try {
         // Subscribe to real-time updates with error handling
         unsubscribe = subscribeToUserChats(
-          firebaseUser.uid, 
+          firebaseUser.uid,
           (firestoreChats) => {
-          // Convert Firestore data to Chat format
-          const convertedChats: Chat[] = firestoreChats.map((doc: any) => {
-            const chatId = doc.id;
-            const firestoreMessages: Message[] = doc.messages || [];
-            
-            // Check if we have more recent local updates for this chat
-            const localUpdate = localMessageUpdates.current.get(chatId);
-            if (localUpdate && localUpdate.timestamp > Date.now() - 5000) {
-              // Use local messages if they're more recent (within last 5 seconds)
-              // This prevents Firestore from overwriting messages we just added
-              console.log(`🔄 [FRONTEND] Using local messages for chat ${chatId} (more recent)`);
+            // Convert Firestore data to Chat format
+            const convertedChats: Chat[] = firestoreChats.map((doc: any) => {
+              const chatId = doc.id;
+              const firestoreMessages: Message[] = doc.messages || [];
+
+              // Check if we have more recent local updates for this chat
+              const localUpdate = localMessageUpdates.current.get(chatId);
+              if (localUpdate && localUpdate.timestamp > Date.now() - 5000) {
+                // Use local messages if they're more recent (within last 5 seconds)
+                // This prevents Firestore from overwriting messages we just added
+                console.log(
+                  `🔄 [FRONTEND] Using local messages for chat ${chatId} (more recent)`
+                );
+                return {
+                  id: chatId,
+                  title: doc.title || "New chat",
+                  createdAt:
+                    doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
+                  messages: localUpdate.messages,
+                };
+              }
+
               return {
                 id: chatId,
                 title: doc.title || "New chat",
-                createdAt: doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
-                messages: localUpdate.messages,
+                createdAt:
+                  doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
+                messages: firestoreMessages,
               };
-            }
-            
-            return {
-              id: chatId,
-              title: doc.title || "New chat",
-              createdAt: doc.createdAt?.toMillis?.() || doc.createdAt || Date.now(),
-              messages: firestoreMessages,
-            };
-          });
-
-          setChats((prevChats) => {
-            // Merge with existing chats to preserve any local changes
-            const mergedChats = convertedChats.map((firestoreChat) => {
-              const existingChat = prevChats.find(c => c.id === firestoreChat.id);
-              if (existingChat) {
-                // If we have local updates, prefer them if they're newer
-                const localUpdate = localMessageUpdates.current.get(firestoreChat.id);
-                if (localUpdate && localUpdate.timestamp > Date.now() - 5000) {
-                  return { ...firestoreChat, messages: localUpdate.messages };
-                }
-                // Otherwise, merge messages - keep local if they have more messages
-                if (existingChat.messages.length > firestoreChat.messages.length) {
-                  return existingChat; // Keep local version if it has more messages
-                }
-              }
-              return firestoreChat;
             });
-            
-            // Add any local-only chats (not yet in Firestore)
-            const localOnlyChats = prevChats.filter(
-              c => !convertedChats.find(fc => fc.id === c.id)
-            );
-            
-            return [...mergedChats, ...localOnlyChats];
-          });
 
-          // Set active chat only on initial load
-          if (isInitialLoad && convertedChats.length > 0) {
-            // Try to restore from localStorage first (for migration)
-            const savedActive = localStorage.getItem("lazycook_active_chat");
-            const foundChat = convertedChats.find(c => c.id === savedActive);
-            setActiveChatId(foundChat?.id || convertedChats[0].id);
-            if (savedActive) localStorage.removeItem("lazycook_active_chat"); // Clean up
-            isInitialLoad = false;
-          }
-        },
-        (error: Error) => {
-          // Handle subscription errors (like quota exceeded)
-          console.error("⚠️ [FRONTEND] Firestore subscription error:", error);
-          if (error.message.includes('quota exceeded') || error.message.includes('resource-exhausted')) {
-            setFirestoreQuotaExceeded(true);
-            setError("⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud.");
-            
-            // Try to load from localStorage backup
-            try {
-              const backup = localStorage.getItem(`lazycook_chats_backup_${firebaseUser.uid}`);
-              if (backup) {
-                const parsed = JSON.parse(backup);
-                if (parsed.chats && Array.isArray(parsed.chats) && parsed.chats.length > 0) {
-                  console.log("📦 [FRONTEND] Loaded chats from localStorage backup");
-                  const convertedChats: Chat[] = parsed.chats.map((doc: any) => ({
-                    id: doc.id,
-                    title: doc.title || "New chat",
-                    createdAt: doc.createdAt || Date.now(),
-                    messages: doc.messages || [],
-                  }));
-                  setChats(convertedChats);
-                  if (convertedChats.length > 0 && !activeChatId) {
-                    setActiveChatId(convertedChats[0].id);
+            setChats((prevChats) => {
+              // Merge with existing chats to preserve any local changes
+              const mergedChats = convertedChats.map((firestoreChat) => {
+                const existingChat = prevChats.find(
+                  (c) => c.id === firestoreChat.id
+                );
+                if (existingChat) {
+                  // If we have local updates, prefer them if they're newer
+                  const localUpdate = localMessageUpdates.current.get(
+                    firestoreChat.id
+                  );
+                  if (
+                    localUpdate &&
+                    localUpdate.timestamp > Date.now() - 5000
+                  ) {
+                    return { ...firestoreChat, messages: localUpdate.messages };
                   }
-                  return;
+                  // Otherwise, merge messages - keep local if they have more messages
+                  if (
+                    existingChat.messages.length > firestoreChat.messages.length
+                  ) {
+                    return existingChat; // Keep local version if it has more messages
+                  }
                 }
-              }
-            } catch (e) {
-              console.error("⚠️ [FRONTEND] Failed to load from localStorage:", e);
+                return firestoreChat;
+              });
+
+              // Add any local-only chats (not yet in Firestore)
+              const localOnlyChats = prevChats.filter(
+                (c) => !convertedChats.find((fc) => fc.id === c.id)
+              );
+
+              return [...mergedChats, ...localOnlyChats];
+            });
+
+            // Set active chat only on initial load
+            if (isInitialLoad && convertedChats.length > 0) {
+              // Try to restore from localStorage first (for migration)
+              const savedActive = localStorage.getItem("lazycook_active_chat");
+              const foundChat = convertedChats.find(
+                (c) => c.id === savedActive
+              );
+              setActiveChatId(foundChat?.id || convertedChats[0].id);
+              if (savedActive) localStorage.removeItem("lazycook_active_chat"); // Clean up
+              isInitialLoad = false;
             }
-            
-            // Fallback: create empty chat if no backup
-            if (chats.length === 0) {
-              const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
-              setChats([first]);
-              setActiveChatId(first.id);
+          },
+          (error: Error) => {
+            // Handle subscription errors (like quota exceeded)
+            console.error("⚠️ [FRONTEND] Firestore subscription error:", error);
+            if (
+              error.message.includes("quota exceeded") ||
+              error.message.includes("resource-exhausted")
+            ) {
+              setFirestoreQuotaExceeded(true);
+              setError(
+                "⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud."
+              );
+
+              // Try to load from localStorage backup
+              try {
+                const backup = localStorage.getItem(
+                  `lazycook_chats_backup_${firebaseUser.uid}`
+                );
+                if (backup) {
+                  const parsed = JSON.parse(backup);
+                  if (
+                    parsed.chats &&
+                    Array.isArray(parsed.chats) &&
+                    parsed.chats.length > 0
+                  ) {
+                    console.log(
+                      "📦 [FRONTEND] Loaded chats from localStorage backup"
+                    );
+                    const convertedChats: Chat[] = parsed.chats.map(
+                      (doc: any) => ({
+                        id: doc.id,
+                        title: doc.title || "New chat",
+                        createdAt: doc.createdAt || Date.now(),
+                        messages: doc.messages || [],
+                      })
+                    );
+                    setChats(convertedChats);
+                    if (convertedChats.length > 0 && !activeChatId) {
+                      setActiveChatId(convertedChats[0].id);
+                    }
+                    return;
+                  }
+                }
+              } catch (e) {
+                console.error(
+                  "⚠️ [FRONTEND] Failed to load from localStorage:",
+                  e
+                );
+              }
+
+              // Fallback: create empty chat if no backup
+              if (chats.length === 0) {
+                const first: Chat = {
+                  id: uid("chat"),
+                  title: "New chat",
+                  createdAt: Date.now(),
+                  messages: [],
+                };
+                setChats([first]);
+                setActiveChatId(first.id);
+              }
             }
           }
-        }
-      );
+        );
       } catch (error) {
         console.error("Error loading chats from Firestore:", error);
         // Fallback: create empty chat
-        const first: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
+        const first: Chat = {
+          id: uid("chat"),
+          title: "New chat",
+          createdAt: Date.now(),
+          messages: [],
+        };
         setChats([first]);
         setActiveChatId(first.id);
       }
@@ -1889,10 +2409,10 @@ export default function App() {
     // Only save the active chat to reduce Firestore writes
     const saveActiveChat = async () => {
       if (!activeChatId) return;
-      
-      const activeChat = chats.find(c => c.id === activeChatId);
+
+      const activeChat = chats.find((c) => c.id === activeChatId);
       if (!activeChat) return;
-      
+
       try {
         await setChatDoc(firebaseUser.uid, activeChat.id, {
           title: activeChat.title,
@@ -1901,20 +2421,30 @@ export default function App() {
         });
         console.log("💾 [FRONTEND] Saved active chat to Firestore");
       } catch (error) {
-        console.error(`Error saving active chat ${activeChat.id} to Firestore:`, error);
+        console.error(
+          `Error saving active chat ${activeChat.id} to Firestore:`,
+          error
+        );
         // If it's a resource exhaustion error, wait longer before retrying
-        if (error instanceof Error && error.message.includes('resource-exhausted')) {
-          console.warn("⚠️ [FRONTEND] Firestore resource exhausted, will retry later");
+        if (
+          error instanceof Error &&
+          error.message.includes("resource-exhausted")
+        ) {
+          console.warn(
+            "⚠️ [FRONTEND] Firestore resource exhausted, will retry later"
+          );
         }
       }
     };
 
     // Skip Firestore save if quota is exceeded
     if (firestoreQuotaExceeded) {
-      console.log("⏭️ [FRONTEND] Skipping debounced Firestore save (quota exceeded)");
+      console.log(
+        "⏭️ [FRONTEND] Skipping debounced Firestore save (quota exceeded)"
+      );
       return;
     }
-    
+
     // Increased debounce time to reduce write frequency (5 seconds to minimize quota usage)
     const timeoutId = setTimeout(saveActiveChat, 5000);
     return () => clearTimeout(timeoutId);
@@ -1934,26 +2464,35 @@ export default function App() {
         const backup = {
           userId: firebaseUser.uid,
           chats: chats,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
-        localStorage.setItem(`lazycook_chats_backup_${firebaseUser.uid}`, JSON.stringify(backup));
+        localStorage.setItem(
+          `lazycook_chats_backup_${firebaseUser.uid}`,
+          JSON.stringify(backup)
+        );
         console.log("💾 [FRONTEND] Chats backed up to localStorage");
       } catch (error) {
-        console.error("⚠️ [FRONTEND] Failed to backup chats to localStorage:", error);
+        console.error(
+          "⚠️ [FRONTEND] Failed to backup chats to localStorage:",
+          error
+        );
       }
     }
   }, [chats, firestoreQuotaExceeded, firebaseUser]);
 
   // Persist highlight setting
   useEffect(() => {
-    localStorage.setItem("lazycook_highlight_enabled", String(highlightEnabled));
+    localStorage.setItem(
+      "lazycook_highlight_enabled",
+      String(highlightEnabled)
+    );
   }, [highlightEnabled]);
 
   // Auto-resize textarea like ChatGPT - grows and shrinks with content
   useEffect(() => {
     if (textareaRef.current) {
       // Reset height to get accurate scrollHeight
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       const scrollHeight = textareaRef.current.scrollHeight;
       // Set new height, respecting min and max
       const minHeight = 44;
@@ -1973,13 +2512,14 @@ export default function App() {
   };
 
   const analyzeHighlights = (messages: Message[]): HighlightAnalytics => {
-    const highlights = messages.flatMap(m => m.highlights || []);
-    
+    const highlights = messages.flatMap((m) => m.highlights || []);
+
     const wordFrequency: Record<string, number> = {};
-    highlights.forEach(h => {
-      h.text.split(/\s+/).forEach(word => {
-        const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
-        if (cleanWord.length > 2) { // Ignore very short words
+    highlights.forEach((h) => {
+      h.text.split(/\s+/).forEach((word) => {
+        const cleanWord = word.toLowerCase().replace(/[^\w]/g, "");
+        if (cleanWord.length > 2) {
+          // Ignore very short words
           wordFrequency[cleanWord] = (wordFrequency[cleanWord] || 0) + 1;
         }
       });
@@ -1996,19 +2536,20 @@ export default function App() {
         .slice(0, 5)
         .map(([word]) => word),
       avgHighlightsPerMessage: highlights.length / Math.max(1, messages.length),
-      messagesWithHighlights: messages.filter(m => m.highlights?.length).length
+      messagesWithHighlights: messages.filter((m) => m.highlights?.length)
+        .length,
     };
   };
 
   // Export Highlights Functions
   const exportHighlights = (chat: Chat) => {
     return chat.messages.flatMap((msg, index) =>
-      (msg.highlights || []).map(h => ({
+      (msg.highlights || []).map((h) => ({
         text: h.text,
         color: h.color,
         note: h.note,
         messageIndex: index,
-        createdAt: h.createdAt
+        createdAt: h.createdAt,
       }))
     );
   };
@@ -2158,7 +2699,6 @@ export default function App() {
 
       // User is now authenticated via Firebase Auth state listener
       // The listener will handle setting token, plan, etc.
-      
     } catch (e: any) {
       const errorMessage = e.message || "Login failed";
       setError(errorMessage);
@@ -2185,34 +2725,34 @@ export default function App() {
 
   const handlePlanSelect = async (newPlan: Plan) => {
     if (!firebaseUser) return;
-    
+
     try {
       // Update plan in Firestore
       await updateUserPlan(firebaseUser.uid, newPlan);
-      
+
       // Update subscription (mock)
       await updateUserSubscription(firebaseUser.uid, {
         plan: newPlan,
-        status: 'active',
+        status: "active",
         startDate: new Date().toISOString(),
-        paymentMethod: 'mock_payment'
+        paymentMethod: "mock_payment",
       });
-      
+
       // Store initial user data if new user
       if (isNewUser) {
         await setUserDoc(firebaseUser.uid, {
           email: firebaseUser.email,
           plan: newPlan,
           createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString()
+          lastLoginAt: new Date().toISOString(),
         });
         setIsNewUser(false);
       }
-      
+
       // Update local state
       setPlan(newPlan);
       setShowPlanSelector(false);
-      
+
       // Auto-select allowed model for the new plan
       const allowed = PLAN_MODELS[newPlan]?.[0];
       if (allowed) setModel(allowed);
@@ -2228,14 +2768,19 @@ export default function App() {
       return;
     }
 
-    const c: Chat = { id: uid("chat"), title: "New chat", createdAt: Date.now(), messages: [] };
-    
+    const c: Chat = {
+      id: uid("chat"),
+      title: "New chat",
+      createdAt: Date.now(),
+      messages: [],
+    };
+
     // Add to local state immediately for instant UI update
     setChats((prev) => [c, ...prev]);
     setActiveChatId(c.id);
     setPrompt("");
     setError(null);
-    
+
     // Save to Firestore
     try {
       await setChatDoc(firebaseUser.uid, c.id, {
@@ -2247,15 +2792,18 @@ export default function App() {
       console.error("Error creating new chat in Firestore:", error);
       setError("Failed to create new chat. Please try again.");
     }
-    
+
     // Reset textarea height after creating new chat
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = '44px';
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = "44px";
     }
   };
 
-  const updateChatMessages = (chatId: string, updater: (m: Message[]) => Message[]) => {
+  const updateChatMessages = (
+    chatId: string,
+    updater: (m: Message[]) => Message[]
+  ) => {
     setChats((prev) => {
       const updated = prev.map((c) => {
         if (c.id === chatId) {
@@ -2263,7 +2811,7 @@ export default function App() {
           // Track this update locally to prevent Firestore from overwriting it
           localMessageUpdates.current.set(chatId, {
             messages: updatedMessages,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
           // Clear the local update after 10 seconds (by then it should be saved to Firestore)
           setTimeout(() => {
@@ -2280,18 +2828,22 @@ export default function App() {
   // Delete chat handler
   const handleDeleteChat = async (chatId: string) => {
     if (!firebaseUser) return;
-    
-    if (!window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
+
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this chat? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     try {
       // Delete from Firestore
       await deleteChatDoc(firebaseUser.uid, chatId);
-      
+
       // Remove from local state
       setChats((prev) => prev.filter((c) => c.id !== chatId));
-      
+
       // If deleted chat was active, switch to another chat or create new one
       if (activeChatId === chatId) {
         const remainingChats = chats.filter((c) => c.id !== chatId);
@@ -2312,7 +2864,7 @@ export default function App() {
   // Rename chat handler
   const handleRenameChat = async (chatId: string, newTitle: string) => {
     if (!firebaseUser) return;
-    
+
     if (!newTitle || !newTitle.trim()) {
       setError("Chat title cannot be empty");
       return;
@@ -2321,12 +2873,14 @@ export default function App() {
     try {
       // Update in Firestore
       await setChatDoc(firebaseUser.uid, chatId, {
-        title: newTitle.trim()
+        title: newTitle.trim(),
       });
-      
+
       // Update in local state
       setChats((prev) =>
-        prev.map((c) => (c.id === chatId ? { ...c, title: newTitle.trim() } : c))
+        prev.map((c) =>
+          c.id === chatId ? { ...c, title: newTitle.trim() } : c
+        )
       );
     } catch (error) {
       console.error("Error renaming chat:", error);
@@ -2349,7 +2903,7 @@ export default function App() {
 
     // Refresh token every 50 minutes
     const interval = setInterval(refreshToken, 50 * 60 * 1000);
-    
+
     // Also refresh on mount
     refreshToken();
 
@@ -2362,6 +2916,11 @@ export default function App() {
         setError("Please select a plan to use AI features");
         setShowPlanSelector(true);
       }
+      return;
+    }
+    // Prevent sending while files are uploading
+    if (uploadingFile) {
+      setError("Please wait for file uploads to complete before sending.");
       return;
     }
     const text = prompt.trim();
@@ -2383,7 +2942,7 @@ export default function App() {
       setChats((prev) => [newChat, ...prev]);
       setActiveChatId(newChat.id);
       chatId = newChat.id;
-      
+
       // Save new chat to Firestore
       try {
         await setChatDoc(firebaseUser.uid, newChat.id, {
@@ -2395,34 +2954,55 @@ export default function App() {
         console.error("Error creating new chat in Firestore:", error);
       }
     }
-    
+
     console.log("🔍 [FRONTEND] Sending request with chat_id:", chatId);
 
     setLoading(true);
     setError(null);
 
-    const userMsg: Message = { 
-      id: uid("m"), 
-      role: "user", 
+    const userMsg: Message = {
+      id: uid("m"),
+      role: "user",
       content: text,
-      attachedFile: attachedFile || undefined
+      attachedFiles: attachedFiles.length > 0 ? attachedFiles : undefined,
+      // Keep backward compatibility with single file
+      attachedFile: attachedFiles.length > 0 ? attachedFiles[0] : undefined,
     };
-    const assistantMsg: Message = { id: uid("m"), role: "assistant", content: "" };
+    const assistantMsg: Message = {
+      id: uid("m"),
+      role: "assistant",
+      content: "",
+    };
 
     // Add messages immediately to local state
-    console.log("➕ [FRONTEND] Adding user and assistant messages to chat:", chatId);
+    console.log(
+      "➕ [FRONTEND] Adding user and assistant messages to chat:",
+      chatId
+    );
     updateChatMessages(chatId, (m) => {
       const updated = [...m, userMsg, assistantMsg];
-      console.log("✅ [FRONTEND] Messages added. Total messages in chat:", updated.length);
+      console.log(
+        "✅ [FRONTEND] Messages added. Total messages in chat:",
+        updated.length
+      );
       return updated;
     });
-    
+
     // Skip immediate Firestore save if quota is exceeded - rely on debounced save only
     // This reduces write frequency significantly
     if (!firestoreQuotaExceeded) {
       try {
-        const currentChat = chats.find(c => c.id === chatId) || { id: chatId, title: "New chat", createdAt: Date.now(), messages: [] };
-        const updatedMessages = [...currentChat.messages, userMsg, assistantMsg];
+        const currentChat = chats.find((c) => c.id === chatId) || {
+          id: chatId,
+          title: "New chat",
+          createdAt: Date.now(),
+          messages: [],
+        };
+        const updatedMessages = [
+          ...currentChat.messages,
+          userMsg,
+          assistantMsg,
+        ];
         await setChatDoc(firebaseUser.uid, chatId, {
           title: currentChat.title,
           createdAt: currentChat.createdAt,
@@ -2431,37 +3011,48 @@ export default function App() {
         console.log("💾 [FRONTEND] Messages saved to Firestore");
       } catch (error: any) {
         console.error("⚠️ [FRONTEND] Failed to save messages:", error);
-        
+
         // Mark quota as exceeded to prevent further writes
-        if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
+        if (
+          error?.message?.includes("quota exceeded") ||
+          error?.code === "resource-exhausted"
+        ) {
           setFirestoreQuotaExceeded(true);
-          setError("⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud. Please upgrade your Firebase plan or wait for quota reset.");
-        } else if (error?.message?.includes('blocked')) {
-          console.warn("⚠️ [FRONTEND] Firestore blocked by browser extension. Continuing with local storage only.");
+          setError(
+            "⚠️ Firestore quota exceeded. Your chats are saved locally but cannot sync to the cloud. Please upgrade your Firebase plan or wait for quota reset."
+          );
+        } else if (error?.message?.includes("blocked")) {
+          console.warn(
+            "⚠️ [FRONTEND] Firestore blocked by browser extension. Continuing with local storage only."
+          );
           // Don't show error for blocked requests - just continue locally
         } else {
-          console.warn("⚠️ [FRONTEND] Firestore save failed, but continuing with local state. Will retry later.");
+          console.warn(
+            "⚠️ [FRONTEND] Firestore save failed, but continuing with local state. Will retry later."
+          );
         }
         // Continue anyway - the debounced save will retry, and local state is maintained
       }
     } else {
-      console.log("⏭️ [FRONTEND] Skipping Firestore save (quota exceeded). Data saved locally only.");
+      console.log(
+        "⏭️ [FRONTEND] Skipping Firestore save (quota exceeded). Data saved locally only."
+      );
     }
-    
+
     setPrompt("");
-    // Clear attached file after sending
-    setAttachedFile(null);
+    // Clear attached files after sending
+    setAttachedFiles([]);
     // Reset textarea height immediately after sending
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = '44px';
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = "44px";
     }
 
     try {
       // Create AbortController for timeout handling
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
-      
+
       // Try new endpoint first, fallback to old endpoint for backward compatibility
       let res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
@@ -2471,18 +3062,21 @@ export default function App() {
           "X-User-ID": firebaseUser?.uid || email || "anon",
           "X-User-Plan": plan || "GO",
         },
-        body: JSON.stringify({ 
-          prompt: text, 
-          model, 
+        body: JSON.stringify({
+          prompt: text,
+          model,
           chat_id: chatId,
-          document_id: attachedFile?.id || null
+          document_id: attachedFiles.length > 0 ? attachedFiles[0].id : null, // Backward compatibility
+          document_ids: attachedFiles.length > 0 ? attachedFiles.map(f => f.id) : null, // Multi-file support
         }),
         signal: controller.signal,
       });
-      
+
       // If 404, try the old endpoint (backward compatibility)
       if (res.status === 404) {
-        console.log("⚠️ [FRONTEND] /chat endpoint not found, trying /ai/run for backward compatibility");
+        console.log(
+          "⚠️ [FRONTEND] /chat endpoint not found, trying /ai/run for backward compatibility"
+        );
         res = await fetch(`${API_BASE}/ai/run`, {
           method: "POST",
           headers: {
@@ -2491,18 +3085,19 @@ export default function App() {
             "X-User-ID": firebaseUser?.uid || email || "anon",
             "X-User-Plan": plan || "GO",
           },
-          body: JSON.stringify({ 
-            prompt: text, 
-            model, 
+          body: JSON.stringify({
+            prompt: text,
+            model,
             chat_id: chatId,
-            document_id: attachedFile?.id || null
+            document_id: attachedFiles.length > 0 ? attachedFiles[0].id : null, // Backward compatibility
+          document_ids: attachedFiles.length > 0 ? attachedFiles.map(f => f.id) : null, // Multi-file support
           }),
           signal: controller.signal,
         });
       }
-      
+
       clearTimeout(timeoutId);
-      
+
       // Check if response is ok before parsing
       if (!res.ok) {
         let errorDetail = "Request failed";
@@ -2515,7 +3110,7 @@ export default function App() {
         }
         throw new Error(errorDetail);
       }
-      
+
       // Parse JSON response
       let data;
       try {
@@ -2526,88 +3121,127 @@ export default function App() {
         data = JSON.parse(text);
         console.log("📥 [FRONTEND] Received API response:", data);
       } catch (parseError) {
-        console.error("❌ [FRONTEND] Failed to parse JSON response:", parseError);
+        console.error(
+          "❌ [FRONTEND] Failed to parse JSON response:",
+          parseError
+        );
         throw new Error("Invalid response from server. Please try again.");
       }
 
       // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
       // All models (GO, PRO, ULTRA) now return data.response with unified content
       // PRO version might also have data.optimization field
-      let content = data.response || data.optimization || JSON.stringify(data.responses ?? data, null, 2);
-      console.log("📝 [FRONTEND] Extracted content type:", typeof content, "length:", typeof content === 'string' ? content.length : 'N/A');
-      
+      let content =
+        data.response ||
+        data.optimization ||
+        JSON.stringify(data.responses ?? data, null, 2);
+      console.log(
+        "📝 [FRONTEND] Extracted content type:",
+        typeof content,
+        "length:",
+        typeof content === "string" ? content.length : "N/A"
+      );
+
       // Ensure content is always a string
-      content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      
+      content =
+        typeof content === "string"
+          ? content
+          : JSON.stringify(content, null, 2);
+
       // Store raw content for title generation (before PRO cleaning and emoji enhancement)
       // This ensures we have the cleanest possible text for topic extraction
       let rawContentForTitle = content;
-      
+
       // Clean PRO version responses to remove JSON artifacts and extract content properly
-      if (plan === 'PRO') {
+      if (plan === "PRO") {
         content = cleanProResponse(content);
         // For PRO, use cleaned content but ensure it's still valid
         if (content && content.trim().length > 20) {
           rawContentForTitle = content;
         }
       }
-      
+
       // Ensure rawContentForTitle is a valid string
-      if (!rawContentForTitle || typeof rawContentForTitle !== 'string') {
-        rawContentForTitle = typeof content === 'string' ? content : '';
+      if (!rawContentForTitle || typeof rawContentForTitle !== "string") {
+        rawContentForTitle = typeof content === "string" ? content : "";
       }
-      
+
       // Extract confidence score from API response
-      const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
-      
+      const confidenceScore =
+        data.quality_score ||
+        data.metadata?.quality_score ||
+        data.quality_metrics?.combined ||
+        undefined;
+
       // Remove confidence score from content if it appears in the text (for all plans)
       // This ensures it only appears once in the UI, not in both content and separately
       if (confidenceScore !== undefined) {
         // Remove any confidence score text patterns from content
-        content = content.replace(/Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi, '');
-        content = content.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, '');
+        content = content.replace(
+          /Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi,
+          ""
+        );
+        content = content.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, "");
       }
-      
+
       // Enhance content with emojis for better engagement (applies to all plans including PRO)
       // This ensures PRO responses get emojis just like GO responses
       content = enhanceWithEmojis(content);
-      
-      console.log("💬 [FRONTEND] Updating chat messages with content length:", content?.length);
-      console.log("📝 [FRONTEND] Raw content for title generation length:", rawContentForTitle?.length);
-      
+
+      console.log(
+        "💬 [FRONTEND] Updating chat messages with content length:",
+        content?.length
+      );
+      console.log(
+        "📝 [FRONTEND] Raw content for title generation length:",
+        rawContentForTitle?.length
+      );
+
       // Generate title BEFORE updating messages (so we can save it to Firestore)
       // Use raw content (before emoji enhancement) for better topic extraction
-      const currentChat = chats.find(c => c.id === chatId);
+      const currentChat = chats.find((c) => c.id === chatId);
       // Update title if it's still "New chat" (first AI response)
       // Also check if title is undefined or empty string (defensive check for Vercel)
       const currentTitle = currentChat?.title;
-      const shouldUpdateTitle = currentChat && (!currentTitle || currentTitle === "New chat" || currentTitle.trim() === "");
+      const shouldUpdateTitle =
+        currentChat &&
+        (!currentTitle ||
+          currentTitle === "New chat" ||
+          currentTitle.trim() === "");
       let newTitle = currentTitle || "New chat";
-      
+
       console.log("🔍 [FRONTEND] Title generation check:", {
         chatId,
         currentTitle,
         shouldUpdateTitle,
         contentLength: rawContentForTitle?.length,
-        hasContent: !!rawContentForTitle
+        hasContent: !!rawContentForTitle,
       });
-      
+
       // Use first user message as title (truncated to 50 characters)
       if (shouldUpdateTitle && text && text.trim().length > 0) {
         try {
           // Truncate to 50 characters and clean up
           newTitle = text.trim().substring(0, 50);
           if (text.length > 50) {
-            newTitle += '...';
+            newTitle += "...";
           }
-          
-          console.log("📝 [FRONTEND] Setting title from first message:", newTitle);
-          
+
+          console.log(
+            "📝 [FRONTEND] Setting title from first message:",
+            newTitle
+          );
+
           // Update title in state immediately
           setChats((prev) => {
             const updated = prev.map((c) => {
               if (c.id === chatId) {
-                console.log("✅ [FRONTEND] Updating chat title from", c.title, "to", newTitle);
+                console.log(
+                  "✅ [FRONTEND] Updating chat title from",
+                  c.title,
+                  "to",
+                  newTitle
+                );
                 return { ...c, title: newTitle };
               }
               return c;
@@ -2622,38 +3256,53 @@ export default function App() {
           shouldUpdateTitle,
           hasText: !!text,
           textLength: text?.length,
-          currentTitle
+          currentTitle,
         });
       }
-      
+
       // Update the assistant message with the response
       updateChatMessages(chatId, (m) => {
         const next = [...m];
         // Try to find by ID first
         let idx = next.findIndex((x) => x.id === assistantMsg.id);
-        
+
         // If not found by ID, find the last assistant message with empty content
         if (idx < 0) {
-          console.warn("⚠️ [FRONTEND] Assistant message not found by ID, searching for last empty assistant message");
+          console.warn(
+            "⚠️ [FRONTEND] Assistant message not found by ID, searching for last empty assistant message"
+          );
           // Find the last assistant message that's empty (the one we just added)
           for (let i = next.length - 1; i >= 0; i--) {
-            if (next[i].role === "assistant" && (!next[i].content || next[i].content.trim() === "")) {
+            if (
+              next[i].role === "assistant" &&
+              (!next[i].content || next[i].content.trim() === "")
+            ) {
               idx = i;
-              console.log("✅ [FRONTEND] Found empty assistant message at index:", idx);
+              console.log(
+                "✅ [FRONTEND] Found empty assistant message at index:",
+                idx
+              );
               break;
             }
           }
         }
-        
+
         if (idx >= 0) {
-          console.log("✅ [FRONTEND] Updating assistant message at index:", idx, "with content length:", content?.length);
+          console.log(
+            "✅ [FRONTEND] Updating assistant message at index:",
+            idx,
+            "with content length:",
+            content?.length
+          );
           next[idx] = { ...next[idx], content, confidenceScore };
         } else {
-          console.error("❌ [FRONTEND] Could not find assistant message! Adding new one.");
+          console.error(
+            "❌ [FRONTEND] Could not find assistant message! Adding new one."
+          );
           // Fallback: add the message at the end
           next.push({ ...assistantMsg, content, confidenceScore });
         }
-        
+
         // Save updated messages to Firestore (only if quota not exceeded)
         // Use the newly generated title if we updated it, otherwise use the existing title
         const updatedMessages = next;
@@ -2665,85 +3314,109 @@ export default function App() {
             createdAt: currentChat?.createdAt || Date.now(),
             messages: updatedMessages,
           }).catch((error: any) => {
-            if (error?.message?.includes('quota exceeded') || error?.code === 'resource-exhausted') {
+            if (
+              error?.message?.includes("quota exceeded") ||
+              error?.code === "resource-exhausted"
+            ) {
               setFirestoreQuotaExceeded(true);
-              console.warn("⚠️ [FRONTEND] Firestore quota exceeded. Chat saved locally only.");
-            } else if (!error?.message?.includes('blocked')) {
-              console.error("⚠️ [FRONTEND] Failed to save response to Firestore:", error);
+              console.warn(
+                "⚠️ [FRONTEND] Firestore quota exceeded. Chat saved locally only."
+              );
+            } else if (!error?.message?.includes("blocked")) {
+              console.error(
+                "⚠️ [FRONTEND] Failed to save response to Firestore:",
+                error
+              );
             }
             // Continue - local state is maintained
           });
         } else {
-          console.log("⏭️ [FRONTEND] Skipping Firestore save (quota exceeded). Response saved locally only.");
+          console.log(
+            "⏭️ [FRONTEND] Skipping Firestore save (quota exceeded). Response saved locally only."
+          );
         }
-        
+
         return updatedMessages;
       });
     } catch (e) {
       console.error("❌ [FRONTEND] Error in runAI:", e);
       const errorMessage = (e as Error).message || "Unknown error occurred";
       console.error("❌ [FRONTEND] Error message:", errorMessage);
-      
+
       // Check if request was blocked by client (ad blocker, browser extension, etc.)
-      const isBlocked = errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_BLOCKED_BY_CLIENT') || 
-                       (e as Error).name === 'TypeError' && errorMessage.includes('fetch');
-      
-      const isTimeout = errorMessage.includes('aborted') || errorMessage.includes('timeout');
-      
+      const isBlocked =
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("ERR_BLOCKED_BY_CLIENT") ||
+        ((e as Error).name === "TypeError" && errorMessage.includes("fetch"));
+
+      const isTimeout =
+        errorMessage.includes("aborted") || errorMessage.includes("timeout");
+
       // Ensure error message is shown in the chat
       updateChatMessages(chatId, (m) => {
         const next = [...m];
         // Try to find by ID first
         let idx = next.findIndex((x) => x.id === assistantMsg.id);
-        
+
         // If not found, find the last empty assistant message
         if (idx < 0) {
           for (let i = next.length - 1; i >= 0; i--) {
-            if (next[i].role === "assistant" && (!next[i].content || next[i].content.trim() === "")) {
+            if (
+              next[i].role === "assistant" &&
+              (!next[i].content || next[i].content.trim() === "")
+            ) {
               idx = i;
               break;
             }
           }
         }
-        
+
         const errorContent = isBlocked
           ? `⚠️ Request blocked by browser extension or ad blocker. Please disable ad blockers for this site or whitelist ${API_BASE}, then try again.`
-          : isTimeout 
-          ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection." 
+          : isTimeout
+          ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection."
           : `Error: ${errorMessage}`;
-        
+
         if (idx >= 0) {
-          next[idx] = { 
-            ...next[idx], 
-            content: errorContent
+          next[idx] = {
+            ...next[idx],
+            content: errorContent,
           };
         } else {
           // If still not found, add error message at the end
-          next.push({ 
-            ...assistantMsg, 
-            content: errorContent
+          next.push({
+            ...assistantMsg,
+            content: errorContent,
           });
         }
-        
+
         // Save error state to Firestore
         setChatDoc(firebaseUser.uid, chatId, {
-          title: chats.find(c => c.id === chatId)?.title || "New chat",
-          createdAt: chats.find(c => c.id === chatId)?.createdAt || Date.now(),
+          title: chats.find((c) => c.id === chatId)?.title || "New chat",
+          createdAt:
+            chats.find((c) => c.id === chatId)?.createdAt || Date.now(),
           messages: next,
-        }).catch(error => {
-          console.error("⚠️ [FRONTEND] Failed to save error state to Firestore:", error);
+        }).catch((error) => {
+          console.error(
+            "⚠️ [FRONTEND] Failed to save error state to Firestore:",
+            error
+          );
         });
-        
+
         return next;
       });
-      
-      setError(isTimeout ? "Request timed out. Please try again." : errorMessage);
+
+      setError(
+        isTimeout ? "Request timed out. Please try again." : errorMessage
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const onComposerKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
+  const onComposerKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (
+    e
+  ) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       runAI();
@@ -2752,23 +3425,26 @@ export default function App() {
 
   const regenerateResponse = async (assistantMessageId: string) => {
     if (!token || !plan || !activeChat) return;
-    
+
     // Find the assistant message and the user message before it
     const messages = activeChat.messages;
-    const assistantIndex = messages.findIndex(m => m.id === assistantMessageId);
-    if (assistantIndex === -1 || messages[assistantIndex].role !== 'assistant') return;
-    
+    const assistantIndex = messages.findIndex(
+      (m) => m.id === assistantMessageId
+    );
+    if (assistantIndex === -1 || messages[assistantIndex].role !== "assistant")
+      return;
+
     // Find the previous user message
     let userMessage: Message | null = null;
     for (let i = assistantIndex - 1; i >= 0; i--) {
-      if (messages[i].role === 'user') {
+      if (messages[i].role === "user") {
         userMessage = messages[i];
         break;
       }
     }
-    
+
     if (!userMessage) {
-      setError('No user message found to regenerate from');
+      setError("No user message found to regenerate from");
       return;
     }
 
@@ -2792,30 +3468,43 @@ export default function App() {
       // Extract response - lazycook_grok_gemini.py provides unified mixed response for ULTRA
       // All models (GO, PRO, ULTRA) now return data.response with unified content
       // PRO version might also have data.optimization field
-      let content = data.response || data.optimization || JSON.stringify(data.responses ?? data, null, 2);
+      let content =
+        data.response ||
+        data.optimization ||
+        JSON.stringify(data.responses ?? data, null, 2);
       // Ensure content is always a string
-      content = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      
+      content =
+        typeof content === "string"
+          ? content
+          : JSON.stringify(content, null, 2);
+
       // Clean PRO version responses to remove JSON artifacts and extract content properly
-      if (plan === 'PRO') {
+      if (plan === "PRO") {
         content = cleanProResponse(content);
       }
-      
+
       // Extract confidence score from API response
-      const confidenceScore = data.quality_score || data.metadata?.quality_score || data.quality_metrics?.combined || undefined;
-      
+      const confidenceScore =
+        data.quality_score ||
+        data.metadata?.quality_score ||
+        data.quality_metrics?.combined ||
+        undefined;
+
       // Remove confidence score from content if it appears in the text (for all plans)
       // This ensures it only appears once in the UI, not in both content and separately
       if (confidenceScore !== undefined) {
         // Remove any confidence score text patterns from content
-        content = content.replace(/Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi, '');
-        content = content.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, '');
+        content = content.replace(
+          /Confidence\s*(?:Rating|Score)?\s*:?\s*[\d.]+\s*/gi,
+          ""
+        );
+        content = content.replace(/Confidence\s+Score\s*:?\s*[\d.]+\s*/gi, "");
       }
-      
+
       // Enhance content with emojis for better engagement (applies to all plans including PRO)
       // This ensures PRO responses get emojis just like GO responses
       content = enhanceWithEmojis(content);
-      
+
       // Update the assistant message with new content
       updateChatMessages(activeChat.id, (m) => {
         const next = [...m];
@@ -2823,14 +3512,16 @@ export default function App() {
         if (idx >= 0) next[idx] = { ...next[idx], content, confidenceScore };
         return next;
       });
-      } catch (e) {
+    } catch (e) {
       const errorMessage = (e as Error).message || "Unknown error occurred";
-      const isBlocked = errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_BLOCKED_BY_CLIENT') || 
-                       (e as Error).name === 'TypeError' && errorMessage.includes('fetch');
+      const isBlocked =
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("ERR_BLOCKED_BY_CLIENT") ||
+        ((e as Error).name === "TypeError" && errorMessage.includes("fetch"));
       const errorContent = isBlocked
         ? `⚠️ Request blocked by browser extension or ad blocker. Please disable ad blockers for this site or whitelist ${API_BASE}, then try again.`
         : `Error: ${errorMessage}`;
-      
+
       updateChatMessages(activeChat.id, (m) => {
         const next = [...m];
         const idx = next.findIndex((x) => x.id === assistantMessageId);
@@ -2845,21 +3536,21 @@ export default function App() {
 
   const copyWholeChat = async () => {
     if (!activeChat) return;
-    
+
     const chatText = activeChat.messages
       .map((m) => {
         const role = m.role === "user" ? "You" : "LazyCook";
         return `${role}:\n${m.content}\n\n`;
       })
       .join("---\n\n");
-    
+
     try {
       await navigator.clipboard.writeText(chatText);
-      setChatCopyStatus('copied');
-      setTimeout(() => setChatCopyStatus('idle'), 2000);
+      setChatCopyStatus("copied");
+      setTimeout(() => setChatCopyStatus("idle"), 2000);
     } catch (err) {
-      setChatCopyStatus('error');
-      setTimeout(() => setChatCopyStatus('idle'), 3000);
+      setChatCopyStatus("error");
+      setTimeout(() => setChatCopyStatus("idle"), 3000);
     }
   };
 
@@ -2876,7 +3567,7 @@ export default function App() {
           title: activeChat.title,
           messages: activeChat.messages,
           createdAt: activeChat.createdAt,
-          userId: firebaseUser?.uid || 'anonymous',
+          userId: firebaseUser?.uid || "anonymous",
         });
       } catch (shareError) {
         console.error("Error saving to shared collection:", shareError);
@@ -2886,11 +3577,11 @@ export default function App() {
       // Generate shareable link using the chat ID
       // Works on both localhost and Vercel deployments
       const baseUrl = window.location.origin;
-      const path = window.location.pathname || '/';
+      const path = window.location.pathname || "/";
       const shareUrl = `${baseUrl}${path}?share=${activeChatId}`;
       setShareLink(shareUrl);
       setShowShareModal(true);
-      
+
       // Try Web Share API first if available
       if (navigator.share) {
         try {
@@ -2903,7 +3594,7 @@ export default function App() {
           return;
         } catch (shareError: any) {
           // User cancelled or share failed, continue with modal
-          if (shareError.name !== 'AbortError') {
+          if (shareError.name !== "AbortError") {
             console.log("Share API failed, showing modal");
           }
         }
@@ -2917,292 +3608,272 @@ export default function App() {
 
   const downloadChatAsPDF = async () => {
     if (!activeChat) {
-      alert('No active chat to download.');
+      alert("No active chat to download.");
       return;
     }
-    
+
     let loadingMsg: HTMLDivElement | null = null;
-    let pdfContainer: HTMLDivElement | null = null;
-    
+    let pdfRoot: HTMLDivElement | null = null;
+
     try {
       // Show loading indicator
-      loadingMsg = document.createElement('div');
-      loadingMsg.id = 'pdf-loading-indicator';
-      loadingMsg.style.position = 'fixed';
-      loadingMsg.style.top = '20px';
-      loadingMsg.style.right = '20px';
-      loadingMsg.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-      loadingMsg.style.color = 'white';
-      loadingMsg.style.padding = '12px 20px';
-      loadingMsg.style.borderRadius = '8px';
-      loadingMsg.style.zIndex = '10000';
-      loadingMsg.textContent = 'Generating PDF...';
+      loadingMsg = document.createElement("div");
+      loadingMsg.id = "pdf-loading-indicator";
+      loadingMsg.style.position = "fixed";
+      loadingMsg.style.top = "20px";
+      loadingMsg.style.right = "20px";
+      loadingMsg.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+      loadingMsg.style.color = "white";
+      loadingMsg.style.padding = "12px 20px";
+      loadingMsg.style.borderRadius = "8px";
+      loadingMsg.style.zIndex = "10000";
+      loadingMsg.textContent = "Generating PDF...";
       document.body.appendChild(loadingMsg);
 
-      // Create a temporary container for PDF rendering (hidden but visible for rendering)
-      pdfContainer = document.createElement('div');
-      if (!pdfContainer) {
-        throw new Error('Failed to create PDF container');
+      console.log(
+        "PDF: Starting generation, messages count:",
+        activeChat.messages.length
+      );
+
+      // Step 1: Find the real chat container
+      const originalChat = document.querySelector(
+        "[data-exportable-chat]"
+      ) as HTMLElement;
+      if (!originalChat) {
+        throw new Error(
+          "Chat container not found. Make sure [data-exportable-chat] exists."
+        );
       }
-      
-      // TypeScript guard - pdfContainer is now guaranteed to be non-null
-      const container = pdfContainer;
-      
-      container.id = 'pdf-container-temp';
-      container.style.position = 'absolute';
-      container.style.left = '-99999px'; // Move off-screen but keep visible for canvas
-      container.style.top = '0';
-      container.style.width = '768px';
-      container.style.maxWidth = '768px';
-      container.style.margin = '0 auto'; // Center the container
-      container.style.backgroundColor = '#0b0b0f';
-      container.style.color = 'rgba(255, 255, 255, 0.92)';
-      container.style.padding = '24px';
-      container.style.fontFamily = 'system-ui, Avenir, Helvetica, Arial, sans-serif';
-      container.style.overflow = 'visible';
-      container.style.zIndex = '0'; // Must be 0 or positive for html2canvas
-      container.style.opacity = '1'; // MUST be visible for html2canvas to work
-      container.style.pointerEvents = 'none';
-      document.body.appendChild(container);
 
-      console.log('PDF: Container created, messages count:', activeChat.messages.length);
+      // Step 2: Deep clone the DOM (NOT innerHTML)
+      const clonedChat = originalChat.cloneNode(true) as HTMLElement;
+      console.log("PDF: Cloned chat container");
 
-      // Add title
-      const titleDiv = document.createElement('div');
-      titleDiv.style.fontSize = '20px';
-      titleDiv.style.fontWeight = 'bold';
-      titleDiv.style.marginBottom = '8px';
-      titleDiv.style.color = 'rgba(255, 255, 255, 0.92)';
-      titleDiv.textContent = activeChat.title || "Chat Conversation";
-      container.appendChild(titleDiv);
+      // Step 3: Create off-screen PDF container
+      pdfRoot = document.createElement("div");
+      pdfRoot.style.position = "fixed";
+      pdfRoot.style.left = "-10000px";
+      pdfRoot.style.top = "0";
+      pdfRoot.style.width = "900px";
+      pdfRoot.style.maxWidth = "900px";
+      pdfRoot.style.padding = "32px";
+      pdfRoot.style.background = "#f7efe4"; // Beige background matching frontend
+      pdfRoot.style.color = "#1c1c1c";
+      pdfRoot.style.fontFamily =
+        'system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif';
+      pdfRoot.style.overflow = "visible";
+      pdfRoot.style.zIndex = "0";
+      pdfRoot.style.opacity = "1";
+      pdfRoot.style.pointerEvents = "none";
 
-      // Add date
-      const dateDiv = document.createElement('div');
-      dateDiv.style.fontSize = '12px';
-      dateDiv.style.color = 'rgba(255, 255, 255, 0.5)';
-      dateDiv.style.marginBottom = '24px';
-      dateDiv.textContent = new Date(activeChat.createdAt).toLocaleString();
-      container.appendChild(dateDiv);
+      // Append cloned chat to PDF root
+      pdfRoot.appendChild(clonedChat);
+      document.body.appendChild(pdfRoot);
 
-      // Clone and render messages
-      activeChat.messages.forEach((m) => {
-        const msgDiv = document.createElement('div');
-        msgDiv.style.marginBottom = '24px';
-        msgDiv.style.display = 'flex';
-        msgDiv.style.flexDirection = 'column';
-        msgDiv.style.gap = '8px';
+      // Step 4: Sanitize the cloned DOM (CRITICAL)
+      // Remove input boxes
+      pdfRoot.querySelectorAll("textarea, input").forEach((el) => el.remove());
 
-        // Role label
-        const roleDiv = document.createElement('div');
-        roleDiv.style.fontSize = '13px';
-        roleDiv.style.fontWeight = '600';
-        roleDiv.style.color = 'rgba(255, 255, 255, 0.7)';
-        roleDiv.style.marginBottom = '4px';
-        if (m.role === 'user') {
-          roleDiv.textContent = 'You';
-        } else {
-          roleDiv.innerHTML = 'La<span style="color: #ff4444; font-weight: 700;">z</span>yCook';
-        }
-        msgDiv.appendChild(roleDiv);
+      // Remove buttons and action elements
+      pdfRoot
+        .querySelectorAll("button, [data-pdf-ignore]")
+        .forEach((el) => el.remove());
 
-        // Content
-        const contentDiv = document.createElement('div');
-        contentDiv.style.fontSize = '14px';
-        contentDiv.style.lineHeight = '1.6';
-        contentDiv.style.color = 'rgba(255, 255, 255, 0.92)';
-        contentDiv.style.whiteSpace = 'pre-wrap';
-        contentDiv.style.wordWrap = 'break-word';
-        
-        if (m.role === 'assistant') {
-          // For assistant messages, we need to render markdown
-          // Simple markdown to HTML conversion for PDF
-          let htmlContent = m.content
-            // Code blocks (multiline)
-            .replace(/```(\w+)?\n?([\s\S]*?)```/g, (_match, _lang, code) => {
-              return `<pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; overflow-x: auto; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; margin: 12px 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;"><code>${code.trim()}</code></pre>`;
-            })
-            // Inline code
-            .replace(/`([^`\n]+)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px;">$1</code>')
-            // Bold
-            .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight: 700;">$1</strong>')
-            // Italic
-            .replace(/\*(.+?)\*/g, '<em style="font-style: italic;">$1</em>')
-            // Headings
-            .replace(/^#### (.+)$/gm, '<h4 style="font-size: 16px; font-weight: 700; margin: 16px 0 8px 0; line-height: 1.3;">$1</h4>')
-            .replace(/^### (.+)$/gm, '<h3 style="font-size: 18px; font-weight: 700; margin: 18px 0 10px 0; line-height: 1.3;">$1</h3>')
-            .replace(/^## (.+)$/gm, '<h2 style="font-size: 20px; font-weight: 700; margin: 20px 0 12px 0; line-height: 1.3;">$1</h2>')
-            .replace(/^# (.+)$/gm, '<h1 style="font-size: 24px; font-weight: 700; margin: 24px 0 14px 0; line-height: 1.3;">$1</h1>')
-            // Lists
-            .replace(/^\- (.+)$/gm, '<li style="margin: 4px 0; padding-left: 8px;">$1</li>')
-            .replace(/^(\d+)\. (.+)$/gm, '<li style="margin: 4px 0; padding-left: 8px;">$2</li>')
-            // Line breaks
-            .replace(/\n\n/g, '</p><p style="margin: 12px 0;">')
-            .replace(/\n/g, '<br>');
-          
-          // Wrap in paragraph if not already wrapped
-          if (!htmlContent.startsWith('<')) {
-            htmlContent = `<p style="margin: 8px 0;">${htmlContent}</p>`;
-          } else {
-            htmlContent = `<div>${htmlContent}</div>`;
+      // Remove chat actions container
+      pdfRoot.querySelectorAll(".lc-chat-actions").forEach((el) => el.remove());
+
+      // Remove message action buttons
+      pdfRoot
+        .querySelectorAll(".lc-msg-actions, .lc-msg-action-btn")
+        .forEach((el) => el.remove());
+
+      // Disable animations and transitions
+      pdfRoot.querySelectorAll("*").forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        htmlEl.style.animation = "none";
+        htmlEl.style.transition = "none";
+      });
+
+      // Step 5: Force layout fixes for PDF
+      // Prevent bubbles from splitting across pages
+      pdfRoot.querySelectorAll(".lc-msg, .lc-msg-inner").forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        htmlEl.style.breakInside = "avoid";
+        htmlEl.style.pageBreakInside = "avoid";
+      });
+
+      // Ensure proper max-width for user bubbles
+      pdfRoot
+        .querySelectorAll(".lc-msg.is-user .lc-msg-inner")
+        .forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          if (!htmlEl.style.maxWidth || htmlEl.style.maxWidth === "none") {
+            htmlEl.style.maxWidth = "85%";
           }
-          
-          // Replace LazyCook with red z
-          htmlContent = htmlContent.replace(/LazyCook/gi, 'La<span style="color: #ff4444; font-weight: 700;">z</span>yCook');
-          
-          contentDiv.innerHTML = htmlContent;
-        } else {
-          contentDiv.textContent = m.content;
-        }
-        
-        msgDiv.appendChild(contentDiv);
-        container.appendChild(msgDiv);
-      });
+        });
 
-      // Wait for DOM to update and images/fonts to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for fonts to load
+      await document.fonts.ready;
+      console.log("PDF: Fonts loaded");
 
-      console.log('PDF: Container dimensions:', {
-        width: container.scrollWidth,
-        height: container.scrollHeight,
-        offsetWidth: container.offsetWidth,
-        offsetHeight: container.offsetHeight
-      });
+      // Small delay to ensure layout is calculated
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Capture as canvas
-      console.log('PDF: Starting html2canvas...');
-      const canvas = await html2canvas(container, {
-        backgroundColor: '#0b0b0f',
-        scale: window.devicePixelRatio || 2,
+      // Step 6: Render with html2canvas
+      console.log("PDF: Starting html2canvas...");
+      const canvas = await html2canvas(pdfRoot, {
+        backgroundColor: "#f7efe4", // Beige background
+        scale: 2, // Higher quality
         useCORS: true,
-        width: container.scrollWidth,
-        height: container.scrollHeight,
-        windowWidth: container.scrollWidth,
-        windowHeight: container.scrollHeight,
+        scrollX: 0,
+        scrollY: 0,
+        logging: false,
+        width: pdfRoot.scrollWidth,
+        height: pdfRoot.scrollHeight,
+        allowTaint: true,
       });
 
-      console.log('PDF: Canvas created:', {
+      console.log("PDF: Canvas created:", {
         width: canvas.width,
-        height: canvas.height
+        height: canvas.height,
       });
 
-      // DO NOT remove container yet - wait until after PDF is saved
-      // Remove loading indicator only
-      if (loadingMsg && loadingMsg.parentElement) {
-        document.body.removeChild(loadingMsg);
-      }
-
-      // Convert canvas to PDF
-      console.log('PDF: Converting canvas to image...');
-      const imgData = canvas.toDataURL('image/png');
-      if (!imgData || imgData === 'data:,') {
-        throw new Error('Failed to convert canvas to image');
-      }
-      console.log('PDF: Image data created, length:', imgData.length);
+      // Step 7: Create the PDF with proper page breaks
+      // A4 dimensions in pixels at 2x scale
+      const a4WidthPx = 1587; // 210mm * 2 scale
+      const a4HeightPx = 2244; // 297mm * 2 scale
+      const pageMarginPx = 40; // 20mm margin for balance
 
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
+        orientation: "portrait",
+        unit: "px",
+        format: [a4WidthPx, a4HeightPx],
+        compress: true,
       });
-      console.log('PDF: PDF document created');
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      // Calculate scaling to fit page width (always scale to width, split by height)
-      const pageMargin = 10; // 10mm margin on each side
-      const availableWidth = pdfWidth - (pageMargin * 2);
-      const availableHeight = pdfHeight - (pageMargin * 2);
-      
-      // ALWAYS scale to fit width (don't scale to fit height, that makes content too narrow)
-      const ratio = availableWidth / imgWidth;
-      
-      const imgScaledWidth = imgWidth * ratio;
-      
-      // Calculate centered position
-      const xPosition = (pdfWidth - imgScaledWidth) / 2;
-      const yStart = pageMargin;
-      
-      // Calculate how many pixels fit on one page
-      const pageHeightInPixels = availableHeight / ratio;
-      
-      // Always split across multiple pages if content is longer than one page
-      let heightLeft = imgHeight;
-      let position = 0;
-      let isFirstPage = true;
+      const availableWidth = a4WidthPx - pageMarginPx * 2;
+      const availableHeight = a4HeightPx - pageMarginPx * 2;
 
-      while (heightLeft > 0) {
-        if (!isFirstPage) {
-          pdf.addPage();
-        }
-        isFirstPage = false;
-        
-        const currentPageHeight = Math.min(pageHeightInPixels, heightLeft);
-        
-        const pageCanvas = document.createElement('canvas');
-        const pageCtx = pageCanvas.getContext('2d');
-        pageCanvas.width = imgWidth;
-        pageCanvas.height = currentPageHeight;
+      // Calculate scaling to fit page width
+      const scale = availableWidth / canvas.width;
+      const scaledWidth = canvas.width * scale;
+      const scaledHeight = canvas.height * scale;
+      const xPosition = (a4WidthPx - scaledWidth) / 2;
 
-        if (pageCtx) {
-          pageCtx.drawImage(
-            canvas,
-            0,
-            position,
-            imgWidth,
-            currentPageHeight,
-            0,
-            0,
-            imgWidth,
-            currentPageHeight
+      // Add entire content as single image first (works for most cases)
+      const imgData = canvas.toDataURL("image/png");
+
+      // Check if content fits on one page
+      if (scaledHeight <= availableHeight) {
+        // Content fits on one page - simple case
+        pdf.addImage(
+          imgData,
+          "PNG",
+          xPosition,
+          pageMarginPx,
+          scaledWidth,
+          scaledHeight
+        );
+      } else {
+        // Content spans multiple pages - split intelligently
+        let heightLeft = scaledHeight;
+        let sourceY = 0;
+        let pageNum = 0;
+
+        while (heightLeft > 0) {
+          if (pageNum > 0) {
+            pdf.addPage();
+          }
+
+          // Use full available height per page (except we keep small buffer at bottom)
+          const pageHeight = Math.min(availableHeight - 20, heightLeft);
+          const sourceHeight = pageHeight / scale;
+
+          // Create canvas for this page segment
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = sourceHeight;
+          const ctx = pageCanvas.getContext("2d");
+
+          if (ctx) {
+            ctx.drawImage(
+              canvas,
+              0,
+              sourceY,
+              canvas.width,
+              sourceHeight,
+              0,
+              0,
+              canvas.width,
+              sourceHeight
+            );
+          }
+
+          const pageImgData = pageCanvas.toDataURL("image/png");
+          pdf.addImage(
+            pageImgData,
+            "PNG",
+            xPosition,
+            pageMarginPx,
+            scaledWidth,
+            pageHeight
           );
+
+          // Add page number at the bottom
+          pdf.setFontSize(10);
+          pdf.setTextColor(150, 150, 150); // Light gray
+          pdf.text(`Page ${pageNum + 1}`, a4WidthPx / 2, a4HeightPx - 20, {
+            align: "center",
+          });
+          pdf.setTextColor(0, 0, 0); // Reset to black
+
+          heightLeft -= pageHeight;
+          sourceY += sourceHeight;
+          pageNum++;
         }
-
-        const pageImgData = pageCanvas.toDataURL('image/png');
-        const pageImgScaledHeight = currentPageHeight * ratio;
-        
-        // Center each page horizontally, start from top margin
-        pdf.addImage(pageImgData, 'PNG', xPosition, yStart, imgScaledWidth, pageImgScaledHeight);
-
-        heightLeft -= currentPageHeight;
-        position += currentPageHeight;
       }
 
-      // Save PDF - use ONLY blob download method (most reliable)
-      const filename = `${(activeChat.title || "chat").replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
-      console.log('PDF: Saving file:', filename);
-      
+      // Add page number to single-page PDFs too
+      if (scaledHeight <= availableHeight) {
+        pdf.setFontSize(10);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text("Page 1", a4WidthPx / 2, a4HeightPx - 20, { align: "center" });
+        pdf.setTextColor(0, 0, 0);
+      }
+
+      // Step 8: Save PDF
+      const filename = `${(activeChat.title || "chat").replace(
+        /[^a-z0-9]/gi,
+        "_"
+      )}_${Date.now()}.pdf`;
+      console.log("PDF: Saving file:", filename);
+
       // Generate PDF blob and create download link
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob = pdf.output("blob");
       const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = blobUrl;
       link.download = filename;
-      link.style.display = 'none';
+      link.style.display = "none";
       document.body.appendChild(link);
-      
+
       // Trigger download
       link.click();
-      console.log('PDF: Download triggered via blob method');
-      
-      // Cleanup: Remove container and link after download starts
+      console.log("PDF: Download triggered via blob method");
+
+      // Cleanup
       setTimeout(() => {
-        // Remove download link
         if (link.parentElement) {
           document.body.removeChild(link);
         }
         URL.revokeObjectURL(blobUrl);
-        
-        // Remove container (now safe to remove)
-        if (container && container.parentElement) {
-          document.body.removeChild(container);
+        if (pdfRoot && pdfRoot.parentElement) {
+          document.body.removeChild(pdfRoot);
         }
-        console.log('PDF: Cleanup complete');
+        console.log("PDF: Cleanup complete");
       }, 2000);
-      
-      // Update loading message with helpful instructions
+
+      // Update loading message
       if (loadingMsg && loadingMsg.parentElement) {
         loadingMsg.innerHTML = `
           <div style="text-align: center;">
@@ -3215,34 +3886,42 @@ export default function App() {
             </div>
           </div>
         `;
-        loadingMsg.style.backgroundColor = 'rgba(76, 175, 80, 0.95)';
-        loadingMsg.style.maxWidth = '400px';
-        loadingMsg.style.padding = '20px';
-        loadingMsg.style.fontSize = '13px';
+        loadingMsg.style.backgroundColor = "rgba(76, 175, 80, 0.95)";
+        loadingMsg.style.maxWidth = "400px";
+        loadingMsg.style.padding = "20px";
+        loadingMsg.style.fontSize = "13px";
         setTimeout(() => {
           if (loadingMsg && loadingMsg.parentElement) {
             document.body.removeChild(loadingMsg);
           }
         }, 8000);
       }
-      
-      console.log('PDF: Download complete!');
-      console.log('PDF: File location should be:', `C:\\Users\\parth\\Downloads\\${filename}`);
+
+      console.log("PDF: Download complete!");
+      console.log(
+        "PDF: File location should be:",
+        `C:\\Users\\parth\\Downloads\\${filename}`
+      );
     } catch (err) {
-      console.error('PDF generation error:', err);
-      console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      console.error("PDF generation error:", err);
+      console.error(
+        "Error stack:",
+        err instanceof Error ? err.stack : "No stack trace"
+      );
+
       // Clean up in case of error
       if (loadingMsg && loadingMsg.parentElement) {
         document.body.removeChild(loadingMsg);
       }
-      const tempContainer = document.getElementById('pdf-container-temp');
-      if (tempContainer && tempContainer.parentElement) {
-        document.body.removeChild(tempContainer);
+      if (pdfRoot && pdfRoot.parentElement) {
+        document.body.removeChild(pdfRoot);
       }
-      
+
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error('PDF Error details:', errorMsg);
-      alert(`Failed to generate PDF: ${errorMsg}\n\nPlease check the browser console (F12) for more details.`);
+      console.error("PDF Error details:", errorMsg);
+      alert(
+        `Failed to generate PDF: ${errorMsg}\n\nPlease check the browser console (F12) for more details.`
+      );
     }
   };
 
@@ -3258,7 +3937,9 @@ export default function App() {
           <div className="lc-brand">
             <img src={logoImg} alt="LazyCook" className="lc-logo" />
             <div>
-              <div className="lc-title"><LazyCookText /></div>
+              <div className="lc-title">
+                <LazyCookText />
+              </div>
               <div className="lc-subtitle">Loading...</div>
             </div>
           </div>
@@ -3274,22 +3955,36 @@ export default function App() {
           <div className="lc-brand">
             <img src={logoImg} alt="LazyCook" className="lc-logo" />
             <div>
-              <div className="lc-title"><LazyCookText /></div>
+              <div className="lc-title">
+                <LazyCookText />
+              </div>
               <div className="lc-subtitle">Sign in to continue</div>
             </div>
           </div>
 
-          <button 
-            className="lc-google-btn" 
+          <button
+            className="lc-google-btn"
             onClick={handleGoogleSignIn}
             disabled={loading}
             type="button"
           >
             <svg viewBox="0 0 24 24" width="20" height="20">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
             </svg>
             <span>Continue with Google</span>
           </button>
@@ -3325,7 +4020,8 @@ export default function App() {
 
           {error && <div className="lc-error">{error}</div>}
           <div className="lc-hint">
-            Tip: use <code>go@lazycook.ai</code> / <code>pro@lazycook.ai</code> / <code>ultra@lazycook.ai</code>
+            Tip: use <code>go@lazycook.ai</code> / <code>pro@lazycook.ai</code>{" "}
+            / <code>ultra@lazycook.ai</code>
           </div>
         </div>
       </div>
@@ -3335,877 +4031,1327 @@ export default function App() {
   return (
     <>
       <div className="lc-shell">
-      {sidebarOpen && (
-        <div 
-          className="lc-sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Close sidebar"
-        />
-      )}
-      <aside className={`lc-sidebar ${sidebarOpen ? "is-open" : ""}`}>
-        {/* Logo and Collapse Button */}
-        <div className="lc-sidebar-header">
-          <div className="lc-sidebar-logo">
-            <img src={logoImg} alt="LazyCook" className="lc-sidebar-logo-icon" />
-          </div>
-          <button 
-            className="lc-sidebar-toggle" 
-            onClick={() => setSidebarOpen((v) => !v)} 
-            aria-label="Toggle sidebar"
-          >
-            <FiX aria-hidden="true" />
-          </button>
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="lc-sidebar-nav">
-          <button className="lc-nav-btn" onClick={newChat}>
-            <FiPlus aria-hidden="true" />
-            <span>New chat</span>
-          </button>
-          <button 
-            className="lc-nav-btn" 
-            onClick={() => {
-              const searchInput = document.querySelector('.lc-search-input') as HTMLInputElement;
-              searchInput?.focus();
-            }}
-          >
-            <FiSearch aria-hidden="true" />
-            <span>Search chats</span>
-          </button>
-          <button className="lc-nav-btn" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
-            <FiImage aria-hidden="true" />
-            <span>Images</span>
-            <span className="lc-badge" style={{ background: 'var(--muted)', color: 'var(--white)' }}>Coming Soon</span>
-          </button>
-          <button 
-            className="lc-nav-btn"
-            onClick={() => {
-              setShowHelpModal(true);
-              if (window.innerWidth <= 900) {
-                setSidebarOpen(false);
-              }
-            }}
-          >
-            <FiHelpCircle aria-hidden="true" />
-            <span>Highlights & Notes</span>
-          </button>
-          <button 
-            className="lc-nav-btn"
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-            }}
-          >
-            <FiUser aria-hidden="true" />
-            <span>Profile</span>
-          </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="lc-sidebar-search">
-          <input
-            type="text"
-            placeholder="Search chats..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="lc-search-input"
-            aria-label="Search conversations"
+        {sidebarOpen && (
+          <div
+            className="lc-sidebar-overlay"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar"
           />
-        </div>
-
-        {/* Your Chats Section */}
-        <div className="lc-chatlist">
-          <div className="lc-chatlist-header">Your chats</div>
-          {filteredChats.length === 0 ? (
-            <div className="lc-chatlist-empty">
-              {searchQuery ? 'No conversations found' : 'No conversations yet'}
+        )}
+        <aside className={`lc-sidebar ${sidebarOpen ? "is-open" : ""}`}>
+          {/* Logo and Collapse Button */}
+          <div className="lc-sidebar-header">
+            <div className="lc-sidebar-logo">
+              <img
+                src={logoImg}
+                alt="LazyCook"
+                className="lc-sidebar-logo-icon"
+              />
             </div>
-          ) : (
-            filteredChats.map((c) => (
-              <div
-                key={c.id}
-                className={`lc-chat-item ${c.id === activeChatId ? "active" : ""}`}
-                onClick={() => {
-                  if (renamingChatId !== c.id) {
-                    setActiveChatId(c.id);
-                    if (window.innerWidth <= 900) {
-                      setSidebarOpen(false);
-                    }
-                  }
-                }}
-              >
-                {renamingChatId === c.id ? (
-                  <input
-                    className="lc-chat-rename-input"
-                    value={renameValue}
-                    autoFocus
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={async () => {
-                      if (renameValue.trim() && firebaseUser) {
-                        await handleRenameChat(c.id, renameValue.trim());
-                      }
-                      setRenamingChatId(null);
-                      setRenameValue("");
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.currentTarget.blur();
-                      }
-                      if (e.key === "Escape") {
-                        setRenamingChatId(null);
-                        setRenameValue("");
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <span className="lc-chat-title">{c.title}</span>
-                )}
-                <div className="lc-chat-icons">
-                  <button
-                    className="lc-chat-icon"
-                    title="Rename chat"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRenamingChatId(c.id);
-                      setRenameValue(c.title);
-                    }}
-                  >
-                    <FiEdit2 size={14} />
-                  </button>
-                  <button
-                    className="lc-chat-icon delete"
-                    title="Delete chat"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteChat(c.id);
-                    }}
-                  >
-                    <FiTrash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* User Profile */}
-        <div className="lc-sidebar-bottom">
-          <div className="lc-userline" ref={userMenuRef} onClick={() => setShowUserMenu(!showUserMenu)}>
-            <div className="lc-avatar">
-              {(firebaseUser?.email || email) ? ((firebaseUser?.email || email).split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
-            </div>
-            <div className="lc-usertext">
-              <div className="lc-username">
-                {(firebaseUser?.email || email) ? (firebaseUser?.email || email).split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
-              </div>
-              <div className="lc-userplan">{plan || 'GO'}</div>
-            </div>
-            {showUserMenu && (
-              <div className="lc-user-menu">
-                <div className="lc-user-menu-header">
-                  <div className="lc-avatar-menu">
-                    {(firebaseUser?.email || email) ? ((firebaseUser?.email || email).split('@')[0].match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() : 'U'}
-                  </div>
-                  <div className="lc-user-menu-info">
-                    <div className="lc-user-menu-name">
-                      {(firebaseUser?.email || email) ? (firebaseUser?.email || email).split('@')[0].split(/[._-]/).map((n) => n.charAt(0).toUpperCase() + n.slice(1)).join(' ') : 'User'}
-                    </div>
-                    <div className="lc-user-menu-username">
-                      @{(firebaseUser?.email || email) ? (firebaseUser?.email || email).split('@')[0].toLowerCase() : 'user'}
-                    </div>
-                  </div>
-                </div>
-                <div className="lc-user-menu-divider"></div>
-                <button 
-                  className="lc-user-menu-item"
-                  onClick={() => {
-                    setShowPlanSelector(true);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 2L10 6L14 7L10 8L8 12L6 8L2 7L6 6L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Upgrade plan</span>
-                </button>
-                <button className="lc-user-menu-item">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M8 4V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                  <span>Personalization</span>
-                </button>
-                <button className="lc-user-menu-item">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M8 2V4M8 12V14M2 8H4M12 8H14M3.5 3.5L4.9 4.9M11.1 11.1L12.5 12.5M3.5 12.5L4.9 11.1M11.1 4.9L12.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                  <span>Settings</span>
-                </button>
-                <div className="lc-user-menu-divider"></div>
-                <button 
-                  className="lc-user-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setHighlightEnabled(!highlightEnabled);
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2 4L6 8L14 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: highlightEnabled ? 1 : 0.3 }}/>
-                    <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" fill={highlightEnabled ? "currentColor" : "none"} style={{ opacity: highlightEnabled ? 0.1 : 0.3 }}/>
-                  </svg>
-                  <span>Enable Text Highlighting</span>
-                  <div className={`lc-toggle-switch ${highlightEnabled ? 'is-active' : ''}`}>
-                    <div className="lc-toggle-slider"></div>
-                  </div>
-                </button>
-                <div className="lc-user-menu-divider"></div>
-                <button 
-                  className="lc-user-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowHelpModal(true);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M8 4V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                  <span>Help</span>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-menu-chevron">
-                    <path d="M4 3L8 6L4 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                <button className="lc-user-menu-item" onClick={(e) => { e.stopPropagation(); logout(); }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M6 4L2 8L6 12M2 8H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Log out</span>
-                </button>
-              </div>
-            )}
+            <button
+              className="lc-sidebar-toggle"
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label="Toggle sidebar"
+            >
+              <FiX aria-hidden="true" />
+            </button>
           </div>
-          
-          {/* Logout Button - Direct access at bottom */}
-          <button 
-            className="lc-nav-btn"
-            onClick={async () => {
-              if (window.confirm('Are you sure you want to log out?')) {
-                await logout();
+
+          {/* Navigation Buttons */}
+          <div className="lc-sidebar-nav">
+            <button className="lc-nav-btn" onClick={newChat}>
+              <FiPlus aria-hidden="true" />
+              <span>New chat</span>
+            </button>
+            <button
+              className="lc-nav-btn"
+              onClick={() => {
+                const searchInput = document.querySelector(
+                  ".lc-search-input"
+                ) as HTMLInputElement;
+                searchInput?.focus();
+              }}
+            >
+              <FiSearch aria-hidden="true" />
+              <span>Search chats</span>
+            </button>
+            <button
+              className="lc-nav-btn"
+              disabled
+              style={{ opacity: 0.6, cursor: "not-allowed" }}
+            >
+              <FiImage aria-hidden="true" />
+              <span>Images</span>
+              <span
+                className="lc-badge"
+                style={{ background: "var(--muted)", color: "var(--white)" }}
+              >
+                Coming Soon
+              </span>
+            </button>
+            <button
+              className="lc-nav-btn"
+              onClick={() => {
+                setShowHelpModal(true);
                 if (window.innerWidth <= 900) {
                   setSidebarOpen(false);
                 }
-              }
-            }}
-            style={{ 
-              color: 'var(--red)', 
-              width: '100%',
-              marginTop: '8px',
-              borderTop: '1px solid var(--border-light)',
-              paddingTop: '12px',
-              borderRadius: '0'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 4L2 8L6 12M2 8H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span>Log out</span>
-          </button>
-        </div>
-      </aside>
-
-      <main className="lc-main">
-        <header className="lc-topbar">
-          <button className="lc-iconbtn mobile-only" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
-            ☰
-          </button>
-
-          <div className="lc-topbar-left">
-            {/* Logo-text - Orange area */}
-            <img src={logoTextImg} alt="LazyCook" className="lc-logo-text" />
-            
-            {/* Model - Red area */}
-            <div className="lc-topbar-model" ref={modelDropdownRef} onClick={() => setShowModelDropdown(!showModelDropdown)}>
-              <span className="lc-model-version">{model === 'gemini' ? 'Gemini' : model === 'grok' ? 'Grok' : 'Mixed'}</span>
-              <FiChevronDown className="lc-dropdown-icon" />
-              {showModelDropdown && (
-                <div className="lc-model-dropdown">
-                  <button
-                    className={`lc-model-option ${model === 'gemini' ? 'is-active' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!plan || PLAN_MODELS[plan].includes('gemini')) {
-                        setModel('gemini');
-                        setShowModelDropdown(false);
-                      }
-                    }}
-                    disabled={!!plan && !PLAN_MODELS[plan].includes('gemini')}
-                  >
-                    Gemini{plan && !PLAN_MODELS[plan].includes('gemini') ? ' (locked)' : ''}
-                  </button>
-                  <button
-                    className={`lc-model-option ${model === 'grok' ? 'is-active' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!plan || PLAN_MODELS[plan].includes('grok')) {
-                        setModel('grok');
-                        setShowModelDropdown(false);
-                      }
-                    }}
-                    disabled={!!plan && !PLAN_MODELS[plan].includes('grok')}
-                  >
-                    Grok{plan && !PLAN_MODELS[plan].includes('grok') ? ' (locked)' : ''}
-                  </button>
-                  <button
-                    className={`lc-model-option ${model === 'mixed' ? 'is-active' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!plan || PLAN_MODELS[plan].includes('mixed')) {
-                        setModel('mixed');
-                        setShowModelDropdown(false);
-                      }
-                    }}
-                    disabled={!!plan && !PLAN_MODELS[plan].includes('mixed')}
-                  >
-                    Mixed{plan && !PLAN_MODELS[plan].includes('mixed') ? ' (locked)' : ''}
-                  </button>
-                </div>
-              )}
-            </div>
+              }}
+            >
+              <FiHelpCircle aria-hidden="true" />
+              <span>Highlights & Notes</span>
+            </button>
+            <button
+              className="lc-nav-btn"
+              onClick={() => {
+                setShowUserMenu(!showUserMenu);
+              }}
+            >
+              <FiUser aria-hidden="true" />
+              <span>Profile</span>
+            </button>
           </div>
 
-          <div className="lc-topbar-actions">
-            {/* Desktop: Direct buttons (≥1024px) */}
-            <button 
-              className="lc-topbar-action-btn lc-topbar-action-direct" 
-              aria-label="Share"
-              onClick={handleShareChat}
-            >
-              <FiShare2 aria-hidden="true" />
-              <span>Share</span>
-            </button>
-            <button className="lc-topbar-action-btn lc-topbar-action-direct" aria-label="Add people">
-              <FiUserPlus aria-hidden="true" />
-              <span>Add people</span>
-            </button>
-            
-            {/* Three-dot menu button - always visible */}
-            <div className="lc-topbar-menu-wrapper" ref={topbarMenuRef}>
-              <button 
-                className="lc-topbar-menu-btn" 
-                aria-label="More options"
-                onClick={() => setShowTopbarMenu(!showTopbarMenu)}
-              >
-                <FiMoreVertical aria-hidden="true" />
-              </button>
-              
-              {/* Dropdown menu - visible on mobile, contains Share and Add people */}
-              {showTopbarMenu && (
-                <div className="lc-topbar-menu-dropdown">
-                  {activeChatId && (
-                    <button 
-                      className="lc-topbar-menu-item lc-topbar-action-menu" 
-                      aria-label="Rename chat"
-                      onClick={() => {
-                        setShowTopbarMenu(false);
-                        const newTitle = window.prompt('Enter new chat title:', chats.find(c => c.id === activeChatId)?.title || '');
-                        if (newTitle !== null && newTitle.trim()) {
-                          handleRenameChat(activeChatId, newTitle.trim());
+          {/* Search Input */}
+          <div className="lc-sidebar-search">
+            <input
+              type="text"
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="lc-search-input"
+              aria-label="Search conversations"
+            />
+          </div>
+
+          {/* Your Chats Section */}
+          <div className="lc-chatlist">
+            <div className="lc-chatlist-header">Your chats</div>
+            {filteredChats.length === 0 ? (
+              <div className="lc-chatlist-empty">
+                {searchQuery
+                  ? "No conversations found"
+                  : "No conversations yet"}
+              </div>
+            ) : (
+              filteredChats.map((c) => (
+                <div
+                  key={c.id}
+                  className={`lc-chat-item ${
+                    c.id === activeChatId ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    if (renamingChatId !== c.id) {
+                      setActiveChatId(c.id);
+                      if (window.innerWidth <= 900) {
+                        setSidebarOpen(false);
+                      }
+                    }
+                  }}
+                >
+                  {renamingChatId === c.id ? (
+                    <input
+                      className="lc-chat-rename-input"
+                      value={renameValue}
+                      autoFocus
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={async () => {
+                        if (renameValue.trim() && firebaseUser) {
+                          await handleRenameChat(c.id, renameValue.trim());
+                        }
+                        setRenamingChatId(null);
+                        setRenameValue("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
+                        }
+                        if (e.key === "Escape") {
+                          setRenamingChatId(null);
+                          setRenameValue("");
                         }
                       }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z"/>
-                        <path d="M2 14V12L8 6L10 8L4 14H2Z"/>
-                      </svg>
-                      <span>Rename</span>
-                    </button>
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="lc-chat-title">{c.title}</span>
                   )}
-                  <button 
-                    className="lc-topbar-menu-item lc-topbar-action-menu" 
-                    aria-label="Share"
+                  <div className="lc-chat-icons">
+                    <button
+                      className="lc-chat-icon"
+                      title="Rename chat"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenamingChatId(c.id);
+                        setRenameValue(c.title);
+                      }}
+                    >
+                      <FiEdit2 size={14} />
+                    </button>
+                    <button
+                      className="lc-chat-icon delete"
+                      title="Delete chat"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteChat(c.id);
+                      }}
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* User Profile */}
+          <div className="lc-sidebar-bottom">
+            <div
+              className="lc-userline"
+              ref={userMenuRef}
+              onClick={() => setShowUserMenu(!showUserMenu)}
+            >
+              <div className="lc-avatar">
+                {firebaseUser?.email || email
+                  ? (
+                      (firebaseUser?.email || email)
+                        .split("@")[0]
+                        .match(/\b\w/g) || []
+                    )
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()
+                  : "U"}
+              </div>
+              <div className="lc-usertext">
+                <div className="lc-username">
+                  {firebaseUser?.email || email
+                    ? (firebaseUser?.email || email)
+                        .split("@")[0]
+                        .split(/[._-]/)
+                        .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
+                        .join(" ")
+                    : "User"}
+                </div>
+                <div className="lc-userplan">{plan || "GO"}</div>
+              </div>
+              {showUserMenu && (
+                <div className="lc-user-menu">
+                  <div className="lc-user-menu-header">
+                    <div className="lc-avatar-menu">
+                      {firebaseUser?.email || email
+                        ? (
+                            (firebaseUser?.email || email)
+                              .split("@")[0]
+                              .match(/\b\w/g) || []
+                          )
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase()
+                        : "U"}
+                    </div>
+                    <div className="lc-user-menu-info">
+                      <div className="lc-user-menu-name">
+                        {firebaseUser?.email || email
+                          ? (firebaseUser?.email || email)
+                              .split("@")[0]
+                              .split(/[._-]/)
+                              .map(
+                                (n) => n.charAt(0).toUpperCase() + n.slice(1)
+                              )
+                              .join(" ")
+                          : "User"}
+                      </div>
+                      <div className="lc-user-menu-username">
+                        @
+                        {firebaseUser?.email || email
+                          ? (firebaseUser?.email || email)
+                              .split("@")[0]
+                              .toLowerCase()
+                          : "user"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="lc-user-menu-divider"></div>
+                  <button
+                    className="lc-user-menu-item"
                     onClick={() => {
-                      setShowTopbarMenu(false);
-                      handleShareChat();
+                      setShowPlanSelector(true);
+                      setShowUserMenu(false);
                     }}
                   >
-                    <FiShare2 aria-hidden="true" />
-                    <span>Share</span>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M8 2L10 6L14 7L10 8L8 12L6 8L2 7L6 6L8 2Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>Upgrade plan</span>
                   </button>
-                  <button 
-                    className="lc-topbar-menu-item lc-topbar-action-menu" 
-                    aria-label="Add people"
-                    onClick={() => {
-                      setShowTopbarMenu(false);
-                      // Add Add people functionality here if needed
+                  <button className="lc-user-menu-item">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
+                      <path
+                        d="M8 4V8L10 10"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span>Personalization</span>
+                  </button>
+                  <button className="lc-user-menu-item">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="2"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
+                      <path
+                        d="M8 2V4M8 12V14M2 8H4M12 8H14M3.5 3.5L4.9 4.9M11.1 11.1L12.5 12.5M3.5 12.5L4.9 11.1M11.1 4.9L12.5 3.5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span>Settings</span>
+                  </button>
+                  <div className="lc-user-menu-divider"></div>
+                  <button
+                    className="lc-user-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHighlightEnabled(!highlightEnabled);
                     }}
                   >
-                    <FiUserPlus aria-hidden="true" />
-                    <span>Add people</span>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M2 4L6 8L14 2"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ opacity: highlightEnabled ? 1 : 0.3 }}
+                      />
+                      <rect
+                        x="1"
+                        y="1"
+                        width="14"
+                        height="14"
+                        rx="2"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        fill={highlightEnabled ? "currentColor" : "none"}
+                        style={{ opacity: highlightEnabled ? 0.1 : 0.3 }}
+                      />
+                    </svg>
+                    <span>Enable Text Highlighting</span>
+                    <div
+                      className={`lc-toggle-switch ${
+                        highlightEnabled ? "is-active" : ""
+                      }`}
+                    >
+                      <div className="lc-toggle-slider"></div>
+                    </div>
                   </button>
-                  {activeChatId && (
-                    <>
-                      <div className="lc-topbar-menu-divider"></div>
-                      <button 
-                        className="lc-topbar-menu-item lc-topbar-action-menu" 
-                        style={{ color: 'var(--red)' }}
-                        aria-label="Delete chat"
+                  <div className="lc-user-menu-divider"></div>
+                  <button
+                    className="lc-user-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowHelpModal(true);
+                      setShowUserMenu(false);
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
+                      <path
+                        d="M8 4V8L10 10"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span>Help</span>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="lc-menu-chevron"
+                    >
+                      <path
+                        d="M4 3L8 6L4 9"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    className="lc-user-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      logout();
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M6 4L2 8L6 12M2 8H12"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>Log out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Logout Button - Direct access at bottom */}
+            <button
+              className="lc-nav-btn"
+              onClick={async () => {
+                if (window.confirm("Are you sure you want to log out?")) {
+                  await logout();
+                  if (window.innerWidth <= 900) {
+                    setSidebarOpen(false);
+                  }
+                }
+              }}
+              style={{
+                color: "var(--red)",
+                width: "100%",
+                marginTop: "8px",
+                borderTop: "1px solid var(--border-light)",
+                paddingTop: "12px",
+                borderRadius: "0",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 4L2 8L6 12M2 8H12"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Log out</span>
+            </button>
+          </div>
+        </aside>
+
+        <main className="lc-main">
+          <header className="lc-topbar">
+            <button
+              className="lc-iconbtn mobile-only"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar"
+            >
+              ☰
+            </button>
+
+            <div className="lc-topbar-left">
+              {/* Logo-text - Orange area */}
+              <img src={logoTextImg} alt="LazyCook" className="lc-logo-text" />
+
+              {/* Model - Red area */}
+              <div
+                className="lc-topbar-model"
+                ref={modelDropdownRef}
+                onClick={() => setShowModelDropdown(!showModelDropdown)}
+              >
+                <span className="lc-model-version">
+                  {model === "gemini"
+                    ? "Gemini"
+                    : model === "grok"
+                    ? "Grok"
+                    : "Mixed"}
+                </span>
+                <FiChevronDown className="lc-dropdown-icon" />
+                {showModelDropdown && (
+                  <div className="lc-model-dropdown">
+                    <button
+                      className={`lc-model-option ${
+                        model === "gemini" ? "is-active" : ""
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!plan || PLAN_MODELS[plan].includes("gemini")) {
+                          setModel("gemini");
+                          setShowModelDropdown(false);
+                        }
+                      }}
+                      disabled={!!plan && !PLAN_MODELS[plan].includes("gemini")}
+                    >
+                      Gemini
+                      {plan && !PLAN_MODELS[plan].includes("gemini")
+                        ? " (locked)"
+                        : ""}
+                    </button>
+                    <button
+                      className={`lc-model-option ${
+                        model === "grok" ? "is-active" : ""
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!plan || PLAN_MODELS[plan].includes("grok")) {
+                          setModel("grok");
+                          setShowModelDropdown(false);
+                        }
+                      }}
+                      disabled={!!plan && !PLAN_MODELS[plan].includes("grok")}
+                    >
+                      Grok
+                      {plan && !PLAN_MODELS[plan].includes("grok")
+                        ? " (locked)"
+                        : ""}
+                    </button>
+                    <button
+                      className={`lc-model-option ${
+                        model === "mixed" ? "is-active" : ""
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!plan || PLAN_MODELS[plan].includes("mixed")) {
+                          setModel("mixed");
+                          setShowModelDropdown(false);
+                        }
+                      }}
+                      disabled={!!plan && !PLAN_MODELS[plan].includes("mixed")}
+                    >
+                      Mixed
+                      {plan && !PLAN_MODELS[plan].includes("mixed")
+                        ? " (locked)"
+                        : ""}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="lc-topbar-actions">
+              {/* Desktop: Direct buttons (≥1024px) */}
+              <button
+                className="lc-topbar-action-btn lc-topbar-action-direct"
+                aria-label="Share"
+                onClick={handleShareChat}
+              >
+                <FiShare2 aria-hidden="true" />
+                <span>Share</span>
+              </button>
+              <button
+                className="lc-topbar-action-btn lc-topbar-action-direct"
+                aria-label="Add people"
+              >
+                <FiUserPlus aria-hidden="true" />
+                <span>Add people</span>
+              </button>
+
+              {/* Three-dot menu button - always visible */}
+              <div className="lc-topbar-menu-wrapper" ref={topbarMenuRef}>
+                <button
+                  className="lc-topbar-menu-btn"
+                  aria-label="More options"
+                  onClick={() => setShowTopbarMenu(!showTopbarMenu)}
+                >
+                  <FiMoreVertical aria-hidden="true" />
+                </button>
+
+                {/* Dropdown menu - visible on mobile, contains Share and Add people */}
+                {showTopbarMenu && (
+                  <div className="lc-topbar-menu-dropdown">
+                    {activeChatId && (
+                      <button
+                        className="lc-topbar-menu-item lc-topbar-action-menu"
+                        aria-label="Rename chat"
                         onClick={() => {
                           setShowTopbarMenu(false);
-                          handleDeleteChat(activeChatId);
+                          const newTitle = window.prompt(
+                            "Enter new chat title:",
+                            chats.find((c) => c.id === activeChatId)?.title ||
+                              ""
+                          );
+                          if (newTitle !== null && newTitle.trim()) {
+                            handleRenameChat(activeChatId, newTitle.trim());
+                          }
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z"/>
-                          <path d="M6 7V11M10 7V11"/>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M11.5 2.5L13.5 4.5M12 1L10 3L13 6L15 4L12 1Z" />
+                          <path d="M2 14V12L8 6L10 8L4 14H2Z" />
                         </svg>
-                        <span>Delete</span>
+                        <span>Rename</span>
                       </button>
-                    </>
-                  )}
-                </div>
-              )}
+                    )}
+                    <button
+                      className="lc-topbar-menu-item lc-topbar-action-menu"
+                      aria-label="Share"
+                      onClick={() => {
+                        setShowTopbarMenu(false);
+                        handleShareChat();
+                      }}
+                    >
+                      <FiShare2 aria-hidden="true" />
+                      <span>Share</span>
+                    </button>
+                    <button
+                      className="lc-topbar-menu-item lc-topbar-action-menu"
+                      aria-label="Add people"
+                      onClick={() => {
+                        setShowTopbarMenu(false);
+                        // Add Add people functionality here if needed
+                      }}
+                    >
+                      <FiUserPlus aria-hidden="true" />
+                      <span>Add people</span>
+                    </button>
+                    {activeChatId && (
+                      <>
+                        <div className="lc-topbar-menu-divider"></div>
+                        <button
+                          className="lc-topbar-menu-item lc-topbar-action-menu"
+                          style={{ color: "var(--red)" }}
+                          aria-label="Delete chat"
+                          onClick={() => {
+                            setShowTopbarMenu(false);
+                            handleDeleteChat(activeChatId);
+                          }}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path d="M2 4H14M5 4V3C5 2.44772 5.44772 2 6 2H10C10.5523 2 11 2.44772 11 3V4M13 4V13C13 13.5523 12.5523 14 12 14H4C3.44772 14 3 13.5523 3 13V4H13Z" />
+                            <path d="M6 7V11M10 7V11" />
+                          </svg>
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <section className="lc-thread" ref={threadRef}>
-          {(activeChat?.messages || []).length === 0 ? (
-            <div className="lc-empty">
-              <div className="lc-empty-title">Ask anything</div>
-              <div className="lc-empty-subtitle">Gemini and Grok are ready. Your plan gates Grok.</div>
-            </div>
-          ) : (
-            <div className="lc-messages">
-              {(activeChat?.messages || []).map((m) => (
-                <MessageItem 
-                  key={m.id} 
-                  message={m} 
-                  onRegenerate={m.role === 'assistant' ? () => regenerateResponse(m.id) : undefined}
-                  onUpdateHighlights={m.role === 'assistant' && activeChat ? (highlights: Highlight[]) => {
-                    updateChatMessages(activeChat.id, (messages) => {
-                      const next = [...messages];
-                      const idx = next.findIndex((msg) => msg.id === m.id);
-                      if (idx >= 0) {
-                        next[idx] = { ...next[idx], highlights };
-                      }
-                      return next;
-                    });
-                  } : undefined}
-                  onAskChatGPT={m.role === 'assistant' ? (text: string) => {
-                    setPrompt(text);
-                    // Auto-focus the textarea
-                    setTimeout(() => {
-                      textareaRef.current?.focus();
-                      // Scroll to input
-                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 100);
-                  } : undefined}
-                  highlightEnabled={highlightEnabled}
-                  apiBase={API_BASE}
-                  firebaseUser={firebaseUser}
-                  plan={plan}
-                  getIdToken={getIdToken}
-                />
-              ))}
-              {activeChat && activeChat.messages.length > 0 && (
-                <div className="lc-chat-actions">
-                  <button
-                    className={`lc-chat-action-btn ${chatCopyStatus === 'copied' ? 'is-copied' : chatCopyStatus === 'error' ? 'is-error' : ''}`}
-                    onClick={copyWholeChat}
-                    aria-label="Copy whole chat"
-                    title={chatCopyStatus === 'copied' ? 'Copied!' : chatCopyStatus === 'error' ? 'Copy failed' : 'Copy chat'}
-                  >
-                    <FiCopy aria-hidden="true" className="lc-chat-action-icon" />
-                    <span>{chatCopyStatus === 'copied' ? 'Copied' : chatCopyStatus === 'error' ? 'Failed' : 'Copy Chat'}</span>
-                  </button>
-                  <button
-                    className="lc-chat-action-btn"
-                    onClick={downloadChatAsPDF}
-                    aria-label="Download chat as PDF"
-                    title="Download as PDF"
-                  >
-                    <FiDownload aria-hidden="true" className="lc-chat-action-icon" />
-                    <span>Download PDF</span>
-                  </button>
+          <section className="lc-thread" ref={threadRef} data-exportable-chat>
+            {(activeChat?.messages || []).length === 0 ? (
+              <div className="lc-empty">
+                <div className="lc-empty-title">Ask anything</div>
+                <div className="lc-empty-subtitle">
+                  Gemini and Grok are ready. Your plan gates Grok.
                 </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-          {/* Scroll to bottom arrow - ChatGPT exact behavior */}
-          <button
-            className={`lc-scroll-to-bottom ${showScrollToBottom ? 'is-visible' : ''}`}
-            onClick={scrollToBottom}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                scrollToBottom();
-              }
-            }}
-            aria-label="Scroll to bottom"
-            tabIndex={showScrollToBottom ? 0 : -1}
-          >
-            <FiChevronDown aria-hidden="true" />
-          </button>
-        </section>
-
-        <footer className="lc-composer">
-          {error && <div className="lc-error lc-error-inline">{error}</div>}
-          {attachedFile && (
-            <div className="lc-attached-file">
-              <FiFileText className="lc-attached-file-icon" />
-              <span className="lc-attached-file-name">{attachedFile.filename}</span>
-              <button
-                type="button"
-                className="lc-attached-file-remove"
-                onClick={() => setAttachedFile(null)}
-                title="Remove file"
-                aria-label="Remove attached file"
-              >
-                <FiX />
-              </button>
-            </div>
-          )}
-          <div className="lc-composer-row">
-            <div className="lc-textarea-wrapper">
-              {/* Upload files */}
-              <div className="lc-upload-wrapper">
-                <input
-                  ref={fileInputRef}
-                  id="lc-file-upload-input"
-                  type="file"
-                  multiple
-                  accept=".py,.js,.ts,.jsx,.tsx,.java,.c,.cpp,.h,.hpp,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.bash,.ps1,.bat,.cmd,.html,.css,.xml,.json,.yaml,.yml,.txt,.md,.markdown,.csv,.pdf,.log,.ini,.conf,.config,.sql,.r,.m,.lua,.pl,.dart,.elm,.hs,.ml,.fs,.vb,.tex,.make,.cmake,.properties,.env"
-                  style={{ display: 'none' }}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    
-                    if (!plan) {
-                      setShowPlanSelector(true);
-                      setError("Please select a plan to upload files");
-                      return;
+              </div>
+            ) : (
+              <div className="lc-messages">
+                {(activeChat?.messages || []).map((m) => (
+                  <MessageItem
+                    key={m.id}
+                    message={m}
+                    onRegenerate={
+                      m.role === "assistant"
+                        ? () => regenerateResponse(m.id)
+                        : undefined
                     }
-                    
-                    setUploadingFile(true);
-                    setError(null);
-                    
-                    try {
-                      const formData = new FormData();
-                      formData.append('file', file);
-                      
-                      const token = await getIdToken();
-                      const headers: HeadersInit = {
-                        'X-User-ID': firebaseUser?.uid || '',
-                        'X-User-Plan': plan || 'GO',
-                      };
-                      
-                      if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
+                    onUpdateHighlights={
+                      m.role === "assistant" && activeChat
+                        ? (highlights: Highlight[]) => {
+                            updateChatMessages(activeChat.id, (messages) => {
+                              const next = [...messages];
+                              const idx = next.findIndex(
+                                (msg) => msg.id === m.id
+                              );
+                              if (idx >= 0) {
+                                next[idx] = { ...next[idx], highlights };
+                              }
+                              return next;
+                            });
+                          }
+                        : undefined
+                    }
+                    onAskChatGPT={
+                      m.role === "assistant"
+                        ? (text: string) => {
+                            setPrompt(text);
+                            // Auto-focus the textarea
+                            setTimeout(() => {
+                              textareaRef.current?.focus();
+                              // Scroll to input
+                              textareaRef.current?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "nearest",
+                              });
+                            }, 100);
+                          }
+                        : undefined
+                    }
+                    highlightEnabled={highlightEnabled}
+                    apiBase={API_BASE}
+                    firebaseUser={firebaseUser}
+                    plan={plan}
+                    getIdToken={getIdToken}
+                  />
+                ))}
+                {activeChat && activeChat.messages.length > 0 && (
+                  <div className="lc-chat-actions">
+                    <button
+                      className={`lc-chat-action-btn ${
+                        chatCopyStatus === "copied"
+                          ? "is-copied"
+                          : chatCopyStatus === "error"
+                          ? "is-error"
+                          : ""
+                      }`}
+                      onClick={copyWholeChat}
+                      aria-label="Copy whole chat"
+                      title={
+                        chatCopyStatus === "copied"
+                          ? "Copied!"
+                          : chatCopyStatus === "error"
+                          ? "Copy failed"
+                          : "Copy chat"
                       }
-                      
-                      const response = await fetch(`${API_BASE}/upload-file`, {
-                        method: 'POST',
-                        headers,
-                        body: formData,
-                      });
-                      
-                      if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
-                        throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
+                    >
+                      <FiCopy
+                        aria-hidden="true"
+                        className="lc-chat-action-icon"
+                      />
+                      <span>
+                        {chatCopyStatus === "copied"
+                          ? "Copied"
+                          : chatCopyStatus === "error"
+                          ? "Failed"
+                          : "Copy Chat"}
+                      </span>
+                    </button>
+                    <button
+                      className="lc-chat-action-btn"
+                      onClick={downloadChatAsPDF}
+                      aria-label="Download chat as PDF"
+                      title="Download as PDF"
+                    >
+                      <FiDownload
+                        aria-hidden="true"
+                        className="lc-chat-action-icon"
+                      />
+                      <span>Download PDF</span>
+                    </button>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+            {/* Scroll to bottom arrow - ChatGPT exact behavior */}
+            <button
+              className={`lc-scroll-to-bottom ${
+                showScrollToBottom ? "is-visible" : ""
+              }`}
+              onClick={scrollToBottom}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  scrollToBottom();
+                }
+              }}
+              aria-label="Scroll to bottom"
+              tabIndex={showScrollToBottom ? 0 : -1}
+            >
+              <FiChevronDown aria-hidden="true" />
+            </button>
+          </section>
+
+          <footer className="lc-composer">
+            {error && <div className="lc-error lc-error-inline">{error}</div>}
+            {attachedFiles.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "8px" }}>
+                {attachedFiles.map((file, idx) => (
+                  <div key={idx} className="lc-attached-file">
+                    <FiFileText className="lc-attached-file-icon" />
+                    <span className="lc-attached-file-name">
+                      {file.filename}
+                    </span>
+                    <button
+                      type="button"
+                      className="lc-attached-file-remove"
+                      onClick={() => {
+                        setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
+                      }}
+                      title="Remove file"
+                      aria-label="Remove attached file"
+                      disabled={uploadingFile}
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="lc-composer-row">
+              <div className="lc-textarea-wrapper">
+                {/* Upload files */}
+                <div className="lc-upload-wrapper">
+                  <input
+                    ref={fileInputRef}
+                    id="lc-file-upload-input"
+                    type="file"
+                    multiple
+                    accept=".py,.js,.ts,.jsx,.tsx,.java,.c,.cpp,.h,.hpp,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.bash,.ps1,.bat,.cmd,.html,.css,.xml,.json,.yaml,.yml,.txt,.md,.markdown,.csv,.pdf,.log,.ini,.conf,.config,.sql,.r,.m,.lua,.pl,.dart,.elm,.hs,.ml,.fs,.vb,.tex,.make,.cmake,.properties,.env"
+                    style={{ display: "none" }}
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files || files.length === 0) return;
+
+                      if (!plan) {
+                        setShowPlanSelector(true);
+                        setError("Please select a plan to upload files");
+                        return;
                       }
-                      
-                      const result = await response.json();
+
+                      setUploadingFile(true);
                       setError(null);
-                      // Show success message briefly
-                      const successMsg = result.message || `File '${file.name}' uploaded successfully`;
-                      setError(successMsg);
-                      setTimeout(() => setError(null), 3000);
-                      
-                      // Store attached file info for display
-                      if (result.document) {
-                        setAttachedFile({
-                          id: result.document.id,
-                          filename: result.document.filename || file.name
-                        });
+
+                      const uploadedFiles: { id: string; filename: string }[] = [];
+                      const errors: string[] = [];
+
+                      try {
+                        const token = await getIdToken();
+                        const headers: HeadersInit = {
+                          "X-User-ID": firebaseUser?.uid || "",
+                          "X-User-Plan": plan || "GO",
+                        };
+
+                        if (token) {
+                          headers["Authorization"] = `Bearer ${token}`;
+                        }
+
+                        // Upload files sequentially
+                        for (let i = 0; i < files.length; i++) {
+                          const file = files[i];
+                          try {
+                            const formData = new FormData();
+                            formData.append("file", file);
+
+                            const response = await fetch(
+                              `${API_BASE}/upload-file`,
+                              {
+                                method: "POST",
+                                headers,
+                                body: formData,
+                              }
+                            );
+
+                            if (!response.ok) {
+                              const errorData = await response
+                                .json()
+                                .catch(() => ({ detail: "Upload failed" }));
+                              throw new Error(
+                                errorData.detail ||
+                                  `Upload failed: ${response.statusText}`
+                              );
+                            }
+
+                            const result = await response.json();
+                            if (result.document) {
+                              uploadedFiles.push({
+                                id: result.document.id,
+                                filename: result.document.filename || file.name,
+                              });
+                            }
+                          } catch (err: any) {
+                            console.error(`File upload error for ${file.name}:`, err);
+                            errors.push(`${file.name}: ${err.message || "Upload failed"}`);
+                          }
+                        }
+
+                        // Update attached files list
+                        if (uploadedFiles.length > 0) {
+                          setAttachedFiles((prev) => [...prev, ...uploadedFiles]);
+                          const successMsg =
+                            uploadedFiles.length === 1
+                              ? `File '${uploadedFiles[0].filename}' uploaded successfully`
+                              : `${uploadedFiles.length} files uploaded successfully`;
+                          setError(successMsg);
+                          setTimeout(() => setError(null), 3000);
+                        }
+
+                        // Show errors if any
+                        if (errors.length > 0) {
+                          const errorMsg =
+                            errors.length === 1
+                              ? errors[0]
+                              : `Some files failed to upload:\n${errors.join("\n")}`;
+                          setError(errorMsg);
+                          setTimeout(() => setError(null), 5000);
+                        }
+                      } catch (err: any) {
+                        console.error("File upload error:", err);
+                        setError(
+                          err.message ||
+                            "Failed to upload files. Please try again."
+                        );
+                      } finally {
+                        setUploadingFile(false);
+                        // Clear file input
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
                       }
-                      
-                      // Clear file input
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = '';
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="lc-upload-plus"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!plan) {
+                        setShowPlanSelector(true);
+                        setError("Please select a plan to upload files");
+                        return;
                       }
-                    } catch (err: any) {
-                      console.error('File upload error:', err);
-                      setError(err.message || 'Failed to upload file. Please try again.');
-                    } finally {
-                      setUploadingFile(false);
+                      if (uploadingFile || loading) {
+                        return;
+                      }
+                      // Try ref first, then fallback to DOM query
+                      let input = fileInputRef.current;
+                      if (!input) {
+                        // Fallback: try to find the input element by ID
+                        input = document.getElementById(
+                          "lc-file-upload-input"
+                        ) as HTMLInputElement;
+                      }
+                      if (!input) {
+                        // Last resort: find any file input
+                        input = document.querySelector(
+                          'input[type="file"]'
+                        ) as HTMLInputElement;
+                      }
+                      if (input) {
+                        input.click();
+                      } else {
+                        console.error("File input not found");
+                        setError(
+                          "File upload not available. Please refresh the page."
+                        );
+                      }
+                    }}
+                    disabled={!plan || uploadingFile || loading}
+                    title="Upload files"
+                    aria-label="Upload files"
+                  >
+                    {uploadingFile ? (
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="lc-loading-spinner"
+                      >
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeDasharray="9.42"
+                          strokeDashoffset="9.42"
+                        >
+                          <animate
+                            attributeName="stroke-dasharray"
+                            values="0 25.13;12.57 12.57;0 25.13"
+                            dur="1.5s"
+                            repeatCount="indefinite"
+                          />
+                          <animate
+                            attributeName="stroke-dashoffset"
+                            values="0;-12.57;-25.13"
+                            dur="1.5s"
+                            repeatCount="indefinite"
+                          />
+                        </circle>
+                      </svg>
+                    ) : (
+                      <FiPlus />
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  className="lc-textarea"
+                  placeholder={
+                    plan 
+                      ? uploadingFile 
+                        ? "Uploading files... Please wait" 
+                        : "Ask anything"
+                      : "Select a plan to start using AI"
+                  }
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (uploadingFile) {
+                      e.preventDefault();
+                      return;
+                    }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (plan) {
+                        onComposerKeyDown(e);
+                      } else {
+                        setShowPlanSelector(true);
+                        setError("Please select a plan to use AI features");
+                      }
+                    } else {
+                      onComposerKeyDown(e);
                     }
                   }}
+                  rows={1}
+                  disabled={!plan || uploadingFile}
+                  spellCheck={true}
                 />
-
                 <button
-                  type="button"
-                  className="lc-upload-plus"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                  className="lc-composer-send"
+                  onClick={() => {
                     if (!plan) {
                       setShowPlanSelector(true);
-                      setError("Please select a plan to upload files");
-                      return;
-                    }
-                    if (uploadingFile || loading) {
-                      return;
-                    }
-                    // Try ref first, then fallback to DOM query
-                    let input = fileInputRef.current;
-                    if (!input) {
-                      // Fallback: try to find the input element by ID
-                      input = document.getElementById('lc-file-upload-input') as HTMLInputElement;
-                    }
-                    if (!input) {
-                      // Last resort: find any file input
-                      input = document.querySelector('input[type="file"]') as HTMLInputElement;
-                    }
-                    if (input) {
-                      input.click();
+                      setError("Please select a plan to use AI features");
                     } else {
-                      console.error('File input not found');
-                      setError("File upload not available. Please refresh the page.");
+                      runAI();
                     }
                   }}
-                  disabled={!plan || uploadingFile || loading}
-                  title="Upload files"
-                  aria-label="Upload files"
+                  disabled={loading || uploadingFile || !prompt.trim() || !plan}
+                  aria-label="Send message"
                 >
-                  {uploadingFile ? (
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-loading-spinner">
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="9.42" strokeDashoffset="9.42">
-                        <animate attributeName="stroke-dasharray" values="0 25.13;12.57 12.57;0 25.13" dur="1.5s" repeatCount="indefinite"/>
-                        <animate attributeName="stroke-dashoffset" values="0;-12.57;-25.13" dur="1.5s" repeatCount="indefinite"/>
+                  {loading ? (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="lc-loading-spinner"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeDasharray="9.42"
+                        strokeDashoffset="9.42"
+                      >
+                        <animate
+                          attributeName="stroke-dasharray"
+                          values="0 25.13;12.57 12.57;0 25.13"
+                          dur="1.5s"
+                          repeatCount="indefinite"
+                        />
+                        <animate
+                          attributeName="stroke-dashoffset"
+                          values="0;-12.57;-25.13"
+                          dur="1.5s"
+                          repeatCount="indefinite"
+                        />
                       </circle>
                     </svg>
                   ) : (
-                    <FiPlus />
+                    <FiArrowRight size={22} />
                   )}
                 </button>
               </div>
-              <textarea
-                ref={textareaRef}
-                className="lc-textarea"
-                placeholder={plan ? "Ask anything" : "Select a plan to start using AI"}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (plan) {
-                      onComposerKeyDown(e);
-                    } else {
-                      setShowPlanSelector(true);
-                      setError("Please select a plan to use AI features");
-                    }
-                  } else {
-                    onComposerKeyDown(e);
-                  }
-                }}
-                rows={1}
-                disabled={!plan}
-                spellCheck={true}
-              />
-              <button 
-                className="lc-composer-send" 
-                onClick={() => {
-                  if (!plan) {
-                    setShowPlanSelector(true);
-                    setError("Please select a plan to use AI features");
-                  } else {
-                    runAI();
-                  }
-                }}
-                disabled={loading || !prompt.trim() || !plan}
-                aria-label="Send message"
-              >
-                {loading ? (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="lc-loading-spinner">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="9.42" strokeDashoffset="9.42">
-                      <animate attributeName="stroke-dasharray" values="0 25.13;12.57 12.57;0 25.13" dur="1.5s" repeatCount="indefinite"/>
-                      <animate attributeName="stroke-dashoffset" values="0;-12.57;-25.13" dur="1.5s" repeatCount="indefinite"/>
-                    </circle>
+            </div>
+            <div className="lc-composer-disclaimer">
+              LazyCook can make mistakes. Check important info.
+            </div>
+          </footer>
+        </main>
+
+        {/* Help Modal */}
+        {showHelpModal && (
+          <div
+            className="lc-help-modal-overlay"
+            onClick={() => setShowHelpModal(false)}
+          >
+            <div className="lc-help-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="lc-help-modal-header">
+                <h2>How to Use Highlights & Notes</h2>
+                <button
+                  className="lc-help-modal-close"
+                  onClick={() => setShowHelpModal(false)}
+                  aria-label="Close help"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 4L4 12M4 4L12 12"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
-                ) : (
-                  <FiArrowRight size={22} />
-                )}
-              </button>
-            </div>
-          </div>
-          <div className="lc-composer-disclaimer">
-            LazyCook can make mistakes. Check important info.
-          </div>
-        </footer>
-      </main>
-
-      {/* Help Modal */}
-      {showHelpModal && (
-        <div className="lc-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
-          <div className="lc-help-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="lc-help-modal-header">
-              <h2>How to Use Highlights & Notes</h2>
-              <button 
-                className="lc-help-modal-close"
-                onClick={() => setShowHelpModal(false)}
-                aria-label="Close help"
-              >
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            <div className="lc-help-modal-content">
-              <div className="lc-help-section">
-                <h3>📝 Highlighting Text</h3>
-                <ol className="lc-help-steps">
-                  <li>
-                    <strong>Select text</strong> in any assistant message by clicking and dragging
-                  </li>
-                  <li>
-                    A <strong>color toolbar</strong> will appear with 5 color options
-                  </li>
-                  <li>
-                    <strong>Click a color</strong> to highlight the selected text
-                  </li>
-                  <li>
-                    You can <strong>re-highlight</strong> the same text with a different color
-                  </li>
-                  <li>
-                    <strong>Click a highlight</strong> to edit or remove it
-                  </li>
-                </ol>
+                </button>
               </div>
+              <div className="lc-help-modal-content">
+                <div className="lc-help-section">
+                  <h3>📝 Highlighting Text</h3>
+                  <ol className="lc-help-steps">
+                    <li>
+                      <strong>Select text</strong> in any assistant message by
+                      clicking and dragging
+                    </li>
+                    <li>
+                      A <strong>color toolbar</strong> will appear with 5 color
+                      options
+                    </li>
+                    <li>
+                      <strong>Click a color</strong> to highlight the selected
+                      text
+                    </li>
+                    <li>
+                      You can <strong>re-highlight</strong> the same text with a
+                      different color
+                    </li>
+                    <li>
+                      <strong>Click a highlight</strong> to edit or remove it
+                    </li>
+                  </ol>
+                </div>
 
-              <div className="lc-help-section">
-                <h3>📌 Adding Notes</h3>
-                <ol className="lc-help-steps">
-                  <li>
-                    <strong>Click on highlighted text</strong> to open the toolbar
-                  </li>
-                  <li>
-                    Click the <strong>📌 note icon</strong> (sticky note with thumbtack)
-                  </li>
-                  <li>
-                    A <strong>note editor</strong> will appear
-                  </li>
-                  <li>
-                    <strong>Type your note</strong> and click "Save"
-                  </li>
-                  <li>
-                    <strong>Hover over highlighted text</strong> with notes to see them in a tooltip
-                  </li>
-                  <li>
-                    Press <strong>Ctrl+Enter</strong> (or Cmd+Enter on Mac) to save quickly
-                  </li>
-                </ol>
-              </div>
+                <div className="lc-help-section">
+                  <h3>📌 Adding Notes</h3>
+                  <ol className="lc-help-steps">
+                    <li>
+                      <strong>Click on highlighted text</strong> to open the
+                      toolbar
+                    </li>
+                    <li>
+                      Click the <strong>📌 note icon</strong> (sticky note with
+                      thumbtack)
+                    </li>
+                    <li>
+                      A <strong>note editor</strong> will appear
+                    </li>
+                    <li>
+                      <strong>Type your note</strong> and click "Save"
+                    </li>
+                    <li>
+                      <strong>Hover over highlighted text</strong> with notes to
+                      see them in a tooltip
+                    </li>
+                    <li>
+                      Press <strong>Ctrl+Enter</strong> (or Cmd+Enter on Mac) to
+                      save quickly
+                    </li>
+                  </ol>
+                </div>
 
-              <div className="lc-help-section">
-                <h3>🎨 Color Options</h3>
-                <div className="lc-help-colors">
-                  <div className="lc-help-color-item">
-                    <div className="lc-help-color-demo lc-highlight-yellow"></div>
-                    <span>Yellow</span>
-                  </div>
-                  <div className="lc-help-color-item">
-                    <div className="lc-help-color-demo lc-highlight-blue"></div>
-                    <span>Blue</span>
-                  </div>
-                  <div className="lc-help-color-item">
-                    <div className="lc-help-color-demo lc-highlight-green"></div>
-                    <span>Green</span>
-                  </div>
-                  <div className="lc-help-color-item">
-                    <div className="lc-help-color-demo lc-highlight-pink"></div>
-                    <span>Pink</span>
-                  </div>
-                  <div className="lc-help-color-item">
-                    <div className="lc-help-color-demo lc-highlight-purple"></div>
-                    <span>Purple</span>
+                <div className="lc-help-section">
+                  <h3>🎨 Color Options</h3>
+                  <div className="lc-help-colors">
+                    <div className="lc-help-color-item">
+                      <div className="lc-help-color-demo lc-highlight-yellow"></div>
+                      <span>Yellow</span>
+                    </div>
+                    <div className="lc-help-color-item">
+                      <div className="lc-help-color-demo lc-highlight-blue"></div>
+                      <span>Blue</span>
+                    </div>
+                    <div className="lc-help-color-item">
+                      <div className="lc-help-color-demo lc-highlight-green"></div>
+                      <span>Green</span>
+                    </div>
+                    <div className="lc-help-color-item">
+                      <div className="lc-help-color-demo lc-highlight-pink"></div>
+                      <span>Pink</span>
+                    </div>
+                    <div className="lc-help-color-item">
+                      <div className="lc-help-color-demo lc-highlight-purple"></div>
+                      <span>Purple</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="lc-help-section">
-                <h3>💡 Tips</h3>
-                <ul className="lc-help-tips">
-                  <li>Highlights are saved per message and persist across sessions</li>
-                  <li>You can have multiple highlights with different colors in the same message</li>
-                  <li>Notes are optional - you can highlight without adding a note</li>
-                  <li>Click the X button in the toolbar to remove a highlight</li>
-                  <li>Highlights work only in assistant messages, not in code blocks</li>
-                </ul>
+                <div className="lc-help-section">
+                  <h3>💡 Tips</h3>
+                  <ul className="lc-help-tips">
+                    <li>
+                      Highlights are saved per message and persist across
+                      sessions
+                    </li>
+                    <li>
+                      You can have multiple highlights with different colors in
+                      the same message
+                    </li>
+                    <li>
+                      Notes are optional - you can highlight without adding a
+                      note
+                    </li>
+                    <li>
+                      Click the X button in the toolbar to remove a highlight
+                    </li>
+                    <li>
+                      Highlights work only in assistant messages, not in code
+                      blocks
+                    </li>
+                  </ul>
+                </div>
               </div>
-            </div>
-            <div className="lc-help-modal-footer">
-              <button 
-                className="lc-help-modal-button"
-                onClick={() => setShowHelpModal(false)}
-              >
-                Got it!
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="lc-share-modal-overlay" onClick={() => setShowShareModal(false)}>
-          <div className="lc-share-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="lc-share-modal-header">
-              <h2>Share Chat</h2>
-              <button 
-                className="lc-share-modal-close"
-                onClick={() => setShowShareModal(false)}
-                aria-label="Close"
-              >
-                <FiX />
-              </button>
-            </div>
-            <div className="lc-share-modal-content">
-              <p>Copy this link to share:</p>
-              <div className="lc-share-link-container">
-                <input 
-                  type="text" 
-                  value={shareLink} 
-                  readOnly 
-                  className="lc-share-link-input"
-                  onClick={(e) => e.currentTarget.select()}
-                />
+              <div className="lc-help-modal-footer">
                 <button
-                  className="lc-share-copy-btn"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(shareLink);
-                      setError("Link copied to clipboard!");
-                      setTimeout(() => setError(null), 2000);
-                    } catch (err) {
-                      console.error("Copy failed:", err);
-                      setError("Failed to copy link");
-                      setTimeout(() => setError(null), 2000);
-                    }
-                  }}
-                  title="Copy link"
-                  aria-label="Copy link"
+                  className="lc-help-modal-button"
+                  onClick={() => setShowHelpModal(false)}
                 >
-                  <FiCopy />
+                  Got it!
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Share Modal */}
+        {showShareModal && (
+          <div
+            className="lc-share-modal-overlay"
+            onClick={() => setShowShareModal(false)}
+          >
+            <div
+              className="lc-share-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="lc-share-modal-header">
+                <h2>Share Chat</h2>
+                <button
+                  className="lc-share-modal-close"
+                  onClick={() => setShowShareModal(false)}
+                  aria-label="Close"
+                >
+                  <FiX />
+                </button>
+              </div>
+              <div className="lc-share-modal-content">
+                <p>Copy this link to share:</p>
+                <div className="lc-share-link-container">
+                  <input
+                    type="text"
+                    value={shareLink}
+                    readOnly
+                    className="lc-share-link-input"
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button
+                    className="lc-share-copy-btn"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(shareLink);
+                        setError("Link copied to clipboard!");
+                        setTimeout(() => setError(null), 2000);
+                      } catch (err) {
+                        console.error("Copy failed:", err);
+                        setError("Failed to copy link");
+                        setTimeout(() => setError(null), 2000);
+                      }
+                    }}
+                    title="Copy link"
+                    aria-label="Copy link"
+                  >
+                    <FiCopy />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {showPlanSelector && plan && (
         <PlanSelector

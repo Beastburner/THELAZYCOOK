@@ -16,6 +16,36 @@ import type { DocumentData, QuerySnapshot } from 'firebase/firestore';
 import { db } from './config';
 
 /**
+ * Recursively remove undefined values from objects and arrays
+ * Firestore doesn't accept undefined values, so we need to remove them
+ */
+const removeUndefinedValues = (obj: any): any => {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefinedValues(item)).filter(item => item !== undefined);
+  }
+  
+  if (typeof obj === 'object' && obj.constructor === Object) {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        const cleanedValue = removeUndefinedValues(value);
+        // Only add the key if the cleaned value is not undefined
+        if (cleanedValue !== undefined) {
+          cleaned[key] = cleanedValue;
+        }
+      }
+    }
+    return cleaned;
+  }
+  
+  return obj;
+};
+
+/**
  * Get a user's document from Firestore
  */
 export const getUserDoc = async (userId: string): Promise<DocumentData | null> => {
@@ -30,8 +60,10 @@ export const getUserDoc = async (userId: string): Promise<DocumentData | null> =
 export const setUserDoc = async (userId: string, data: any): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
+    // Recursively remove undefined values (Firestore doesn't accept undefined)
+    const cleanData = removeUndefinedValues(data);
     await setDoc(userRef, {
-      ...data,
+      ...cleanData,
       updatedAt: serverTimestamp()
     }, { merge: true });
   } catch (error: any) {
@@ -121,13 +153,8 @@ export const setChatDoc = async (
   try {
     const chatRef = doc(db, 'users', userId, 'chats', chatId);
     
-    // Remove undefined values (Firestore doesn't accept undefined)
-    const cleanData: any = {};
-    for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined) {
-        cleanData[key] = value;
-      }
-    }
+    // Recursively remove undefined values (Firestore doesn't accept undefined)
+    const cleanData = removeUndefinedValues(data);
     
     // Convert createdAt to Firestore Timestamp if it's a number
     const chatData: any = {
