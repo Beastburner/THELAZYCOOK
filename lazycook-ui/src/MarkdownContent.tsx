@@ -12,6 +12,7 @@ type Highlight = {
   color: "yellow" | "blue" | "green" | "pink" | "purple";
   note?: string;
   createdAt: number;
+  instanceIndex?: number; // Which occurrence of this text (0-based)
 };
 
 interface MarkdownContentProps {
@@ -165,7 +166,8 @@ function extractTextFromChildren(children: any): string {
   }
   if (React.isValidElement(children)) {
     return extractTextFromChildren(
-      (children as React.ReactElement).props?.children
+      (children as React.ReactElement<{ children?: React.ReactNode }>).props
+        ?.children
     );
   }
   return "";
@@ -251,7 +253,7 @@ function processTextWithHighlights(
 
       // Check each highlight to see if it matches this instance
       let hasMatchingHighlight = false;
-      earliestMatch.highlights.forEach((highlight) => {
+      earliestMatch.highlights.forEach((highlight: Highlight) => {
         // Check if this highlight should be applied to this instance
         const shouldHighlight =
           highlight.instanceIndex === undefined || // Old highlights without instanceIndex (highlight all)

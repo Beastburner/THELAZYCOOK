@@ -2021,21 +2021,11 @@ export default function App() {
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  // State for shared chat (loaded from public collection)
-  const [sharedChat, setSharedChat] = useState<Chat | null>(null);
 
   const activeChat = useMemo(() => {
-    // First check user's own chats
-    const userChat = chats.find((c) => c.id === activeChatId);
-    if (userChat) return userChat;
-
-    // If not found, check shared chat
-    if (sharedChat && sharedChat.id === activeChatId) {
-      return sharedChat;
-    }
-
-    return null;
-  }, [chats, activeChatId, sharedChat]);
+    // Find chat from user's chats
+    return chats.find((c) => c.id === activeChatId) || null;
+  }, [chats, activeChatId]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
@@ -2224,45 +2214,43 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const shareChatId = urlParams.get("share");
 
-    if (!shareChatId) return;
+    if (!shareChatId || !firebaseUser) return;
 
-    const loadSharedChat = async () => {
+    const importSharedChat = async () => {
       try {
-        // First, check if the chat exists in the user's own chats
-        if (chats.length > 0) {
-          const userChat = chats.find((c) => c.id === shareChatId);
-          if (userChat) {
-            setActiveChatId(shareChatId);
-            setSharedChat(null); // Clear shared chat since it's in user's chats
-            // Clean up URL by removing the share parameter
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, "", newUrl);
-            return;
-          }
-        }
-
-        // If not found in user's chats, try to fetch from public shared collection
+        // Fetch the shared chat from public collection
+        console.log("Attempting to import shared chat with ID:", shareChatId);
         const sharedChatData = await getSharedChat(shareChatId);
+        console.log("Shared chat data received:", sharedChatData);
         if (sharedChatData) {
-          // Convert Firestore data to Chat format
-          const convertedChat: Chat = {
-            id: sharedChatData.id,
-            title: sharedChatData.title || "Shared Chat",
-            createdAt:
-              sharedChatData.createdAt?.toMillis?.() ||
-              sharedChatData.createdAt ||
-              Date.now(),
-            messages: sharedChatData.messages || [],
+          // Create a new chat with unique ID (ChatGPT-style import)
+          const newChatId = uid("chat");
+          const importedChat: Chat = {
+            id: newChatId,
+            title: `${sharedChatData.title || "Shared Chat"} (Shared)`,
+            createdAt: Date.now(),
+            messages: (sharedChatData.messages || []).map((msg: Message) => ({
+              ...msg,
+              highlights: msg.highlights || [],
+            })),
           };
 
-          setSharedChat(convertedChat);
-          setActiveChatId(shareChatId);
+          // Save the imported chat to user's Firebase account
+          await setChatDoc(firebaseUser.uid, newChatId, importedChat);
+
+          // Update local state
+          setChats((prevChats) => [importedChat, ...prevChats]);
+          setActiveChatId(newChatId);
+
+          // Show success message
+          setError("Chat imported successfully!");
+          setTimeout(() => setError(null), 3000);
 
           // Clean up URL by removing the share parameter
           const newUrl = window.location.pathname;
           window.history.replaceState({}, "", newUrl);
         } else {
-          // Chat not found in public collection either
+          // Chat not found in public collection
           setError(
             "Shared chat not found. The link may be invalid or the chat may have been deleted."
           );
@@ -2272,8 +2260,8 @@ export default function App() {
           window.history.replaceState({}, "", newUrl);
         }
       } catch (error) {
-        console.error("Error loading shared chat:", error);
-        setError("Failed to load shared chat. Please try again.");
+        console.error("Error importing shared chat:", error);
+        setError("Failed to import shared chat. Please try again.");
         setTimeout(() => setError(null), 5000);
         // Clean up URL
         const newUrl = window.location.pathname;
@@ -2281,8 +2269,8 @@ export default function App() {
       }
     };
 
-    loadSharedChat();
-  }, [chats]);
+    importSharedChat();
+  }, [firebaseUser]);
 
   // ---- Load chats from Firestore when user is authenticated ----
   useEffect(() => {
@@ -3636,6 +3624,7 @@ export default function App() {
     }
 
     try {
+      console.log("Sharing chat with ID:", activeChatId);
       // Save chat to public sharedChats collection for public access
       try {
         await shareChat(activeChatId, {
@@ -3644,6 +3633,7 @@ export default function App() {
           createdAt: activeChat.createdAt,
           userId: firebaseUser?.uid || "anonymous",
         });
+        console.log("Chat saved to shared collection successfully");
       } catch (shareError) {
         console.error("Error saving to shared collection:", shareError);
         // Continue even if this fails - the link might still work if user has access
@@ -3657,23 +3647,8 @@ export default function App() {
       setShareLink(shareUrl);
       setShowShareModal(true);
 
-      // Try Web Share API first if available
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: activeChat.title || "Shared Chat",
-            text: `Check out this chat: ${activeChat.title}`,
-            url: shareUrl,
-          });
-          setShowShareModal(false);
-          return;
-        } catch (shareError: any) {
-          // User cancelled or share failed, continue with modal
-          if (shareError.name !== "AbortError") {
-            console.log("Share API failed, showing modal");
-          }
-        }
-      }
+      // Note: Skipping native Web Share API to always show our custom UI modal
+      // This gives users a consistent experience across all devices
     } catch (err) {
       console.error("Share failed:", err);
       setError("Failed to share chat. Please try again.");
