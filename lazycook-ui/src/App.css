@@ -4913,6 +4913,11 @@ code,
   position: relative;
   user-select: text; /* Allow text selection */
   -webkit-user-select: text; /* Safari */
+  /* Performance optimizations */
+  contain: layout style paint;
+  -webkit-backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  will-change: auto;
 }
 
 .lc-highlight:hover {

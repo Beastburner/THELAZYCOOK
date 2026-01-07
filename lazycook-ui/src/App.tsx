@@ -65,6 +65,7 @@ type Highlight = {
   color: "yellow" | "blue" | "green" | "pink" | "purple";
   note?: string;
   createdAt: number;
+  instanceIndex?: number; // Which occurrence of this text (0-based)
 };
 
 type Message = {
@@ -95,6 +96,23 @@ function uid(prefix = "id") {
   return `${prefix}_${Math.random()
     .toString(16)
     .slice(2)}_${Date.now().toString(16)}`;
+}
+
+/**
+ * Debounce utility for performance optimization
+ * Prevents excessive function calls during rapid events
+ */
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  return function (...args: Parameters<T>) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
 }
 
 /**
@@ -1426,15 +1444,18 @@ function MessageItem({
       }
     };
 
+    // Debounce selection handler to prevent excessive re-renders (100ms delay)
+    const debouncedHandleTextSelection = debounce(handleTextSelection, 100);
+
     const handleMouseUp = (e: MouseEvent) => {
-      handleTextSelection(e);
+      debouncedHandleTextSelection(e);
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      // Small delay to ensure selection is complete on mobile
+      // Small delay to ensure selection is complete on mobile, then debounce
       setTimeout(() => {
-        handleTextSelection(e);
-      }, 100);
+        debouncedHandleTextSelection(e);
+      }, 50);
     };
 
     const contentElement = contentRef.current;
@@ -1499,7 +1520,7 @@ function MessageItem({
       if (currentHighlights[existingIndex].color === color) {
         newHighlights = currentHighlights.filter((_, i) => i !== existingIndex);
       } else {
-        // If different color, update to new color (preserve id, note, createdAt)
+        // If different color, update to new color (preserve id, note, createdAt, instanceIndex)
         newHighlights = [...currentHighlights];
         newHighlights[existingIndex] = {
           ...currentHighlights[existingIndex],
@@ -1507,7 +1528,39 @@ function MessageItem({
         };
       }
     } else {
-      // Add new highlight with id and createdAt
+      // Calculate which instance of this text is being highlighted
+      // Get the current selection to find its position in the content
+      const selection = window.getSelection();
+      let instanceIndex = 0;
+
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        // Create a range from start of content to start of selection
+        const preRange = range.cloneRange();
+        preRange.selectNodeContents(contentRef.current || document.body);
+        preRange.setEnd(range.startContainer, range.startOffset);
+
+        // Count occurrences before this selection
+        const textBefore = preRange.toString();
+        const lowerText = selectedText.toLowerCase();
+        let count = 0;
+        let pos = 0;
+        while (
+          (pos = textBefore.toLowerCase().indexOf(lowerText, pos)) !== -1
+        ) {
+          count++;
+          pos += lowerText.length;
+        }
+        instanceIndex = count;
+      } else {
+        // Fallback: count existing highlights of same text
+        const sameTextHighlights = currentHighlights.filter(
+          (h) => h.text.toLowerCase() === selectedText.toLowerCase()
+        );
+        instanceIndex = sameTextHighlights.length;
+      }
+
+      // Add new highlight with id, createdAt, and instanceIndex
       newHighlights = [
         ...currentHighlights,
         {
@@ -1515,6 +1568,7 @@ function MessageItem({
           text: selectedText,
           color,
           createdAt: Date.now(),
+          instanceIndex,
         },
       ];
     }
@@ -1641,8 +1695,15 @@ function MessageItem({
             <>
               {message.content}
               {/* Support both old single file and new multiple files for backward compatibility */}
-              {(message.attachedFiles || (message.attachedFile ? [message.attachedFile] : [])).map((file, idx) => (
-                <div key={idx} className="lc-attached-file" style={{ marginTop: "8px" }}>
+              {(
+                message.attachedFiles ||
+                (message.attachedFile ? [message.attachedFile] : [])
+              ).map((file, idx) => (
+                <div
+                  key={idx}
+                  className="lc-attached-file"
+                  style={{ marginTop: "8px" }}
+                >
                   <FiFileText className="lc-attached-file-icon" />
                   <a
                     href={`${apiBase}/download-file/${file.id}`}
@@ -1861,10 +1922,12 @@ export default function App() {
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<{
-    id: string;
-    filename: string;
-  }[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<
+    {
+      id: string;
+      filename: string;
+    }[]
+  >([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure file input ref is available after render
@@ -3050,7 +3113,8 @@ export default function App() {
           model,
           chat_id: chatId,
           document_id: attachedFiles.length > 0 ? attachedFiles[0].id : null, // Backward compatibility
-          document_ids: attachedFiles.length > 0 ? attachedFiles.map(f => f.id) : null, // Multi-file support
+          document_ids:
+            attachedFiles.length > 0 ? attachedFiles.map((f) => f.id) : null, // Multi-file support
         }),
         signal: controller.signal,
       });
@@ -3073,7 +3137,8 @@ export default function App() {
             model,
             chat_id: chatId,
             document_id: attachedFiles.length > 0 ? attachedFiles[0].id : null, // Backward compatibility
-          document_ids: attachedFiles.length > 0 ? attachedFiles.map(f => f.id) : null, // Multi-file support
+            document_ids:
+              attachedFiles.length > 0 ? attachedFiles.map((f) => f.id) : null, // Multi-file support
           }),
           signal: controller.signal,
         });
@@ -3202,12 +3267,17 @@ export default function App() {
       });
 
       // Generate title from AI response (prioritizes AI response over user message)
-      if (shouldUpdateTitle && rawContentForTitle && rawContentForTitle.trim().length > 0) {
+      if (
+        shouldUpdateTitle &&
+        rawContentForTitle &&
+        rawContentForTitle.trim().length > 0
+      ) {
         try {
           // Get the user's message from the chat messages (first user message in the conversation)
           const currentChatMessages = currentChat?.messages || [];
-          const userMessage = currentChatMessages.find(m => m.role === "user")?.content || "";
-          
+          const userMessage =
+            currentChatMessages.find((m) => m.role === "user")?.content || "";
+
           // Use generateChatTitle which prioritizes AI response
           // Pass both user message and AI response for better title generation
           newTitle = generateChatTitle(userMessage, rawContentForTitle);
@@ -3239,7 +3309,8 @@ export default function App() {
           console.error("❌ [FRONTEND] Error generating title:", error);
           // Fallback to user message if title generation fails
           const currentChatMessages = currentChat?.messages || [];
-          const userMessage = currentChatMessages.find(m => m.role === "user")?.content || "";
+          const userMessage =
+            currentChatMessages.find((m) => m.role === "user")?.content || "";
           if (userMessage && userMessage.trim().length > 0) {
             newTitle = userMessage.trim().substring(0, 50);
             if (userMessage.length > 50) {
@@ -4849,7 +4920,14 @@ export default function App() {
           <footer className="lc-composer">
             {error && <div className="lc-error lc-error-inline">{error}</div>}
             {attachedFiles.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  marginBottom: "8px",
+                }}
+              >
                 {attachedFiles.map((file, idx) => (
                   <div key={idx} className="lc-attached-file">
                     <FiFileText className="lc-attached-file-icon" />
@@ -4860,7 +4938,9 @@ export default function App() {
                       type="button"
                       className="lc-attached-file-remove"
                       onClick={() => {
-                        setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
+                        setAttachedFiles((prev) =>
+                          prev.filter((_, i) => i !== idx)
+                        );
                       }}
                       title="Remove file"
                       aria-label="Remove attached file"
@@ -4896,7 +4976,8 @@ export default function App() {
                       setUploadingFile(true);
                       setError(null);
 
-                      const uploadedFiles: { id: string; filename: string }[] = [];
+                      const uploadedFiles: { id: string; filename: string }[] =
+                        [];
                       const errors: string[] = [];
 
                       try {
@@ -4944,14 +5025,22 @@ export default function App() {
                               });
                             }
                           } catch (err: any) {
-                            console.error(`File upload error for ${file.name}:`, err);
-                            errors.push(`${file.name}: ${err.message || "Upload failed"}`);
+                            console.error(
+                              `File upload error for ${file.name}:`,
+                              err
+                            );
+                            errors.push(
+                              `${file.name}: ${err.message || "Upload failed"}`
+                            );
                           }
                         }
 
                         // Update attached files list
                         if (uploadedFiles.length > 0) {
-                          setAttachedFiles((prev) => [...prev, ...uploadedFiles]);
+                          setAttachedFiles((prev) => [
+                            ...prev,
+                            ...uploadedFiles,
+                          ]);
                           const successMsg =
                             uploadedFiles.length === 1
                               ? `File '${uploadedFiles[0].filename}' uploaded successfully`
@@ -4965,7 +5054,9 @@ export default function App() {
                           const errorMsg =
                             errors.length === 1
                               ? errors[0]
-                              : `Some files failed to upload:\n${errors.join("\n")}`;
+                              : `Some files failed to upload:\n${errors.join(
+                                  "\n"
+                                )}`;
                           setError(errorMsg);
                           setTimeout(() => setError(null), 5000);
                         }
@@ -5068,9 +5159,9 @@ export default function App() {
                   ref={textareaRef}
                   className="lc-textarea"
                   placeholder={
-                    plan 
-                      ? uploadingFile 
-                        ? "Uploading files... Please wait" 
+                    plan
+                      ? uploadingFile
+                        ? "Uploading files... Please wait"
                         : "Ask anything"
                       : "Select a plan to start using AI"
                   }
