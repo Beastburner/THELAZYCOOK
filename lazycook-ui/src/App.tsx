@@ -2768,32 +2768,14 @@ export default function App() {
       return;
     }
 
-    const c: Chat = {
-      id: uid("chat"),
-      title: "New chat",
-      createdAt: Date.now(),
-      messages: [],
-    };
-
-    // Add to local state immediately for instant UI update
-    setChats((prev) => [c, ...prev]);
-    setActiveChatId(c.id);
+    // Don't create chat yet - just clear active chat and prepare for new one
+    // Chat will be created when first prompt is sent
+    setActiveChatId(null);
     setPrompt("");
     setError(null);
+    setAttachedFiles([]);
 
-    // Save to Firestore
-    try {
-      await setChatDoc(firebaseUser.uid, c.id, {
-        title: c.title,
-        createdAt: c.createdAt,
-        messages: c.messages,
-      });
-    } catch (error) {
-      console.error("Error creating new chat in Firestore:", error);
-      setError("Failed to create new chat. Please try again.");
-    }
-
-    // Reset textarea height after creating new chat
+    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = "44px";
@@ -2844,15 +2826,16 @@ export default function App() {
       // Remove from local state
       setChats((prev) => prev.filter((c) => c.id !== chatId));
 
-      // If deleted chat was active, switch to another chat or create new one
+      // If deleted chat was active, switch to another chat or show empty state
       if (activeChatId === chatId) {
         const remainingChats = chats.filter((c) => c.id !== chatId);
         if (remainingChats.length > 0) {
           setActiveChatId(remainingChats[0].id);
         } else {
+          // No chats left - show empty state (chat will be created when first prompt is sent)
           setActiveChatId(null);
-          // Create a new chat
-          await newChat();
+          setPrompt("");
+          setAttachedFiles([]);
         }
       }
     } catch (error) {
@@ -3218,18 +3201,22 @@ export default function App() {
         hasContent: !!rawContentForTitle,
       });
 
-      // Use first user message as title (truncated to 50 characters)
-      if (shouldUpdateTitle && text && text.trim().length > 0) {
+      // Generate title from AI response (prioritizes AI response over user message)
+      if (shouldUpdateTitle && rawContentForTitle && rawContentForTitle.trim().length > 0) {
         try {
-          // Truncate to 50 characters and clean up
-          newTitle = text.trim().substring(0, 50);
-          if (text.length > 50) {
-            newTitle += "...";
-          }
+          // Get the user's message from the chat messages (first user message in the conversation)
+          const currentChatMessages = currentChat?.messages || [];
+          const userMessage = currentChatMessages.find(m => m.role === "user")?.content || "";
+          
+          // Use generateChatTitle which prioritizes AI response
+          // Pass both user message and AI response for better title generation
+          newTitle = generateChatTitle(userMessage, rawContentForTitle);
 
           console.log(
-            "📝 [FRONTEND] Setting title from first message:",
-            newTitle
+            "📝 [FRONTEND] Generated title from AI response:",
+            newTitle,
+            "AI response length:",
+            rawContentForTitle.length
           );
 
           // Update title in state immediately
@@ -3249,13 +3236,30 @@ export default function App() {
             return updated;
           });
         } catch (error) {
-          console.error("❌ [FRONTEND] Error setting title:", error);
+          console.error("❌ [FRONTEND] Error generating title:", error);
+          // Fallback to user message if title generation fails
+          const currentChatMessages = currentChat?.messages || [];
+          const userMessage = currentChatMessages.find(m => m.role === "user")?.content || "";
+          if (userMessage && userMessage.trim().length > 0) {
+            newTitle = userMessage.trim().substring(0, 50);
+            if (userMessage.length > 50) {
+              newTitle += "...";
+            }
+            setChats((prev) => {
+              return prev.map((c) => {
+                if (c.id === chatId) {
+                  return { ...c, title: newTitle };
+                }
+                return c;
+              });
+            });
+          }
         }
       } else {
         console.log("⏭️ [FRONTEND] Skipping title update.", {
           shouldUpdateTitle,
-          hasText: !!text,
-          textLength: text?.length,
+          hasAiResponse: !!rawContentForTitle,
+          aiResponseLength: rawContentForTitle?.length,
           currentTitle,
         });
       }
@@ -4717,7 +4721,7 @@ export default function App() {
           </header>
 
           <section className="lc-thread" ref={threadRef} data-exportable-chat>
-            {(activeChat?.messages || []).length === 0 ? (
+            {!activeChat || (activeChat?.messages || []).length === 0 ? (
               <div className="lc-empty">
                 <div className="lc-empty-title">Ask anything</div>
                 <div className="lc-empty-subtitle">

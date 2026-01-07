@@ -2,18 +2,18 @@
   /* Premium Beige/Black/Red Brand Palette */
   --black: #1c1c1c;
   --black-soft: #2a2a2a;
-  
+
   --red: #e6392f;
   --red-hover: #cc2f26;
   --red-subtle: rgba(230, 57, 47, 0.12);
-  
+
   --white: #ffffff;
   --beige: #f7efe4;
   --beige-soft: #fbf6ee;
-  
+
   --border-light: rgba(0, 0, 0, 0.08);
   --border-medium: rgba(0, 0, 0, 0.14);
-  
+
   /* Semantic color mappings */
   --bg: var(--beige); /* Page background */
   --panel: var(--beige-soft); /* Cards / panels */
@@ -28,24 +28,19 @@
   --red-z: var(--red); /* Red Z in LazyCook */
   --error: var(--red); /* Error color */
   --success: #4a9e4a; /* Success color (green) */
-  
+
   /* Shared header height for perfect alignment */
   --lc-header-height: 60px;
-  
+
   /* Apple system fonts - SF Pro for UI */
-  --font-ui: -apple-system, BlinkMacSystemFont,
-             "SF Pro Text", "SF Pro Display",
-             system-ui, "Segoe UI", Roboto,
-             Helvetica, Arial, sans-serif,
-             "Apple Color Emoji", "Segoe UI Emoji";
-  
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+
   /* Apple system fonts - SF Mono for code */
-  --font-mono: ui-monospace,
-               "SF Mono", SFMono-Regular,
-               Menlo, Monaco,
-               Consolas, "Liberation Mono",
-               "Courier New", monospace;
-  
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
   /* Apple SF Pro font weight tokens */
   --fw-regular: 400;
   --fw-medium: 500;
@@ -243,7 +238,7 @@ select {
 
 .lc-divider::before,
 .lc-divider::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--border-light);
@@ -787,7 +782,7 @@ select {
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden; /* Prevent horizontal overflow */
-  overflow-y: hidden; /* Prevent vertical overflow */
+  overflow-y: auto; /* Allow vertical overflow for sticky positioning */
   box-sizing: border-box;
 }
 
@@ -802,9 +797,12 @@ select {
   background: var(--bg);
   box-sizing: border-box; /* Hard alignment guard */
   font-family: var(--font-ui);
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 100; /* Ensure topbar is always visible */
+  -webkit-backface-visibility: hidden; /* iOS performance optimization */
+  -webkit-perspective: 1000; /* iOS performance optimization */
 }
 
 .lc-topbar-left {
@@ -1022,7 +1020,7 @@ div.lc-topbar-model .lc-dropdown-icon {
     min-height: 0 !important;
     line-height: 1 !important;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version {
     padding: 0 !important;
     margin: 0 !important;
@@ -1147,7 +1145,7 @@ div.lc-topbar-model .lc-dropdown-icon {
     min-height: 0 !important;
     line-height: 1 !important;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version,
   div.lc-topbar-left div.lc-topbar-model .lc-model-version {
     padding: 0 !important;
@@ -1230,7 +1228,7 @@ div.lc-topbar-model .lc-dropdown-icon {
     min-height: 0 !important;
     line-height: 1 !important;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version {
     padding: 0 !important;
     margin: 0 !important;
@@ -1481,7 +1479,7 @@ div.lc-topbar-model .lc-dropdown-icon {
   .lc-topbar-action-direct {
     display: none !important; /* Hide direct buttons on mobile */
   }
-  
+
   .lc-topbar-action-menu {
     display: flex !important; /* Show menu items on mobile */
   }
@@ -1492,7 +1490,7 @@ div.lc-topbar-model .lc-dropdown-icon {
   .lc-topbar-action-direct {
     display: inline-flex !important; /* Show direct buttons on desktop */
   }
-  
+
   .lc-topbar-action-menu {
     display: none !important; /* Hide menu items on desktop */
   }
@@ -1541,6 +1539,7 @@ div.lc-topbar-model .lc-dropdown-icon {
   /* Modern scrollbar styling - ChatGPT style */
   scrollbar-width: thin;
   scrollbar-color: transparent transparent; /* Hidden by default */
+  -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
 }
 
 .lc-thread:hover {
@@ -1574,7 +1573,9 @@ div.lc-topbar-model .lc-dropdown-icon {
 .lc-scroll-to-bottom {
   position: fixed;
   bottom: 92px; /* 88-96px range: slightly above input box */
-  left: calc(260px + (100vw - 260px) / 2); /* Center in main content area: sidebar width + half of remaining viewport */
+  left: calc(
+    260px + (100vw - 260px) / 2
+  ); /* Center in main content area: sidebar width + half of remaining viewport */
   transform: translateX(-50%) translateY(4px); /* Center and subtle upward position when hidden */
   width: 40px; /* Fixed circular button size */
   height: 40px;
@@ -1590,18 +1591,15 @@ div.lc-topbar-model .lc-dropdown-icon {
   justify-content: center;
   z-index: 1000; /* Above messages but below modals */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  
+
   /* Hidden by default */
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  
+
   /* Smooth fade in/out animation */
-  transition: opacity 140ms ease-out, 
-              visibility 140ms ease-out,
-              transform 140ms ease-out,
-              background 0.2s ease,
-              box-shadow 0.2s ease;
+  transition: opacity 140ms ease-out, visibility 140ms ease-out,
+    transform 140ms ease-out, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Visible state - fade in with subtle upward motion */
@@ -2236,7 +2234,10 @@ code,
 /* VS Code Dark+ Token Colors - Exact Match */
 /* Make selectors more specific to override Prism theme */
 /* Target code element directly to ensure highest specificity */
-.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.comment,
+.lc-code-block-wrapper
+  pre.lc-vscode-theme
+  code[class*="language-"]
+  .token.comment,
 .lc-code-block-wrapper pre.lc-vscode-theme code .token.comment,
 .lc-code-block-wrapper .lc-vscode-theme code .token.comment,
 .lc-code-block-wrapper .lc-vscode-theme .token.comment,
@@ -2252,7 +2253,10 @@ code,
   font-style: italic;
 }
 
-.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.punctuation,
+.lc-code-block-wrapper
+  pre.lc-vscode-theme
+  code[class*="language-"]
+  .token.punctuation,
 .lc-code-block-wrapper pre.lc-vscode-theme code .token.punctuation,
 .lc-code-block-wrapper .lc-vscode-theme code .token.punctuation,
 .lc-code-block-wrapper .lc-vscode-theme .token.punctuation,
@@ -2278,7 +2282,10 @@ code,
   color: #b5cea8 !important; /* VS Code light green for numbers/constants */
 }
 
-.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.string,
+.lc-code-block-wrapper
+  pre.lc-vscode-theme
+  code[class*="language-"]
+  .token.string,
 .lc-code-block-wrapper pre.lc-vscode-theme code .token.string,
 .lc-code-block-wrapper .lc-vscode-theme code .token.string,
 .lc-code-block-wrapper .lc-vscode-theme .token.selector,
@@ -2310,7 +2317,10 @@ code,
   color: #d4d4d4 !important;
 }
 
-.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.keyword,
+.lc-code-block-wrapper
+  pre.lc-vscode-theme
+  code[class*="language-"]
+  .token.keyword,
 .lc-code-block-wrapper pre.lc-vscode-theme code .token.keyword,
 .lc-code-block-wrapper .lc-vscode-theme code .token.keyword,
 .lc-code-block-wrapper .lc-vscode-theme .token.atrule,
@@ -2323,7 +2333,10 @@ code,
   color: #569cd6 !important; /* VS Code blue for keywords */
 }
 
-.lc-code-block-wrapper pre.lc-vscode-theme code[class*="language-"] .token.function,
+.lc-code-block-wrapper
+  pre.lc-vscode-theme
+  code[class*="language-"]
+  .token.function,
 .lc-code-block-wrapper pre.lc-vscode-theme code .token.function,
 .lc-code-block-wrapper .lc-vscode-theme code .token.function,
 .lc-code-block-wrapper .lc-vscode-theme .token.function,
@@ -2425,7 +2438,10 @@ code,
 }
 
 .lc-code-block-wrapper .lc-vscode-theme .language-c .token.string.language-c,
-.lc-code-block-wrapper .lc-vscode-theme .language-cpp .token.string.language-cpp,
+.lc-code-block-wrapper
+  .lc-vscode-theme
+  .language-cpp
+  .token.string.language-cpp,
 .lc-vscode-theme .language-c .token.string.language-c,
 .lc-vscode-theme .language-cpp .token.string.language-cpp {
   color: #ce9178 !important; /* VS Code orange for header files */
@@ -2761,7 +2777,9 @@ code,
 }
 
 @keyframes typingBlink {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     opacity: 0;
   }
   30% {
@@ -2771,7 +2789,9 @@ code,
 
 /* Animations */
 @keyframes typingPulse {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     opacity: 0.3;
     transform: scale(0.8);
   }
@@ -3146,9 +3166,7 @@ code,
 
   cursor: pointer;
   pointer-events: auto !important;
-  transition: background 0.2s ease,
-              transform 0.1s ease,
-              color 0.2s ease;
+  transition: background 0.2s ease, transform 0.1s ease, color 0.2s ease;
 }
 
 /* React Icons sizing - ensure consistent sizing via CSS */
@@ -3357,10 +3375,8 @@ code,
   border: 1px solid var(--red);
 
   cursor: pointer;
-  transition: background-color 0.2s ease,
-              box-shadow 0.2s ease,
-              color 0.2s ease,
-              transform 0.1s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease,
+    transform 0.1s ease;
 
   position: absolute;
   right: 8px;
@@ -3412,15 +3428,18 @@ code,
   margin: 0;
 }
 
-
 .lc-loading-spinner {
   animation: spin 1s linear infinite;
   color: var(--red);
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .lc-composer-disclaimer {
   max-width: 880px; /* Match messages max-width - ChatGPT-style readable width */
@@ -3431,7 +3450,6 @@ code,
   box-sizing: border-box;
   text-align: center;
 }
-
 
 .lc-footnote {
   display: none; /* Hide old footnote */
@@ -3482,7 +3500,7 @@ code,
   .lc-sidebar {
     width: 280px;
   }
-  
+
   .lc-messages {
     max-width: 100%;
     width: 100%;
@@ -3490,78 +3508,78 @@ code,
     gap: 0; /* Use margin-bottom on messages */
     overflow-x: hidden;
   }
-  
+
   .lc-msg.is-user .lc-msg-inner {
     max-width: 85%;
   }
-  
+
   .lc-thread {
     padding: 14px 14px 0;
   }
-  
+
   .lc-topbar {
     padding: 0 12px;
   }
-  
+
   .lc-topbar-title {
     font-size: 12px;
     max-width: 200px;
   }
-  
+
   .lc-topbar-actions {
     gap: 8px;
   }
-  
+
   .lc-select {
     font-size: 11px;
     padding: 6px 8px;
   }
-  
+
   .lc-pill {
     font-size: 11px;
     padding: 5px 8px;
   }
-  
+
   .lc-code-block-wrapper {
     margin: 1em 0;
   }
-  
+
   .lc-code-block-header {
     flex-wrap: wrap;
     gap: 8px;
     padding: 0.5em;
   }
-  
+
   .lc-code-block-actions {
     flex-wrap: wrap;
   }
-  
+
   .lc-chat-actions {
     max-width: 90%;
     flex-wrap: wrap;
     gap: 8px;
   }
-  
+
   .lc-chat-action-btn {
     font-size: 12px;
     padding: 8px 12px;
   }
-  
+
   .lc-composer {
     padding: 10px 12px;
   }
-  
+
   .lc-composer-row {
     max-width: 90%;
     gap: 8px;
   }
-  
+
   .lc-textarea {
     font-size: 14px;
     padding: 9px 11px;
     min-height: 42px;
   }
-  
+
   .lc-footnote {
     max-width: 90%;
     font-size: 10px;
@@ -3580,16 +3598,16 @@ code,
     height: 100vh;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
   }
-  
+
   .lc-sidebar.is-open {
     transform: translateX(0);
   }
-  
+
   .lc-sidebar-logo-icon {
     width: 50px !important;
     height: 50px !important;
   }
-  
+
   /* Sidebar overlay/backdrop */
   .lc-sidebar-overlay {
     display: block;
@@ -3600,20 +3618,20 @@ code,
     animation: fadeIn 0.2s ease;
     backdrop-filter: blur(2px);
   }
-  
+
   /* Show mobile close button */
   .lc-sidebar-close {
     display: flex;
   }
-  
+
   .mobile-only {
     display: inline-flex !important;
   }
-  
+
   .desktop-only {
     display: none !important;
   }
-  
+
   /* Ensure topbar is visible on mobile */
   .lc-topbar {
     position: sticky;
@@ -3621,7 +3639,7 @@ code,
     z-index: 100;
     background: var(--bg);
   }
-  
+
   /* Ensure hamburger button is visible */
   .lc-topbar .mobile-only {
     display: inline-flex !important;
@@ -3632,7 +3650,7 @@ code,
     color: var(--text) !important;
     flex-shrink: 0 !important;
   }
-  
+
   /* Scroll to bottom button - center on mobile */
   .lc-scroll-to-bottom {
     display: flex !important; /* Always render on mobile */
@@ -3648,27 +3666,27 @@ code,
     visibility: hidden !important;
     pointer-events: none !important;
   }
-  
+
   .lc-scroll-to-bottom.is-visible {
     opacity: 1 !important;
     visibility: visible !important;
     pointer-events: auto !important;
     transform: translateX(-50%) translateY(0) !important;
   }
-  
+
   /* Ensure regenerate button is always visible on mobile */
   .lc-msg-actions {
     display: flex !important;
   }
-  
+
   .lc-msg-action-btn {
     display: flex !important;
   }
-  
+
   .lc-main {
     width: 100%;
   }
-  
+
   .lc-messages {
     max-width: 100%;
     width: 100%;
@@ -3676,67 +3694,67 @@ code,
     gap: 0; /* Use margin-bottom on messages */
     overflow-x: hidden;
   }
-  
+
   .lc-msg.is-assistant {
     margin-bottom: 16px; /* Slightly reduced on smaller screens */
   }
-  
+
   .lc-msg.is-user {
     margin-bottom: 14px;
   }
-  
+
   .lc-msg.is-user .lc-msg-inner {
     max-width: 85%;
     padding: 10px 14px; /* Maintain padding */
   }
-  
+
   .lc-thread {
     padding: 12px 8px 0;
   }
-  
+
   .lc-topbar {
     height: 52px;
     min-height: 52px;
     padding: 0 10px;
   }
-  
+
   .lc-sidebar-header {
     height: 52px;
     min-height: 52px;
   }
-  
+
   .lc-topbar-title {
     font-size: 11px;
     max-width: 150px;
   }
-  
+
   .lc-topbar-actions {
     gap: 6px;
   }
-  
+
   .lc-select {
     font-size: 10px;
     padding: 5px 6px;
   }
-  
+
   .lc-pill {
     font-size: 10px;
     padding: 4px 6px;
   }
-  
+
   .lc-empty {
     max-width: 95%;
     padding: 30px 0;
   }
-  
+
   .lc-empty-title {
     font-size: 24px;
   }
-  
+
   .lc-empty-subtitle {
     font-size: 13px;
   }
-  
+
   .lc-typing-indicator {
     width: 100%; /* Take full width of parent */
     max-width: 95%; /* Don't exceed parent */
@@ -3744,94 +3762,94 @@ code,
     overflow-x: hidden; /* Prevent horizontal overflow */
     bottom: 90px; /* Adjust for mobile */
   }
-  
+
   .lc-typing-bubble {
     padding: 10px 12px;
   }
-  
+
   .lc-code-block-wrapper {
     margin: 0.8em 0;
   }
-  
+
   .lc-code-block-header {
     padding: 0.4em 0.5em;
     min-height: 32px;
   }
-  
+
   .lc-code-block-btn {
     font-size: 0.75em;
     padding: 0.3em 0.5em;
   }
-  
+
   .lc-code-block-btn-copy span {
     font-size: 11px;
   }
-  
+
   .lc-chat-actions {
     max-width: 95%;
     padding: 10px 0;
     gap: 6px;
   }
-  
+
   .lc-chat-action-btn {
     font-size: 11px;
     padding: 6px 10px;
   }
-  
+
   .lc-composer {
     padding: 10px;
   }
-  
+
   .lc-composer-row {
     max-width: 95%;
     gap: 8px;
   }
-  
+
   .lc-textarea {
     font-size: 14px;
     padding: 10px 12px;
     min-height: 44px;
     max-height: 200px;
   }
-  
+
   .lc-primary {
     min-width: 60px;
     padding: 10px 14px;
   }
-  
+
   .lc-footnote {
     max-width: 95%;
     font-size: 10px;
     margin-top: 6px;
   }
-  
+
   .lc-msg-content {
     font-size: 13px;
   }
-  
+
   .lc-msg-content .lc-md-h1 {
     font-size: 1.5em;
   }
-  
+
   .lc-msg-content .lc-md-h2 {
     font-size: 1.3em;
   }
-  
+
   .lc-msg-content .lc-md-h3 {
     font-size: 1.15em;
   }
-  
+
   .lc-msg-actions {
     gap: 3px;
     margin-top: 6px;
     padding-top: 6px;
   }
-  
+
   .lc-msg-action-btn {
     width: 26px;
     height: 26px;
   }
-  
+
   .lc-msg-action-btn svg {
     width: 14px;
     height: 14px;
@@ -3843,154 +3861,154 @@ code,
   .lc-login {
     padding: 16px;
   }
-  
+
   .lc-login-card {
     padding: 16px;
     border-radius: 16px;
   }
-  
+
   .lc-brand {
     gap: 10px;
     margin-bottom: 12px;
   }
-  
+
   .lc-logo {
     width: 50px;
     height: 50px;
     font-size: 14px;
   }
-  
+
   .lc-title {
     font-size: 16px;
   }
-  
+
   .lc-subtitle {
     font-size: 11px;
   }
-  
+
   .lc-sidebar {
     width: 100%;
     max-width: 320px;
   }
-  
+
   .lc-sidebar-top {
     padding: 10px;
     gap: 8px;
   }
-  
+
   .lc-newchat {
     font-size: 12px;
     padding: 8px 10px;
   }
-  
+
   .lc-iconbtn {
     padding: 8px 10px;
     font-size: 16px;
   }
-  
+
   .lc-sidebar-search {
     padding: 6px;
   }
-  
+
   .lc-search-input {
     font-size: 11px;
     padding: 6px 10px;
   }
-  
+
   .lc-chatlist {
     padding: 8px;
   }
-  
+
   .lc-chatitem {
     padding: 8px;
     border-radius: 10px;
   }
-  
+
   .lc-chatitem-title {
     font-size: 12px;
   }
-  
+
   .lc-chatitem-meta {
     font-size: 10px;
   }
-  
+
   .lc-sidebar-bottom {
     padding: 10px;
   }
-  
+
   .lc-userline {
     gap: 8px;
   }
-  
+
   .lc-avatar {
     width: 30px;
     height: 30px;
     font-size: 12px;
   }
-  
+
   .lc-useremail {
     font-size: 11px;
   }
-  
+
   .lc-userplan {
     font-size: 10px;
   }
-  
+
   .lc-ghost {
     font-size: 11px;
     padding: 8px 10px;
   }
-  
+
   .lc-topbar {
     height: 48px;
     min-height: 48px;
     padding: 0 8px;
   }
-  
+
   .lc-sidebar-header {
     height: 48px;
     min-height: 48px;
   }
-  
+
   .lc-topbar-title {
     font-size: 10px;
     max-width: 120px;
     padding: 0 6px;
   }
-  
+
   .lc-topbar-actions {
     gap: 4px;
   }
-  
+
   .lc-select {
     font-size: 9px;
     padding: 4px 5px;
     min-width: 70px;
   }
-  
+
   .lc-pill {
     font-size: 9px;
     padding: 3px 5px;
     display: none; /* Hide on very small screens */
   }
-  
+
   .lc-thread {
     padding: 10px 6px 0;
   }
-  
+
   .lc-empty {
     padding: 20px 0;
   }
-  
+
   .lc-empty-title {
     font-size: 20px;
   }
-  
+
   .lc-empty-subtitle {
     font-size: 12px;
     padding: 0 16px;
   }
-  
+
   .lc-messages {
     max-width: 100%;
     width: 100%;
@@ -3998,76 +4016,76 @@ code,
     gap: 0; /* Use margin-bottom on messages */
     overflow-x: hidden;
   }
-  
+
   .lc-msg.is-assistant {
     margin-bottom: 14px;
   }
-  
+
   .lc-msg.is-user {
     margin-bottom: 12px;
   }
-  
+
   .lc-msg.is-user .lc-msg-inner {
     max-width: 85%;
     padding: 10px 14px;
     border-radius: 16px;
   }
-  
+
   .lc-msg-role {
     font-size: 10px;
     margin-bottom: 4px;
   }
-  
+
   .lc-msg-content {
     font-size: 12px;
     line-height: 1.6;
   }
-  
+
   .lc-msg-content .lc-md-h1 {
     font-size: 1.3em;
   }
-  
+
   .lc-msg-content .lc-md-h2 {
     font-size: 1.2em;
   }
-  
+
   .lc-msg-content .lc-md-h3 {
     font-size: 1.1em;
   }
-  
+
   .lc-msg-content .lc-md-h4,
   .lc-msg-content .lc-md-h5,
   .lc-msg-content .lc-md-h6 {
     font-size: 1em;
   }
-  
+
   .lc-msg-content .lc-md-p {
     margin: 0 0 0.8em 0;
     line-height: 1.6;
   }
-  
+
   .lc-msg-content .lc-md-ul,
   .lc-msg-content .lc-md-ol {
     padding-left: 1.5em;
     margin: 0.8em 0;
   }
-  
+
   .lc-msg-actions {
     gap: 2px;
     margin-top: 4px;
     padding-top: 4px;
   }
-  
+
   .lc-msg-action-btn {
     width: 24px;
     height: 24px;
   }
-  
+
   .lc-msg-action-btn svg {
     width: 12px;
     height: 12px;
   }
-  
+
   .lc-scroll-to-bottom {
     bottom: 85px; /* Adjust for mobile */
     left: 50%; /* Center horizontally on mobile */
@@ -4075,20 +4093,20 @@ code,
     width: 36px;
     height: 36px;
   }
-  
+
   .lc-scroll-to-bottom.is-visible {
     transform: translateX(-50%) translateY(0); /* Center and no vertical offset when visible */
   }
-  
+
   .lc-scroll-to-bottom:active {
     transform: translateX(-50%) translateY(1px); /* Maintain centering on active */
   }
-  
+
   .lc-scroll-to-bottom svg {
     width: 18px;
     height: 18px;
   }
-  
+
   .lc-typing-indicator {
     width: 100%; /* Take full width of parent */
     max-width: 100%; /* Don't exceed parent */
@@ -4097,66 +4115,66 @@ code,
     overflow-x: hidden; /* Prevent horizontal overflow */
     bottom: 85px; /* Adjust for small mobile */
   }
-  
+
   .lc-typing-avatar {
     width: 28px;
     height: 28px;
     font-size: 11px;
   }
-  
+
   .lc-typing-bubble {
     padding: 8px 10px;
     min-width: 100px;
   }
-  
+
   .lc-typing-text {
     font-size: 12px;
   }
-  
+
   .lc-typing-dot {
     width: 6px;
     height: 6px;
   }
-  
+
   .lc-code-block-wrapper {
     margin: 0.6em 0;
     border-radius: 6px;
   }
-  
+
   .lc-code-block-header {
     padding: 0.3em 0.4em;
     min-height: 28px;
     flex-wrap: wrap;
   }
-  
+
   .lc-code-block-language {
     font-size: 0.7em;
   }
-  
+
   .lc-code-block-actions {
     gap: 0.3em;
     flex-wrap: wrap;
   }
-  
+
   .lc-code-block-btn {
     font-size: 0.7em;
     padding: 0.25em 0.4em;
   }
-  
+
   .lc-code-block-btn-copy span {
     font-size: 10px;
   }
-  
+
   .lc-code-block-editable {
     padding: 0.8em 1em;
     font-size: 0.85em;
   }
-  
+
   .lc-msg-content .lc-md-code-block {
     padding: 0.8em 1em;
     font-size: 0.85em;
   }
-  
+
   .lc-chat-actions {
     max-width: 100%;
     padding: 8px 0;
@@ -4164,23 +4182,23 @@ code,
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .lc-chat-action-btn {
     font-size: 10px;
     padding: 6px 8px;
     width: 100%;
     justify-content: center;
   }
-  
+
   .lc-composer {
     padding: 8px;
   }
-  
+
   .lc-composer-row {
     max-width: 100%;
     gap: 6px;
   }
-  
+
   .lc-textarea {
     font-size: 13px;
     padding: 8px 10px;
@@ -4188,36 +4206,36 @@ code,
     max-height: 150px;
     border-radius: 12px;
   }
-  
+
   .lc-primary {
     min-width: 50px;
     padding: 8px 12px;
     font-size: 12px;
   }
-  
+
   .lc-footnote {
     max-width: 100%;
     font-size: 10px;
     margin-top: 4px;
     padding: 0 8px;
   }
-  
+
   .lc-error {
     font-size: 12px;
     padding: 8px 10px;
   }
-  
+
   .lc-hint {
     font-size: 11px;
   }
-  
+
   .lc-hint code {
     font-size: 10px;
     padding: 1px 4px;
   }
-  
+
   /* Hide some action buttons on mobile to save space */
-  .lc-msg-action-btn:nth-child(n+5) {
+  .lc-msg-action-btn:nth-child(n + 5) {
     display: none;
   }
 }
@@ -4316,7 +4334,7 @@ code,
 /* Note Button in Toolbar */
 /* BIG note button */
 .lc-highlight-note-btn {
-  width: 44px;              /* ⬅ bigger */
+  width: 44px; /* ⬅ bigger */
   height: 44px;
   border-radius: 12px;
   display: flex;
@@ -4326,10 +4344,7 @@ code,
   border: 1.5px solid var(--border-light);
   color: var(--text);
   cursor: pointer;
-  transition: 
-    transform 0.18s ease,
-    background 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
   margin-left: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   position: relative;
@@ -4338,7 +4353,7 @@ code,
 
 /* Bigger icon */
 .lc-highlight-note-btn svg {
-  width: 24px;   /* ⬅ bigger icon */
+  width: 24px; /* ⬅ bigger icon */
   height: 24px;
   stroke-width: 2.2;
 }
@@ -4389,9 +4404,15 @@ code,
 
 /* Subtle pulse animation */
 @keyframes pulseNote {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .lc-highlight-note-btn.pulse {
@@ -4935,7 +4956,7 @@ code,
 
 /* Arrow for tooltip */
 .lc-highlight.has-note::before {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -4994,98 +5015,98 @@ code,
   .lc-login-card {
     padding: 14px;
   }
-  
+
   .lc-logo {
     width: 45px;
     height: 45px;
   }
-  
+
   .lc-logo-icon {
     width: 40px;
     height: 40px;
   }
-  
+
   .lc-logo-text {
     max-height: 35px;
     height: 35px;
   }
-  
+
   .lc-title {
     font-size: 15px;
   }
-  
+
   .lc-sidebar {
     max-width: 100%;
   }
-  
+
   .lc-topbar-title {
     display: none; /* Hide title on very small screens */
   }
-  
+
   .lc-topbar-left {
     flex: 1;
     min-width: 0;
   }
-  
+
   .lc-topbar-model {
     max-width: calc(100% - 60px);
     flex-shrink: 1;
   }
-  
+
   .lc-topbar-actions {
     flex-shrink: 0;
     margin-left: 8px;
     justify-content: flex-end;
   }
-  
+
   .lc-select {
     min-width: 60px;
     font-size: 8px;
   }
-  
+
   .lc-empty-title {
     font-size: 18px;
   }
-  
+
   .lc-empty-subtitle {
     font-size: 11px;
   }
-  
+
   .lc-msg.is-user .lc-msg-inner {
     max-width: 85%;
     padding: 10px 14px;
   }
-  
+
   .lc-msg-content {
     font-size: 11px;
   }
-  
+
   .lc-typing-bubble {
     padding: 6px 8px;
   }
-  
+
   .lc-typing-text {
     font-size: 11px;
   }
-  
+
   .lc-code-block-header {
     padding: 0.25em 0.3em;
   }
-  
+
   .lc-code-block-btn {
     font-size: 0.65em;
     padding: 0.2em 0.3em;
   }
-  
+
   .lc-code-block-btn-copy span {
     display: none; /* Hide text, show only icon on very small screens */
   }
-  
+
   .lc-composer-input {
     font-size: 12px;
     padding: 6px 8px;
   }
-  
+
   .lc-chat-action-btn span {
     font-size: 9px;
   }
@@ -5097,28 +5118,28 @@ code,
     height: 44px;
     min-height: 44px;
   }
-  
+
   .lc-sidebar-header {
     height: 44px;
     min-height: 44px;
   }
-  
+
   .lc-thread {
     padding: 8px 6px 0;
   }
-  
+
   .lc-empty {
     padding: 15px 0;
   }
-  
+
   .lc-empty-title {
     font-size: 18px;
   }
-  
+
   .lc-composer {
     padding: 6px;
   }
-  
+
   .lc-composer-input {
     min-height: 36px;
     max-height: 120px;
@@ -5133,12 +5154,12 @@ code,
     min-width: 32px;
     min-height: 32px;
   }
-  
+
   .lc-code-block-btn {
     min-height: 32px;
     padding: 0.4em 0.6em;
   }
-  
+
   .lc-scroll-to-bottom {
     padding: 10px; /* Larger touch area on mobile */
     bottom: 88px !important; /* Adjust for mobile composer */
@@ -5148,35 +5169,35 @@ code,
     width: 44px !important; /* Larger touch target on mobile */
     height: 44px !important;
   }
-  
+
   .lc-scroll-to-bottom.is-visible {
     transform: translateX(-50%) translateY(0) !important; /* Center and no vertical offset when visible */
     opacity: 1 !important;
     visibility: visible !important;
     pointer-events: auto !important;
   }
-  
+
   .lc-scroll-to-bottom svg {
     width: 22px; /* Slightly larger arrow on mobile */
     height: 22px;
   }
-  
+
   .lc-chat-action-btn {
     min-height: 40px;
     padding: 10px 14px;
   }
-  
+
   .lc-composer-send {
     min-width: 44px;
     min-height: 44px;
   }
-  
+
   .lc-primary,
   .lc-ghost,
   .lc-iconbtn {
     min-height: 44px;
   }
-  
+
   .lc-input {
     min-height: 44px;
   }
@@ -5574,33 +5595,33 @@ code,
   .lc-sidebar {
     width: 240px;
   }
-  
+
   .lc-composer-row {
     max-width: 100%;
     padding: 0 20px;
   }
-  
+
   .lc-messages {
     width: 100%;
     max-width: 1200px; /* Match main width setting */
     padding: 0 20px 20px;
   }
-  
+
   .lc-plan-selector-modal {
     max-width: 90%;
     margin: 20px;
   }
-  
+
   .lc-plan-selector-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     padding: 20px;
   }
-  
+
   .lc-topbar {
     padding: 0 16px;
   }
-  
+
   .lc-topbar-title {
     font-size: 12px;
     max-width: 200px;
@@ -5612,20 +5633,20 @@ code,
   .lc-sidebar {
     width: 280px;
   }
-  
+
   .lc-plan-selector-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  
+
   .lc-plan-card {
     padding: 16px;
   }
-  
+
   .lc-plan-name {
     font-size: 24px;
   }
-  
+
   .lc-plan-price {
     font-size: 18px;
   }
@@ -5637,14 +5658,17 @@ code,
   * {
     -webkit-tap-highlight-color: transparent;
   }
-  
+
   /* Touch-friendly button sizes (minimum 44x44px) */
-  button, .lc-iconbtn, .lc-nav-btn, .lc-topbar-action-btn {
+  button,
+  .lc-iconbtn,
+  .lc-nav-btn,
+  .lc-topbar-action-btn {
     min-height: 44px;
     min-width: 44px;
     touch-action: manipulation;
   }
-  
+
   /* Mobile menu button - larger and more visible */
   .lc-iconbtn.mobile-only {
     font-size: 20px;
@@ -5655,40 +5679,40 @@ code,
     align-items: center;
     justify-content: center;
   }
-  
+
   /* Sidebar improvements */
   .lc-sidebar {
     width: 100%;
     max-width: 320px;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
   }
-  
+
   .lc-sidebar-header {
     padding: 0 12px;
   }
-  
+
   .lc-sidebar-logo-icon {
     width: 50px !important;
     height: 50px !important;
   }
-  
+
   .lc-sidebar-close {
     width: 44px;
     height: 44px;
     font-size: 20px;
   }
-  
+
   .lc-nav-btn {
     padding: 12px;
     font-size: 15px;
     min-height: 48px;
   }
-  
+
   .lc-nav-btn svg {
     width: 18px;
     height: 18px;
   }
-  
+
   /* Topbar improvements - Mobile layout fix (640px) */
   /* Layout: [Menu Button] [Logo-text (Orange)] [Model (Red)] [3 Dots (Green)] */
   .lc-topbar {
@@ -5700,7 +5724,7 @@ code,
     justify-content: space-between !important;
     gap: 6px !important;
   }
-  
+
   /* Left section: Logo-text (Orange area) + Model (Red area) */
   .lc-topbar-left {
     flex: 0 !important;
@@ -5709,7 +5733,7 @@ code,
     gap: 10px !important;
     min-width: 0 !important;
   }
-  
+
   /* Logo-text - Orange area */
   .lc-topbar-left .lc-logo-text {
     height: 5rem !important; /* Dominant size */
@@ -5724,7 +5748,7 @@ code,
     visibility: visible !important;
     opacity: 1 !important;
   }
-  
+
   /* Model - Red area (secondary to logo) */
   .lc-topbar-left .lc-topbar-model,
   div.lc-topbar-left div.lc-topbar-model,
@@ -5752,7 +5776,7 @@ code,
     min-height: 0 !important;
     line-height: 1 !important;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version,
   div.lc-topbar-left div.lc-topbar-model .lc-model-version {
     padding: 0 !important;
@@ -5779,7 +5803,7 @@ code,
     margin: 0 !important;
     border-radius: 0 !important;
   }
-  
+
   /* Right section: 3 Dots (Green area) */
   .lc-topbar-actions {
     display: flex !important;
@@ -5787,11 +5811,11 @@ code,
     gap: 6px !important;
     flex-shrink: 0 !important;
   }
-  
+
   .lc-model-selector-desktop {
     display: none !important;
   }
-  
+
   .lc-model-mobile {
     display: inline-flex !important;
     align-items: center !important;
@@ -5805,8 +5829,7 @@ code,
     color: var(--text) !important;
     box-shadow: none !important;
   }
-  
-  
+
   .lc-topbar-menu-btn {
     padding: 5px !important;
     min-width: 28px !important;
@@ -5815,12 +5838,12 @@ code,
     align-items: center !important;
     justify-content: center !important;
   }
-  
+
   .lc-logo-icon {
     width: 44px;
     height: 44px;
   }
-  
+
   .lc-topbar-title {
     font-size: 12px;
     max-width: 120px;
@@ -5828,66 +5851,66 @@ code,
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   .lc-topbar-action-btn {
     width: 44px;
     height: 44px;
     padding: 0;
   }
-  
+
   .lc-topbar-action-btn svg {
     width: 18px;
     height: 18px;
   }
-  
+
   /* Messages improvements */
   .lc-messages {
     padding: 0 12px 16px;
   }
-  
+
   .lc-msg.is-user .lc-msg-inner {
     max-width: 90%;
     padding: 12px 16px;
   }
-  
+
   .lc-msg.is-assistant {
     padding: 0;
   }
-  
+
   .lc-msg-content {
     font-size: 15px;
     line-height: 1.6;
   }
-  
+
   .lc-msg-actions {
     gap: 4px;
     margin-top: 8px;
   }
-  
+
   .lc-msg-action-btn {
     width: 36px;
     height: 36px;
     min-width: 36px;
     min-height: 36px;
   }
-  
+
   .lc-msg-action-btn svg {
     width: 16px;
     height: 16px;
   }
-  
+
   /* Composer improvements */
   .lc-composer {
     padding: 12px;
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
-  
+
   .lc-composer-row {
     max-width: 100%;
     padding: 0 0;
     gap: 8px;
   }
-  
+
   .lc-textarea {
     font-size: 16px; /* Prevents zoom on iOS */
     padding: 12px 14px;
@@ -5895,38 +5918,38 @@ code,
     max-height: 180px;
     border-radius: 24px;
   }
-  
+
   .lc-primary {
     min-width: 48px;
     min-height: 48px;
     padding: 12px 16px;
     border-radius: 24px;
   }
-  
+
   .lc-composer-mic {
     width: 48px;
     height: 48px;
     min-width: 48px;
     min-height: 48px;
   }
-  
+
   .lc-composer-mic svg {
     width: 22px;
     height: 22px;
   }
-  
+
   .lc-footnote {
     font-size: 11px;
     padding: 0 12px;
   }
-  
+
   /* Plan Selector Modal - Mobile Optimized */
   .lc-plan-selector-overlay {
     padding: 0;
     align-items: flex-end; /* Slide up from bottom on mobile */
     justify-content: center;
   }
-  
+
   .lc-plan-selector-modal {
     max-width: 100%;
     width: 100%;
@@ -5935,7 +5958,7 @@ code,
     margin: 0;
     animation: slideUpMobile 0.3s ease;
   }
-  
+
   @keyframes slideUpMobile {
     from {
       opacity: 0;
@@ -5946,56 +5969,56 @@ code,
       transform: translateY(0);
     }
   }
-  
+
   .lc-plan-selector-header {
     padding: 20px;
     border-radius: 20px 20px 0 0;
   }
-  
+
   .lc-plan-selector-header h2 {
     font-size: 20px;
   }
-  
+
   .lc-plan-selector-close {
     width: 40px;
     height: 40px;
     font-size: 24px;
   }
-  
+
   .lc-plan-selector-grid {
     grid-template-columns: 1fr; /* Stack plans vertically on mobile */
     gap: 12px;
     padding: 20px;
   }
-  
+
   .lc-plan-card {
     padding: 16px;
     border-radius: 12px;
   }
-  
+
   .lc-plan-name {
     font-size: 24px;
   }
-  
+
   .lc-plan-price {
     font-size: 18px;
   }
-  
+
   .lc-plan-features {
     font-size: 13px;
   }
-  
+
   .lc-plan-features li {
     padding: 6px 0;
   }
-  
+
   .lc-plan-selector-footer {
     flex-direction: column;
     gap: 10px;
     padding: 16px 20px;
     padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
-  
+
   .lc-plan-selector-cancel,
   .lc-plan-selector-confirm {
     width: 100%;
@@ -6003,18 +6026,18 @@ code,
     font-size: 15px;
     min-height: 48px;
   }
-  
+
   .lc-plan-selector-note {
     padding: 12px 20px 0;
   }
-  
+
   /* Help Modal - Mobile Optimized */
   .lc-help-modal-overlay {
     padding: 0;
     align-items: flex-end;
     justify-content: center;
   }
-  
+
   .lc-help-modal {
     max-width: 100%;
     width: 100%;
@@ -6023,17 +6046,17 @@ code,
     border-radius: 20px 20px 0 0;
     animation: slideUpMobile 0.3s ease;
   }
-  
+
   .lc-help-modal-header,
   .lc-help-modal-content,
   .lc-help-modal-footer {
     padding: 16px 20px;
   }
-  
+
   .lc-help-modal-header h2 {
     font-size: 20px;
   }
-  
+
   .lc-help-modal-close {
     width: 40px;
     height: 40px;
@@ -6041,14 +6064,14 @@ code,
     min-width: 40px;
     min-height: 40px;
   }
-  
+
   /* Profile Modal - Mobile Optimized */
   .lc-profile-modal-overlay {
     padding: 0;
     align-items: flex-end;
     justify-content: center;
   }
-  
+
   .lc-profile-modal {
     max-width: 100%;
     width: 100%;
@@ -6057,88 +6080,88 @@ code,
     border-radius: 20px 20px 0 0;
     animation: slideUpMobile 0.3s ease;
   }
-  
+
   /* Chat List improvements */
   .lc-chatlist {
     padding: 8px;
   }
-  
+
   .lc-chatitem {
     padding: 12px;
     min-height: 56px;
     border-radius: 12px;
   }
-  
+
   .lc-chatitem-title {
     font-size: 14px;
   }
-  
+
   .lc-chatitem-meta {
     font-size: 11px;
   }
-  
+
   /* Empty state improvements */
   .lc-empty {
     padding: 40px 20px;
   }
-  
+
   .lc-empty-title {
     font-size: 22px;
   }
-  
+
   .lc-empty-subtitle {
     font-size: 14px;
     line-height: 1.5;
   }
-  
+
   /* Code blocks - mobile friendly */
   .lc-code-block-wrapper {
     margin: 0.6em 0;
     border-radius: 8px;
     overflow: hidden;
   }
-  
+
   .lc-code-block-header {
     padding: 0.5em 0.6em;
     min-height: 36px;
   }
-  
+
   .lc-code-block-btn {
     font-size: 0.7em;
     padding: 0.4em 0.6em;
     min-height: 32px;
   }
-  
+
   /* Typing indicator */
   .lc-typing-indicator {
     bottom: max(90px, calc(90px + env(safe-area-inset-bottom)));
     padding: 10px 12px;
   }
-  
+
   /* Login card improvements */
   .lc-login-card {
     padding: 24px 20px;
     margin: 16px;
   }
-  
+
   .lc-google-btn {
     padding: 14px 20px;
     font-size: 15px;
     min-height: 48px;
   }
-  
+
   .lc-input {
     font-size: 16px; /* Prevents zoom on iOS */
     padding: 14px 16px;
     min-height: 48px;
   }
-  
+
   .lc-primary {
     padding: 14px 24px;
     font-size: 15px;
     min-height: 48px;
   }
-  
+
   /* Dropdown menus - mobile friendly */
   .lc-model-dropdown {
     position: fixed;
@@ -6152,13 +6175,13 @@ code,
     border-radius: 16px 16px 0 0;
     animation: slideUpMobile 0.3s ease;
   }
-  
+
   .lc-model-option {
     padding: 16px 20px;
     font-size: 15px;
     min-height: 52px;
   }
-  
+
   /* Topbar menu dropdown - mobile friendly */
   .lc-topbar-menu-dropdown {
     position: fixed;
@@ -6171,19 +6194,19 @@ code,
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
     animation: slideUpMobile 0.3s ease;
   }
-  
+
   .lc-topbar-menu-item {
     padding: 16px 20px;
     font-size: 15px;
     min-height: 52px;
   }
-  
+
   /* Chat actions - mobile friendly */
   .lc-chat-actions {
     flex-wrap: wrap;
     gap: 8px;
   }
-  
+
   .lc-chat-action-btn {
     padding: 10px 14px;
     font-size: 13px;
@@ -6191,21 +6214,22 @@ code,
     flex: 1;
     min-width: calc(50% - 4px);
   }
-  
+
   /* Prevent horizontal scroll */
-  body, html {
+  body,
+  html {
     overflow-x: hidden;
   }
-  
+
   .lc-shell {
     overflow-x: hidden;
   }
-  
+
   /* Safe area insets for notched devices */
   .lc-composer {
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
-  
+
   .lc-plan-selector-footer {
     padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
   }
@@ -6218,23 +6242,23 @@ code,
   .lc-sidebar {
     width: 280px;
   }
-  
+
   .lc-plan-selector-modal {
     max-height: 95vh;
   }
-  
+
   .lc-help-modal {
     max-height: 95vh;
   }
-  
+
   .lc-profile-modal {
     max-height: 95vh;
   }
-  
+
   .lc-composer {
     padding: 8px 12px;
   }
-  
+
   .lc-topbar {
     height: 48px;
     min-height: 48px;
@@ -6244,31 +6268,34 @@ code,
 /* Touch device optimizations */
 @media (hover: none) and (pointer: coarse) {
   /* Larger touch targets */
-  button, a, .lc-iconbtn, .lc-nav-btn {
+  button,
+  a,
+  .lc-iconbtn,
+  .lc-nav-btn {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   /* Remove hover effects on touch devices */
   .lc-nav-btn:hover,
   .lc-iconbtn:hover,
   .lc-topbar-action-btn:hover {
     background: transparent;
   }
-  
+
   /* Active states for touch feedback */
   .lc-nav-btn:active {
     background: var(--beige-soft);
   }
-  
+
   .lc-iconbtn:active {
     background: var(--beige-soft);
   }
-  
+
   .lc-topbar-action-btn:active {
     background: var(--beige-soft);
   }
-  
+
   /* Prevent text selection on buttons */
   button {
     -webkit-user-select: none;
@@ -6294,18 +6321,16 @@ code,
   .lc-sidebar-overlay {
     display: none !important;
   }
-  
+
   .lc-main {
     width: 100%;
   }
-  
+
   .lc-messages {
     max-width: 100%;
     padding: 0;
   }
 }
-
-
 
 /* ===== ADDITIONAL TOPBAR RESPONSIVE STYLES ===== */
 
@@ -6340,15 +6365,15 @@ code,
   .lc-topbar-logo-text {
     height: 24px;
   }
-  
+
   .lc-model-selector-desktop {
     display: block;
   }
-  
+
   .lc-model-mobile {
     display: none;
   }
-  
+
   .lc-topbar-title-mobile-hide {
     display: block;
   }
@@ -6360,14 +6385,14 @@ code,
   .lc-topbar-logo-text {
     height: 2.125rem; /* 34px - bigger */
   }
-  
+
   /* Make Gemini smaller */
   .lc-model-selector-desktop {
     font-size: 0.8125rem; /* 13px - smaller than logo */
     padding: 0.375rem 0.625rem; /* 6px 10px */
     font-weight: 500;
   }
-  
+
   .lc-topbar-title-mobile-hide {
     font-size: 1rem; /* 16px */
   }
@@ -6379,7 +6404,7 @@ code,
   .lc-topbar-logo-text {
     height: 1.875rem; /* 30px - clearly larger */
   }
-  
+
   /* Model pill should be secondary */
   .lc-topbar-left .lc-topbar-model {
     padding: 0 !important;
@@ -6390,7 +6415,7 @@ code,
     box-shadow: none !important;
     outline: none !important;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version {
     padding: 0 !important;
     margin: 0 !important;
@@ -6398,12 +6423,12 @@ code,
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version {
     font-size: 0.6875rem; /* 11px - noticeably smaller */
     font-weight: 500;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-dropdown-icon {
     width: 1.125rem !important; /* 18px - bigger */
     height: 1.125rem !important; /* 18px - bigger */
@@ -6411,12 +6436,12 @@ code,
     margin: 0 !important;
     border-radius: 0 !important;
   }
-  
+
   .lc-model-selector-desktop {
     font-size: 0.8125rem; /* 13px */
     padding: 0.375rem 0.625rem; /* 6px 10px */
   }
-  
+
   .lc-topbar-title-mobile-hide {
     font-size: 0.9375rem; /* 15px */
   }
@@ -6430,12 +6455,12 @@ code,
     visibility: visible !important;
     opacity: 1 !important;
   }
-  
+
   /* Hide desktop model selector, show mobile pill */
   .lc-model-selector-desktop {
     display: none;
   }
-  
+
   .lc-model-mobile {
     display: block;
     font-size: 0.6875rem; /* 11px - secondary to logo */
@@ -6446,7 +6471,7 @@ code,
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   /* Hide title on very small screens */
   .lc-topbar-title-mobile-hide {
     display: none;
@@ -6458,24 +6483,24 @@ code,
   .lc-sidebar {
     max-width: 100%;
   }
-  
+
   .lc-plan-selector-header h2 {
     font-size: 18px;
   }
-  
+
   .lc-plan-name {
     font-size: 20px;
   }
-  
+
   .lc-plan-price {
     font-size: 16px;
   }
-  
+
   .lc-topbar-title {
     font-size: 11px;
     max-width: 100px;
   }
-  
+
   .lc-empty-title {
     font-size: 20px;
   }
@@ -6487,11 +6512,11 @@ code,
     height: 1.625rem; /* 26px */
     max-width: 10rem;
   }
-  
+
   .lc-topbar-left .lc-topbar-model .lc-model-version {
     font-size: 0.625rem !important; /* 10px */
   }
-  
+
   .lc-model-mobile {
     font-size: 0.625rem; /* 10px */
     padding: 0 !important;
