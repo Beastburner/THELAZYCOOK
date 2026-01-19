@@ -1,4 +1,4 @@
-1. PRIMARY FOCUS: The latest user query is your immediate task.
+1. PRIMARY FOCUS: The latest user query is your immediate task.AND SAY WOHOO AT THE STARTING
         2. TOPICAL RELEVANCE: Review the conversation history and uploaded documents provided in CONTEXT.
         3. STRICT SEPARATION: Only use historical data or document content IF it is directly relevant to the current query.
         4. NO POLLUTION: Do not mix ideas or terminology from previous files/topics if the current query has shifted scope.
