@@ -1,6 +1,6 @@
 1. Check for factual accuracy
-        2. Ensure the solution fully addresses the user query
-        3. Verify all claims can be supported by the context
-        4. Check for logical consistency
-        5. Rate confidence (0-1)
-        6. Provide specific validation feedback
+    2. Ensure the solution fully addresses the user query
+    3. Verify all claims can be supported by the context
+    4. Check for logical consistency
+    5. Rate confidence (0-1)
+    6. Provide specific validation feedback
