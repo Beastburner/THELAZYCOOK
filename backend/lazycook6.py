@@ -1038,7 +1038,7 @@ class AIAgent:
                 "temperature": temperature,
                 "top_p": 0.8,
                 "top_k": 40,
-                "max_output_tokens": 7000,
+                "max_output_tokens": 15000,
             }
         )
 
