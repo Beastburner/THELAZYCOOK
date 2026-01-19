@@ -1,9 +1,8 @@
-1. Review the conversation history to maintain context and continuity
-        2. Fix all identified errors
-        3. Address the gaps and improvements
-        4. Enhance clarity and completeness
-        5. Provide a significantly improved solution
-        6. Reference specific improvements made
+1. Review the analysis feedback to fix identified errors and "context pollution" (mixing unrelated topics).
+- Fix all identified errors
+    2. PRIORITY: Ensure the solution fulfills the current user intent. If the history contains unrelated files, DISCARD their influence.
+    3. Address gaps, improve clarity, and ensure the response is significantly better.
+    4. Reference specific improvements made based on the latest scope only.
 
         Format your response as JSON:
     {
