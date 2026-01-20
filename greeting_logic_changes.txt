@@ -1,0 +1,69 @@
+GREETING LOGIC CHANGES (lazycook9.py)
+=====================================
+
+To solve the repetitive greeting problem ("Hello Hitarth" on every prompt), I implemented a session-aware check.
+
+1. FUNCTION: AutonomousMultiAgentAssistant.process_user_message
+   WHERE: Around line 2284
+   OLD:
+        multi_agent_session = await self.multi_agent_system.process_query(
+            message,
+            context,
+            progress_callback=progress_callback
+        )
+   NEW:
+        # Detect if this is the first message in a new session
+        session_convs = self.file_manager.get_session_conversations(user_id)
+        is_new_session = len(session_convs) == 0
+
+        multi_agent_session = await self.multi_agent_system.process_query(
+            message,
+            context,
+            progress_callback=progress_callback,
+            is_new_session=is_new_session
+        )
+
+2. FUNCTION: MultiAgentSystem.process_query
+   WHERE: Around line 1954
+   OLD:
+    async def process_query(self, user_query: str, context: str = "",
+                            progress_callback: Optional[Callable] = None) -> MultiAgentSession:
+   NEW (Added is_new_session flag):
+    async def process_query(self, user_query: str, context: str = "",
+                            progress_callback: Optional[Callable] = None,
+                            is_new_session: bool = False) -> MultiAgentSession:
+   (And passed this flag to generator_response call at line 1998)
+
+3. FUNCTION: AIAgent.process
+   WHERE: Around line 1195
+   OLD:
+    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None) -> AgentResponse:
+   NEW (Added is_new_session flag):
+    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None, is_new_session: bool = False) -> AgentResponse:
+
+4. FUNCTION: AIAgent._generate_solution
+   WHERE: Around line 1202
+   OLD CODE:
+    async def _generate_solution(self, user_query: str, context: str) -> AgentResponse:
+        instruct = self._load_instructions('generator_instructions.txt')
+        prompt = f"""..."""
+   NEW CODE (Implemented the logic):
+    async def _generate_solution(self, user_query: str, context: str, is_new_session: bool = False) -> AgentResponse:
+        instruct = self._load_instructions('generator_instructions.txt')
+        
+        # Determine if we should greet based on session history
+        greeting_instruction = ""
+        if is_new_session:
+            greeting_instruction = "GREETING RULE: This is the very first message in a new session. Start your response with a brief, friendly greeting (e.g., 'Hello Hitarth!')."
+        else:
+            greeting_instruction = "GREETING RULE: This is a continuation of a conversation. DO NOT greet the user again. Start directly with the answer or solution."
+
+        prompt = f"""
+        Role: Solution Generator Agent
+        ...
+        {greeting_instruction}
+        ...
+        """
+
+OVERVIEW:
+The system now checks the 'new_convo.json' (session) file. If it has 0 previous entries, it tells the AI to greet you. If it already has entries, it explicitly commands the AI to skip the greeting.

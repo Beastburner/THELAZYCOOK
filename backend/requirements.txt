@@ -14,3 +14,8 @@ sentence-transformers
 torch
 faiss-cpu
 firebase-admin
+matplotlib
+seaborn
+plotly
+pandas
+scikit-learn

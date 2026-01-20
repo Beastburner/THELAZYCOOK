@@ -64,7 +64,7 @@ PLAN_TO_MODEL = {
 
 def gemini(
     prompt: str,
-    conversation_limit: int = 0,
+    conversation_limit: int =0,
     document_limit: int = 2,
     user_id: str = "user_001",
     chat_id: Optional[str] = None,

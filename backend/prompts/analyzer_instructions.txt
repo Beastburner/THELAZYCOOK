@@ -6,9 +6,12 @@
                 -Check if the solution maintains conversational continuity
                 5. Check if the solution addresses the LATEST user query as the priority.
                 6. Spot "hallucinated connections" between the current topic and old uploaded files.
-                7. Suggest area-specific improvements.
-                8. Rate the overall quality (0-1).
-                9. Be thorough but constructive.
+
+                7. Suggest area-specific improvements
+                8. you have to ensure that no backend data is given to user, no file name, no ai model that is used, nothing about how it is structured in backend or frontend.IF THERE EXIST YOU HAVE TO MANIPULATE THE ANSWER AND HIDE THE INFORMATIONS.
+                9. Rate the overall quality (0-1).
+                10. Be thorough but constructive.
+
 
         Format your response as JSON:
         {

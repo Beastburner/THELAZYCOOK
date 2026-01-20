@@ -68,7 +68,7 @@ class FirestoreManager:
         Resolve the effective limit to use.
         Priority: provided_limit > instance limit > default (70)
         """
-        if provided_limit is not None and provided_limit > 0:
+        if provided_limit is not None and provided_limit >= 0:
             return provided_limit
         return getattr(self, 'conversation_limit', 70)
 
@@ -335,6 +335,10 @@ class FirestoreManager:
         """
         limit = self._get_effective_limit(limit)
         
+        if limit == 0:
+            logger.info(f"Returning empty context for {user_id} due to limit=0")
+            return "No previous conversation history available."
+
         logger.info(f"Getting conversation context for user {user_id} (chat_id={chat_id}, limit={limit})")
         logger.info(f"📚 Context sharing: All plans/models share context for user {user_id}")
 
@@ -351,8 +355,9 @@ class FirestoreManager:
         # Build fresh context - get ALL conversations for user (not filtered by chat_id)
         # This allows all plans/models to share context
         logger.info(f"Building fresh context for user {user_id} (all chats, all plans)")
-        session_conversations = self.get_session_conversations(user_id, limit // 2, chat_id=None)  # Get all chats
-        historical_conversations = self.get_recent_conversations(user_id, limit // 2, chat_id=None)  # Get all chats
+        half_limit = max(1, limit // 2) if limit > 0 else 0
+        session_conversations = self.get_session_conversations(user_id, half_limit, chat_id=None)  # Get all chats
+        historical_conversations = self.get_recent_conversations(user_id, half_limit, chat_id=None)  # Get all chats
         
         logger.info(f"Found {len(session_conversations)} session conversations and {len(historical_conversations)} historical conversations")
         

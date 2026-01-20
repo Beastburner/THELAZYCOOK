@@ -1214,9 +1214,9 @@ class AIAgent:
     # Return empty string as fallback (prompt will still work)
         return ""
     @log_errors
-    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None) -> AgentResponse:
+    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None, is_new_session: bool = False) -> AgentResponse:
         if self.role == AgentRole.GENERATOR:
-            return await self._generate_solution(user_query, context)
+            return await self._generate_solution(user_query, context, is_new_session=is_new_session)
         elif self.role == AgentRole.ANALYZER:
             return await self._analyze_solution(user_query, context, previous_iteration)
         elif self.role == AgentRole.OPTIMIZER:
@@ -1225,14 +1225,23 @@ class AIAgent:
             return await self._validate_solution(user_query, context, previous_iteration)
 
     @log_errors
-    async def _generate_solution(self, user_query: str, context: str) -> AgentResponse:
+    async def _generate_solution(self, user_query: str, context: str, is_new_session: bool = False) -> AgentResponse:
         instruct = self._load_instructions('generator_instructions.txt')
+        # Determine if we should greet based on session history
+        greeting_instruction = ""
+        if is_new_session:
+            greeting_instruction = "GREETING RULE: This is the very first message in a new session. Start your response with a brief, friendly greeting (e.g., 'Hello!')."
+        else:
+            greeting_instruction = "GREETING RULE: This is a continuation of a conversation. DO NOT greet the user again. Start directly with the answer or solution."
+
         prompt = f"""
         Role: Solution Generator Agent
         Task: Provide a comprehensive initial solution to the user's query using conversation history.
 
         IMPORTANT: Read the context carefully and refer to previous conversations to understand what the user is asking about.
                    Your name is LAZYCOOK an AI that is specially designed to minimize user interaction by performing 4 tasks alltogether(genrating->analyzing->optimizing->validating) so that user has to do the least work.
+
+        {greeting_instruction}
 
         📜 CONTEXT:
         {context}
@@ -2001,7 +2010,8 @@ class MultiAgentSystem:
 
     @log_errors
     async def process_query(self, user_query: str, context: str = "",
-                            progress_callback: Optional[Callable] = None) -> MultiAgentSession:
+                            progress_callback: Optional[Callable] = None,
+                            is_new_session: bool = False) -> MultiAgentSession:
         logger.info(f"🚀 [MULTI_AGENT] Starting process_query for query: {user_query[:100]}...")
         session_id = f"session_{int(time.time())}"
 
@@ -2049,7 +2059,7 @@ class MultiAgentSystem:
                 progress_callback("generator", 20 + (current_iteration * 25),
                                   "🔧 Generator Agent creating solution...")
             logger.info(f"🔄 Making Generator API call (iteration {current_iteration + 1})...")
-            generator_response = await self.generator.process(user_query, context, iterations[-1] if iterations else None)
+            generator_response = await self.generator.process(user_query, context, iterations[-1] if iterations else None, is_new_session=is_new_session)
             logger.info(f"✅ Generator API call completed (iteration {current_iteration + 1})")
             iteration_data["generator_response"] = asdict(generator_response)
             api_calls_used += 1
@@ -2340,10 +2350,15 @@ class AutonomousMultiAgentAssistant:
         # Safe debug print - commented out to avoid I/O errors in worker threads
         # print(f"DEBUG: Using context with {len(context.split())} words")
 
+        # Detect if this is the first message in a new session
+        session_convs = self.file_manager.get_session_conversations(user_id)
+        is_new_session = len(session_convs) == 0
+
         multi_agent_session = await self.multi_agent_system.process_query(
             message,
             context,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            is_new_session=is_new_session
         )
 
         logger.info(f"📤 [MIXED_MODEL] Returning final_response: length={len(multi_agent_session.final_response) if multi_agent_session.final_response else 0}")

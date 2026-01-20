@@ -387,12 +387,16 @@ class TextFileManager:
         Resolve the effective limit to use.
         Priority: provided_limit > instance limit > default (70)
         """
-        if provided_limit is not None and provided_limit > 0:
+        if provided_limit is not None and provided_limit >= 0:
             return provided_limit
         return getattr(self, 'conversation_limit', 70)
 
     def get_conversation_context(self, user_id: str, limit: int = None) -> str:
         limit = self._get_effective_limit(limit)
+
+        if limit == 0:
+            logger.info("DEBUG: Returning empty context due to limit=0")
+            return "No previous conversation history available."
 
         # Check cache validity
         cache_key = f"{user_id}_{limit}"
@@ -405,8 +409,9 @@ class TextFileManager:
                 return self._cached_context[cache_key]
 
         # Build fresh context
-        session_conversations = self.get_session_conversations(user_id, limit // 2)
-        historical_conversations = self.get_recent_conversations(user_id, limit // 2)
+        half_limit = max(1, limit // 2) if limit > 0 else 0
+        session_conversations = self.get_session_conversations(user_id, half_limit)
+        historical_conversations = self.get_recent_conversations(user_id, half_limit)
 
         # Remove duplicates
         historical_ids = {conv.id for conv in historical_conversations}
@@ -1132,9 +1137,9 @@ class AIAgent:
         return ""
 
     @log_errors
-    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None) -> AgentResponse:
+    async def process(self, user_query: str, context: str = "", previous_iteration: Dict = None, is_new_session: bool = False) -> AgentResponse:
         if self.role == AgentRole.GENERATOR:
-            return await self._generate_solution(user_query, context)
+            return await self._generate_solution(user_query, context, is_new_session)
         elif self.role == AgentRole.ANALYZER:
             return await self._analyze_solution(user_query, context, previous_iteration)
         elif self.role == AgentRole.OPTIMIZER:
@@ -1143,8 +1148,13 @@ class AIAgent:
             return await self._validate_solution(user_query, context, previous_iteration)
 
     @log_errors
-    async def _generate_solution(self, user_query: str, context: str) -> AgentResponse:
+    async def _generate_solution(self, user_query: str, context: str, is_new_session: bool = False) -> AgentResponse:
         instruct=self._load_instructions('generator_instructions.txt')
+        greeting_instruction = ""
+        if is_new_session:
+            greeting_instruction = "GREETING RULE: This is the very first message in a new session. Start your response with a brief, friendly greeting (e.g., 'Hey there Hitarth!')."
+        else:
+            greeting_instruction = "GREETING RULE: This is a continuation of a conversation. DO NOT greet the user again. Start directly with the answer or solution."
         prompt = f"""
         Role: Solution Generator Agent
         Task: Provide a comprehensive initial solution to the user's query using conversation history.
@@ -1152,7 +1162,7 @@ class AIAgent:
         IMPORTANT: -Read the context carefully and refer to previous conversations to understand what the user is asking about.
                    
                    -THIS INFORMATIONS SHOULD BE PROVIDED ONLY IF YOU ARE ASKED :Your name is LAZYCOOK an AI that is specially designed to minimize user interaction by performing 4 tasks alltogether(genrating->analyzing->optimizing->validating) so that user has to do the least work.
-
+        {greeting_instruction}
         📜 CONTEXT:
         {context}
 
@@ -1160,6 +1170,7 @@ class AIAgent:
 
         Instructions:
         {instruct}
+        {greeting_instruction}
         """
         try:
             response = await self.model.generate_content_async(prompt)
@@ -1757,7 +1768,8 @@ class MultiAgentSystem:
 
     @log_errors
     async def process_query(self, user_query: str, context: str = "",
-                            progress_callback: Optional[Callable] = None) -> MultiAgentSession:
+                        progress_callback: Optional[Callable] = None,
+                        is_new_session: bool = False) -> MultiAgentSession:
         session_id = f"session_{int(time.time())}"
 
         # Analyze query complexity
@@ -1803,7 +1815,8 @@ class MultiAgentSystem:
                 progress_callback("generator", 20 + (current_iteration * 25),
                                   "🔧 Generator Agent creating solution...")
             generator_response = await self.generator.process(user_query, context,
-                                                              iterations[-1] if iterations else None)
+                                                  iterations[-1] if iterations else None,
+                                                  is_new_session=is_new_session)
             iteration_data["generator_response"] = asdict(generator_response)
             api_calls_used += 1
 
@@ -2080,10 +2093,15 @@ class AutonomousMultiAgentAssistant:
         else:
             logger.warning(f"⚠️ No context available for user {user_id} - this is the first message or context retrieval failed")
 
+        # Detect if this is the first message in a new session
+        session_convs = self.file_manager.get_session_conversations(user_id)
+        is_new_session = len(session_convs) == 0
+
         multi_agent_session = await self.multi_agent_system.process_query(
             message,
             context,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            is_new_session=is_new_session
         )
 
         conversation_id = f"{user_id}_{int(time.time())}"
