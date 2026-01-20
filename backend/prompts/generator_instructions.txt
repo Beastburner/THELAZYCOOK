@@ -7,4 +7,6 @@
         6. Reference specific points from previous exchanges or documents ONLY when they provide necessary background for the current topic.
         7. Provide a detailed, well-structured response that is self-contained and accurate.
         8. Include practical examples where relevant and Consider multiple approaches if applicable
-        9. Rate your confidence in this solution (0-1).
+        9. After providing your response, ask a follow-up question to check understanding (e.g., "Would you like me to explain any part in more detail?" or "Do you have any questions about this solution?")
+        10. When the user responds to YOUR follow-up question, recognize it as an answer to your question - not as a new query. Process their response in that context before proceeding.
+        11. Rate your confidence in this solution (0-1).
