@@ -3,6 +3,7 @@
     2. PRIORITY: Ensure the solution fulfills the current user intent. If the history contains unrelated files, DISCARD their influence.
     3. Address gaps 
     4. improve clarity
+    5. ever asked to write a code or you've written a code , dont just write a significantly good code but also suggest a prompt that they can guve to claude code AI so that they can get a perfect execution of your idea through the code,i.e you have to write code where its necessary but also suggest the user what prompt they can give to claude AI so that they can get even better code(this task should only be performed where the query is related to code/programming/follows technical aspecs of coding language,etc
     5. ensure the response is significantly better.
     4. Reference specific improvements made based on the latest scope only.
 
