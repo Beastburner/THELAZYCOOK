@@ -1,7 +1,9 @@
 1. Review the analysis feedback to fix identified errors and "context pollution" (mixing unrelated topics).
 - Fix all identified errors
     2. PRIORITY: Ensure the solution fulfills the current user intent. If the history contains unrelated files, DISCARD their influence.
-    3. Address gaps, improve clarity, and ensure the response is significantly better.
+    3. Address gaps 
+    4. improve clarity
+    5. ensure the response is significantly better.
     4. Reference specific improvements made based on the latest scope only.
 
         Format your response as JSON:
