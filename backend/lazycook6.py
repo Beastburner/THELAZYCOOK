@@ -1150,27 +1150,32 @@ class AIAgent:
 
     @log_errors
     async def _generate_solution(self, user_query: str, context: str, is_new_session: bool = False) -> AgentResponse:
-        instruct=self._load_instructions('generator_instructions.txt')
         greeting_instruction = ""
         if is_new_session:
             greeting_instruction = "GREETING RULE: This is the very first message in a new session. Start your response with a brief, friendly greeting (e.g., 'Hey there Hitarth!')."
         else:
             greeting_instruction = "GREETING RULE: This is a continuation of a conversation. DO NOT greet the user again. Start directly with the answer or solution."
+        # Load instructions from file (now contains the detailed rules)
+        instruct = self._load_instructions('generator_instructions.txt')
+        
+        # Inject Current Date
+        current_date = datetime.now().strftime("%A, %B %d, %Y")
+        
         prompt = f"""
         Role: Solution Generator Agent
         Task: Provide a comprehensive initial solution to the user's query using conversation history.
+        
+        📅 CURRENT DATE: {current_date}
 
-        IMPORTANT: -Read the context carefully and refer to previous conversations to understand what the user is asking about.
-                   
-                   -THIS INFORMATIONS SHOULD BE PROVIDED ONLY IF YOU ARE ASKED :Your name is LAZYCOOK an AI that is specially designed to minimize user interaction by performing 4 tasks alltogether(genrating->analyzing->optimizing->validating) so that user has to do the least work.
         {greeting_instruction}
+        
         📜 CONTEXT:
         {context}
 
         👤 USER QUERY: {user_query}
 
-        Instructions:
         {instruct}
+        
         {greeting_instruction}
         """
         try:
@@ -1397,7 +1402,8 @@ class QueryComplexityAnalyzer:
         self.complex_keywords = [
             'analyze', 'compare', 'evaluate', 'detailed', 'comprehensive',
             'explain why', 'how does', 'difference between', 'pros and cons',
-            'step by step', 'in detail', 'thoroughly'
+            'step by step', 'in detail', 'thoroughly', 'detail', 'more info',
+            'elaborate', 'expand', 'deep dive', 'more details'
         ]
 
         self.code_keywords = [
@@ -1412,17 +1418,17 @@ class QueryComplexityAnalyzer:
         # FIXED: Check for exact matches at word boundaries, not substrings
         query_words = set(query_lower.split())
 
-        # Simple queries (greetings, short responses)
-        if word_count <= 5 or query_words & set(self.simple_patterns):  # Changed to set intersection
-            return 'simple'
-
-        # Complex queries (detailed analysis requests)
+        # PRIORITY 1: Check for explicit complexity requests (Overrides length checks)
         if any(keyword in query_lower for keyword in self.complex_keywords):
             return 'complex'
 
-        # Code-related queries
+        # PRIORITY 2: Code requests are always complex
         if any(keyword in query_lower for keyword in self.code_keywords):
             return 'complex'
+
+        # PRIORITY 3: Simple queries (greetings, short responses) - ONLY if not complex
+        if word_count <= 5 or query_words & set(self.simple_patterns):
+            return 'simple'
 
         # Long queries
         if word_count > 30:
@@ -2128,12 +2134,10 @@ class AutonomousMultiAgentAssistant:
             logger.warning(f"⚠️ No context available for user {user_id} - this is the first message or context retrieval failed")
 
         # Detect if this is the first message in a new session
-        # Detect if this is the first message in a new session
-        # Fix: consistently check if we actually found previous context
+        # Detect if this is the first message in a new session (for greeting logic)
         # If context string contains "--- Conv", it means we have history (either session or saved chat)
-        session_convs = self.file_manager.get_session_conversations(user_id)
+        # Fix: Rely solely on whether context was found, do not check separate session file
         
-        # If we have valid context with conversations, it's NOT a new session
         has_history = "--- Conv" in context
         is_new_session = not has_history
 

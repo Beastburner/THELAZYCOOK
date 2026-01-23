@@ -266,7 +266,8 @@ class FirestoreManager:
                 conversations.sort(key=lambda x: x.timestamp if hasattr(x, 'timestamp') and x.timestamp else datetime.min, reverse=True)
                 conversations = conversations[:limit]
             
-            logger.info(f"Fetched {len(conversations)} session conversations from newConversation for user {user_id}")
+            # Changed log level to debug or clarifying text
+            logger.info(f"Fetched {len(conversations)} UNSAVED session conversations from newConversation for user {user_id}")
             return conversations
         except Exception as e:
             logger.error(f"Error fetching session conversations from newConversation for user {user_id}: {e}")
