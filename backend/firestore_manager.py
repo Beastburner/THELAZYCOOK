@@ -349,7 +349,7 @@ class FirestoreManager:
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
-    def get_conversation_context(self, user_id: str, limit: int = None, chat_id: Optional[str] = None, current_chat_messages: List = None) -> str:
+    def get_conversation_context(self, user_id: str, limit: int = None, chat_id: Optional[str] = None, current_query: str = None, current_chat_messages: List = None) -> str:
         """Get formatted conversation context for AI with smart 30% context logic.
         
         Context Logic:
@@ -409,10 +409,52 @@ class FirestoreManager:
                 return self._cached_context[cache_key]
 
         # Use the conversations we just fetched/determined
+        # FILTERING LOGIC
+        # 1. Extract keywords from current_query (if available)
+        query_keywords = set()
+        if current_query:
+            # Simple keyword extraction (lowercase, split)
+            stops = {'the', 'is', 'at', 'which', 'on', 'and', 'a', 'an', 'in', 'to', 'of', 'for', 'it', 'this', 'that', 'i', 'my', 'me'} 
+            query_keywords = {w.lower() for w in current_query.split() if w.lower() not in stops and len(w) > 3}
+
         if real_is_new_chat:
-            conversations = []
+            if query_keywords:
+                # Only check global history if we have keywords to match (Relevance rule)
+                global_conversations = self.get_recent_conversations(user_id, limit)
+                relevant_convs = []
+                for conv in global_conversations:
+                    conv_text = (conv.user_message + " " + conv.ai_response + " " + " ".join(conv.topics)).lower()
+                    conv_words = set(conv_text.split())
+                    if len(query_keywords & conv_words) > 0:
+                        relevant_convs.append(conv)
+                conversations = relevant_convs[:limit]
+                if conversations:
+                    logger.info(f"📊 NEW CHAT - Found {len(conversations)} RELEVANT global items (Context Injected)")
+                else:
+                    conversation = [] # Fallback to empty -> Triggers Greeting
+                    logger.info(f"📊 NEW CHAT - No relevant global items found -> Empty Context (Trigger Greeting)")
+            else:
+                conversations = []
+                logger.info(f"📊 NEW CHAT - No query/keywords -> Empty Context (Trigger Greeting)")
         else:
+            # EXISTING CHAT: Mix of current chat (PRIORITY) + Relevant Global history
             conversations.sort(key=lambda x: x.timestamp, reverse=True)
+            
+            if query_keywords:
+                current_ids = {c.id for c in conversations}
+                global_conversations = self.get_recent_conversations(user_id, limit)
+                global_history = [c for c in global_conversations if c.id not in current_ids]
+                
+                relevant_history = []
+                for conv in global_history:
+                    conv_text = (conv.user_message + " " + conv.ai_response + " " + " ".join(conv.topics)).lower()
+                    conv_words = set(conv_text.split())
+                    if len(query_keywords & conv_words) > 0:
+                        relevant_history.append(conv)
+                        
+                conversations.extend(relevant_history)
+                logger.info(f"📊 EXISTING CHAT - Added {len(relevant_history)} RELEVANT background items")
+            
             conversations = conversations[:limit]
 
         if not conversations:

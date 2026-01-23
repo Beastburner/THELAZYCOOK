@@ -2123,7 +2123,7 @@ class AutonomousMultiAgentAssistant:
         # Get context filtered by chat_id (if provided)
         # If chat_id is None, it's a new chat - use empty context
         # If chat_id is provided, only get conversations from that chat
-        context = self.file_manager.get_conversation_context(user_id, chat_id=chat_id)
+        context = self.file_manager.get_conversation_context(user_id, chat_id=chat_id, current_query=message)
         
         # Log context for debugging
         context_words = len(context.split()) if context else 0
