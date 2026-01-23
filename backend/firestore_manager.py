@@ -352,21 +352,53 @@ class FirestoreManager:
         """Get formatted conversation context for AI with smart 30% context logic.
         
         Context Logic:
-            - NEW CHAT (empty): Get 30% from RELATED previous chats only
-            - EXISTING CHAT: 70% current + 30% from related previous chats
-            - SKIP unrelated chats entirely
+            - NEW CHAT: Empty context (Start fresh)
+            - EXISTING CHAT: 100% current chat history only (Strict Isolation)
+            - NO cross-chat context sharing
         """
         limit = self._get_effective_limit(limit)
         
         if limit == 0:
             return "No previous conversation history available."
 
-        is_new_chat = not current_chat_messages or len(current_chat_messages) == 0
+        # Determine if this is a new chat or existing chat
+        conversations = []
+        real_is_new_chat = False
         
-        logger.info(f"🔄 Context for user={user_id}, chat={chat_id}, is_new={is_new_chat}, limit={limit}")
+        # If chat_id is provided, check if it has history in Firestore (regardless of current_chat_messages arg)
+        if chat_id:
+             # EXISTING CHAT STRATEGY: Fetch from specific chat ID
+             # This doubles as a check for existence. If it returns empty, it's a new chat.
+             conversations = self._get_chat_specific_conversations(user_id, chat_id, limit)
+             
+             if not conversations:
+                  real_is_new_chat = True
+                  logger.info(f"📊 NEW CHAT (ID: {chat_id}) - Starting fresh (Strict Isolation)")
+             else:
+                  real_is_new_chat = False
+                  logger.info(f"📊 EXISTING CHAT (ID: {chat_id}) - Fetched {len(conversations)} msgs (Strict Isolation)")
+                  
+        else:
+             # NO CHAT ID -> Unsaved/Session chat
+             # Check provided messages OR fetch from session file
+             if current_chat_messages and len(current_chat_messages) > 0:
+                  conversations = current_chat_messages
+                  real_is_new_chat = False
+                  logger.info(f"📊 EXISTING SESSION (Mem) - using {len(conversations)} provided msgs")
+             else:
+                  conversations = self.get_session_conversations(user_id, limit)
+                  if conversations:
+                       real_is_new_chat = False
+                       logger.info(f"📊 EXISTING SESSION (DB) - Fetched {len(conversations)} msgs")
+                  else:
+                       real_is_new_chat = True
+                       logger.info(f"📊 NEW SESSION - Starting fresh")
 
-        # Per-chat cache key for relevance-based context
-        cache_key = f"{user_id}_{chat_id}_{limit}_{is_new_chat}"
+        # Update logs with REAL status
+        logger.info(f"🔄 Context resolved: user={user_id}, chat={chat_id}, real_is_new={real_is_new_chat}, msgs={len(conversations)}")
+
+        # Cache key logic uses real status
+        cache_key = f"{user_id}_{chat_id}_{limit}_{real_is_new_chat}"
         now = datetime.now()
 
         if cache_key in self._cached_context:
@@ -375,18 +407,10 @@ class FirestoreManager:
                 logger.info(f"✅ Using cached context")
                 return self._cached_context[cache_key]
 
-        conversations = []
-        
-        if is_new_chat:
-            # NEW CHAT: 30% only from RELATED chats (intelligent topic matching)
-            logger.info(f"📊 NEW CHAT - Fetching 30% from RELATED chats only")
-            conversations = self._get_related_conversations(user_id, limit, current_chat_messages)
+        # Use the conversations we just fetched/determined
+        if real_is_new_chat:
+            conversations = []
         else:
-            # EXISTING CHAT: 70% current + 30% related
-            logger.info(f"📊 EXISTING CHAT - Fetching 70% current + 30% related")
-            current_convs = self._get_chat_specific_conversations(user_id, chat_id, int(limit * 0.7))
-            related_convs = self._get_related_conversations(user_id, int(limit * 0.3), current_chat_messages)
-            conversations = current_convs + related_convs
             conversations.sort(key=lambda x: x.timestamp, reverse=True)
             conversations = conversations[:limit]
 
@@ -395,7 +419,7 @@ class FirestoreManager:
             return "No previous conversation history available."
 
         # Build context string
-        context_parts = [f"=== CONTEXT (NEW: {is_new_chat}) ==="]
+        context_parts = [f"=== CONTEXT (NEW: {real_is_new_chat}) ==="]
         MAX_CONTEXT_CHARS = 8000
         current_length = len("\n".join(context_parts))
         
@@ -533,8 +557,10 @@ class FirestoreManager:
         current_topics = {w for w in words if len(w) > 3 and w not in stopwords}
         
         if not current_topics:
-            # If no meaningful keywords, return most recent
-            return conversations[:limit]
+            # If no meaningful keywords, return EMPTY to avoid polluting context with unrelated chats
+            # This fixes the issue where "elaborate this" pulls in random recent chats
+            logger.info("No meaningful topics in prompt - skipping related content fetch")
+            return []
         
         logger.info(f"Current topics: {current_topics}")
         

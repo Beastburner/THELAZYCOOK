@@ -1065,7 +1065,8 @@ class AIAgent:
             8. Include practical examples where relevant
             9. Consider multiple approaches if applicable
             10. Be thorough but clear
-            11. Rate your confidence in this solution (0-1)""",
+            11. ERROR ON THE SIDE OF VERBOSITY. Provide comprehensive, detailed answers. Do not summarize unless asked.
+            12. Rate your confidence in this solution (0-1)""",
 
         'analyzer_instructions.txt': """1. Review the conversation history to understand the full context
                     2. Check if the solution properly addresses the user's query in context of previous conversations
@@ -1818,7 +1819,14 @@ class MultiAgentSystem:
                                                   iterations[-1] if iterations else None,
                                                   is_new_session=is_new_session)
             iteration_data["generator_response"] = asdict(generator_response)
+            iteration_data["generator_response"] = asdict(generator_response)
             api_calls_used += 1
+
+            # Log Generator Output
+            logger.info("\n" + "="*50)
+            logger.info(f"🦾 GENERATOR AGENT (Iter {current_iteration+1})")
+            logger.info(f"Content Preview: {generator_response.content[:200]}..." if len(generator_response.content) > 200 else f"Content: {generator_response.content}")
+            logger.info("="*50 + "\n")
 
             # Analyzer Agent (CONDITIONAL)
             if pipeline['use_analyzer']:
@@ -1828,6 +1836,16 @@ class MultiAgentSystem:
                 analyzer_response = await self.analyzer.process(user_query, context, iteration_data)
                 iteration_data["analyzer_response"] = asdict(analyzer_response)
                 api_calls_used += 1
+
+                # Log Analyzer Output
+                logger.info("\n" + "="*50)
+                logger.info(f"🔍 ANALYZER AGENT (Iter {current_iteration+1})")
+                logger.info(f"Feedback: {analyzer_response.content}")
+                if analyzer_response.errors_found:
+                    logger.info(f"Errors: {analyzer_response.errors_found}")
+                if analyzer_response.improvements:
+                    logger.info(f"Improvements: {analyzer_response.improvements}")
+                logger.info("="*50 + "\n")
             else:
                 analyzer_response = AgentResponse(
                     agent_role=AgentRole.ANALYZER,
@@ -1848,6 +1866,14 @@ class MultiAgentSystem:
                 optimizer_response = await self.optimizer.process(user_query, context, iteration_data)
                 iteration_data["optimizer_response"] = asdict(optimizer_response)
                 api_calls_used += 1
+
+                # Log Optimizer Output
+                logger.info("\n" + "="*50)
+                logger.info(f"⚡ OPTIMIZER AGENT (Iter {current_iteration+1})")
+                logger.info(f"Optimized Content Preview: {optimizer_response.content[:200]}..." if len(optimizer_response.content) > 200 else f"Content: {optimizer_response.content}")
+                if optimizer_response.improvements:
+                     logger.info(f"Changes Made: {optimizer_response.improvements}")
+                logger.info("="*50 + "\n")
             else:
                 optimizer_response = generator_response
                 iteration_data["optimizer_response"] = asdict(generator_response)
@@ -1860,6 +1886,14 @@ class MultiAgentSystem:
                 validator_response = await self.validator.process(user_query, context, iteration_data)
                 iteration_data["validator_response"] = asdict(validator_response)
                 api_calls_used += 1
+                
+                # Log Validator Output
+                logger.info("\n" + "="*50)
+                logger.info(f"✅ VALIDATOR AGENT (Iter {current_iteration+1})")
+                logger.info(f"Validation: {validator_response.content}")
+                if validator_response.errors_found:
+                    logger.info(f"Issues: {validator_response.errors_found}")
+                logger.info("="*50 + "\n")
             else:
                 validator_response = AgentResponse(
                     agent_role=AgentRole.VALIDATOR,
@@ -2094,8 +2128,14 @@ class AutonomousMultiAgentAssistant:
             logger.warning(f"⚠️ No context available for user {user_id} - this is the first message or context retrieval failed")
 
         # Detect if this is the first message in a new session
+        # Detect if this is the first message in a new session
+        # Fix: consistently check if we actually found previous context
+        # If context string contains "--- Conv", it means we have history (either session or saved chat)
         session_convs = self.file_manager.get_session_conversations(user_id)
-        is_new_session = len(session_convs) == 0
+        
+        # If we have valid context with conversations, it's NOT a new session
+        has_history = "--- Conv" in context
+        is_new_session = not has_history
 
         multi_agent_session = await self.multi_agent_system.process_query(
             message,
