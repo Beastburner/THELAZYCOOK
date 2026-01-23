@@ -159,12 +159,18 @@ class FirestoreManager:
     # ========== Conversation Methods ==========
 
     @log_errors
-    def save_conversation(self, conversation):
-        """Save a conversation to Firestore."""
+    def save_conversation(self, conversation, chat_id: Optional[str] = None):
+        """Save a conversation to Firestore.
+        
+        Args:
+            conversation: Conversation object to save
+            chat_id: The chat ID to associate with this conversation
+                    If None, assume newChat session
+        """
         user_id = conversation.user_id
         
-        # Invalidate cache for this user
-        self.clear_cached_context(user_id)
+        # Invalidate cache for this user and chat
+        self.clear_cached_context(user_id, chat_id)
         
         # Convert conversation to dict
         conv_data = self._to_dict(conversation)
@@ -173,34 +179,43 @@ class FirestoreManager:
         if 'timestamp' in conv_data:
             conv_data['timestamp'] = self._datetime_to_firestore(conv_data['timestamp'])
         else:
-            # If no timestamp, use server timestamp
             conv_data['timestamp'] = SERVER_TIMESTAMP
         
-        # Also handle multi_agent_session timestamp if present
+        # Handle multi_agent_session timestamp
         if 'multi_agent_session' in conv_data and conv_data['multi_agent_session']:
             if isinstance(conv_data['multi_agent_session'], dict) and 'timestamp' in conv_data['multi_agent_session']:
                 conv_data['multi_agent_session']['timestamp'] = self._datetime_to_firestore(
                     conv_data['multi_agent_session']['timestamp']
                 )
         
-        # Save to Firestore - matching old structure: conversations.json
-        conv_ref = self.db.collection('users').document(user_id).collection('conversations').document(conversation.id)
-        conv_ref.set(conv_data)
+        # Store in per-chat chatHistory (organized by chat_id)
+        if chat_id:
+            # Existing chat - store in chat-specific history
+            chat_history_ref = self.db.collection('users').document(user_id)\
+                .collection('chatHistory').document(chat_id)\
+                .collection('conversations').document(conversation.id)
+        else:
+            # New chat - store in newChat history
+            chat_history_ref = self.db.collection('users').document(user_id)\
+                .collection('chatHistory').document('newChat')\
+                .collection('conversations').document(conversation.id)
         
-        # Also save to new_convo (matching old structure: new_convo.json)
-        new_convo_ref = self.db.collection('users').document(user_id).collection('new_convo').document(conversation.id)
-        new_convo_ref.set(conv_data)
+        chat_history_ref.set(conv_data)
         
-        logger.info(f"Conversation saved: {conversation.id} for user {user_id} (timestamp: {conv_data.get('timestamp', 'N/A')})")
+        # Add chat_id to context for filtering
+        if chat_id:
+            logger.info(f"Conversation saved to chatHistory/chat_id={chat_id}: {conversation.id}")
+        else:
+            logger.info(f"Conversation saved to newChat history: {conversation.id}")
 
     @log_errors
     def get_session_conversations(self, user_id: str, limit: int = None, chat_id: Optional[str] = None) -> List:
-        """Get conversations from current session (matching old structure: new_convo.json).
+        """Get conversations from current newConversation (unsaved chat).
         
         Args:
             user_id: User identifier
             limit: Maximum number of conversations to return
-            chat_id: If provided, only get conversations from this chat
+            chat_id: Ignored - newConversation is always the current session
         """
         limit = self._get_effective_limit(limit)
         
@@ -208,8 +223,10 @@ class FirestoreManager:
         from lazycook6 import Conversation
         
         try:
-            # Use 'new_convo' to match old structure (new_convo.json)
-            session_ref = self.db.collection('users').document(user_id).collection('new_convo')
+            # Use newChat collection (users/{user_id}/chatHistory/newChat/conversations)
+            session_ref = self.db.collection('users').document(user_id)\
+                .collection('chatHistory').document('newChat')\
+                .collection('conversations')
             
             # Try ordered query first, fallback to unordered if index missing
             try:
@@ -224,9 +241,6 @@ class FirestoreManager:
             for doc in docs:
                 data = doc.to_dict()
                 if data:
-                    # Note: chat_id filtering removed - all conversations for user are included
-                    # This allows all plans/models to share context
-                    
                     # Convert all timestamps to ISO strings (Conversation.from_dict expects strings)
                     if 'timestamp' in data:
                         dt = self._firestore_to_datetime(data['timestamp'])
@@ -252,16 +266,16 @@ class FirestoreManager:
                 conversations.sort(key=lambda x: x.timestamp if hasattr(x, 'timestamp') and x.timestamp else datetime.min, reverse=True)
                 conversations = conversations[:limit]
             
-            logger.info(f"Fetched {len(conversations)} session conversations (new_convo) for user {user_id} (all chats - context shared across plans)")
+            logger.info(f"Fetched {len(conversations)} session conversations from newConversation for user {user_id}")
             return conversations
         except Exception as e:
-            logger.error(f"Error fetching session conversations (new_convo) for user {user_id}: {e}")
+            logger.error(f"Error fetching session conversations from newConversation for user {user_id}: {e}")
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
     @log_errors
     def get_recent_conversations(self, user_id: str, limit: int = None, chat_id: Optional[str] = None) -> List:
-        """Get recent conversations from history.
+        """Get recent conversations from chatHistory (AI context storage).
         
         Args:
             user_id: User identifier
@@ -274,92 +288,277 @@ class FirestoreManager:
         from lazycook6 import Conversation
         
         try:
-            conv_ref = self.db.collection('users').document(user_id).collection('conversations')
+            all_conversations = []
             
-            # Try ordered query first, fallback to unordered if index missing
-            try:
-                query = conv_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
-                docs = query.stream()
-            except Exception as index_error:
-                logger.warning(f"Ordered query failed (may need index): {index_error}. Trying unordered query...")
-                # Fallback: get all and sort in memory
-                docs = conv_ref.limit(limit * 2).stream()  # Get more to account for no ordering
+            # 1. Get from newChat
+            new_chat_convs = self.get_session_conversations(user_id, limit)
+            all_conversations.extend(new_chat_convs)
             
-            conversations = []
-            for doc in docs:
-                data = doc.to_dict()
-                if data:
-                    # IMPORTANT: No filtering by chat_id, model, or plan - ALL conversations included
-                    # This allows all plans/models (GO, PRO, ULTRA) to share context
+            # 2. Get from saved chats
+            # We need to find all chats first. 
+            chats_ref = self.db.collection('users').document(user_id).collection('chats')
+            chat_docs = chats_ref.stream()
+            chat_ids = [doc.id for doc in chat_docs]
+            
+            # Limit fetch per chat to avoid fetching too much
+            per_chat_limit = 5 
+            
+            for cid in chat_ids:
+                try:
+                    conv_ref = self.db.collection('users').document(user_id)\
+                        .collection('chatHistory').document(cid)\
+                        .collection('conversations')
                     
-                    # Convert all timestamps to ISO strings (Conversation.from_dict expects strings)
-                    if 'timestamp' in data:
-                        dt = self._firestore_to_datetime(data['timestamp'])
-                        data['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                    # Fetch recent from this chat
+                    docs = conv_ref.order_by('timestamp', direction='DESCENDING').limit(per_chat_limit).stream()
                     
-                    # Convert multi_agent_session timestamps (including nested iterations)
-                    if data.get('multi_agent_session') and isinstance(data['multi_agent_session'], dict):
-                        mas = data['multi_agent_session']
-                        if 'timestamp' in mas:
-                            dt = self._firestore_to_datetime(mas['timestamp'])
-                            mas['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
-                        # Also convert timestamps in iterations
-                        if 'iterations' in mas and isinstance(mas['iterations'], list):
-                            for iteration in mas['iterations']:
-                                if isinstance(iteration, dict) and 'timestamp' in iteration:
-                                    dt = self._firestore_to_datetime(iteration['timestamp'])
-                                    iteration['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
-                    
-                    conversations.append(Conversation.from_dict(data))
+                    for doc in docs:
+                        data = doc.to_dict()
+                        if data:
+                            if 'timestamp' in data:
+                                dt = self._firestore_to_datetime(data['timestamp'])
+                                data['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                            
+                            if data.get('multi_agent_session') and isinstance(data['multi_agent_session'], dict):
+                                mas = data['multi_agent_session']
+                                if 'timestamp' in mas:
+                                    dt = self._firestore_to_datetime(mas['timestamp'])
+                                    mas['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                                if 'iterations' in mas and isinstance(mas['iterations'], list):
+                                    for iteration in mas['iterations']:
+                                        if isinstance(iteration, dict) and 'timestamp' in iteration:
+                                            dt = self._firestore_to_datetime(iteration['timestamp'])
+                                            iteration['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+
+                            all_conversations.append(Conversation.from_dict(data))
+                except Exception as e:
+                    logger.warning(f"Error fetching from chat {cid}: {e}")
+                    continue
             
-            # If we used unordered query, sort manually
-            if conversations and not all(hasattr(c, 'timestamp') and c.timestamp for c in conversations):
-                conversations.sort(key=lambda x: x.timestamp if hasattr(x, 'timestamp') and x.timestamp else datetime.min, reverse=True)
-                conversations = conversations[:limit]
+            # Sort all by timestamp descending
+            all_conversations.sort(key=lambda x: x.timestamp if hasattr(x, 'timestamp') and x.timestamp else datetime.min, reverse=True)
             
-            logger.info(f"Fetched {len(conversations)} recent conversations for user {user_id}")
+            # Take top N
+            conversations = all_conversations[:limit]
+            
+            logger.info(f"Fetched {len(conversations)} recent conversations from chatHistory (aggregated) for user {user_id}")
             return conversations
         except Exception as e:
-            logger.error(f"Error fetching recent conversations for user {user_id}: {e}")
+            logger.error(f"Error fetching recent conversations from chatHistory for user {user_id}: {e}")
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
-    def get_conversation_context(self, user_id: str, limit: int = None, chat_id: Optional[str] = None) -> str:
-        """Get formatted conversation context for AI.
+    def get_conversation_context(self, user_id: str, limit: int = None, chat_id: Optional[str] = None, current_chat_messages: List = None) -> str:
+        """Get formatted conversation context for AI with smart 30% context logic.
         
-        Args:
-            user_id: User identifier
-            limit: Maximum number of conversations to include
-            chat_id: Optional - if provided, prioritize conversations from this chat, but still include all user conversations
-                    All plans/models for the same user share context
+        Context Logic:
+            - NEW CHAT (empty): Get 30% from RELATED previous chats only
+            - EXISTING CHAT: 70% current + 30% from related previous chats
+            - SKIP unrelated chats entirely
         """
         limit = self._get_effective_limit(limit)
         
         if limit == 0:
-            logger.info(f"Returning empty context for {user_id} due to limit=0")
             return "No previous conversation history available."
 
-        logger.info(f"Getting conversation context for user {user_id} (chat_id={chat_id}, limit={limit})")
-        logger.info(f"📚 Context sharing: All plans/models share context for user {user_id}")
+        is_new_chat = not current_chat_messages or len(current_chat_messages) == 0
+        
+        logger.info(f"🔄 Context for user={user_id}, chat={chat_id}, is_new={is_new_chat}, limit={limit}")
 
-        # Check cache validity (use user_id only, not chat_id, so context is shared)
-        cache_key = f"{user_id}_{limit}"
+        # Per-chat cache key for relevance-based context
+        cache_key = f"{user_id}_{chat_id}_{limit}_{is_new_chat}"
         now = datetime.now()
 
         if cache_key in self._cached_context:
             cache_time = self._context_cache_time.get(cache_key)
             if cache_time and (now - cache_time) < self._cache_ttl:
-                logger.info(f"Using cached context for {user_id} (age: {now - cache_time})")
+                logger.info(f"✅ Using cached context")
                 return self._cached_context[cache_key]
 
-        # Build fresh context - get ALL conversations for user (not filtered by chat_id)
-        # This allows all plans/models to share context
-        logger.info(f"Building fresh context for user {user_id} (all chats, all plans)")
-        half_limit = max(1, limit // 2) if limit > 0 else 0
-        session_conversations = self.get_session_conversations(user_id, half_limit, chat_id=None)  # Get all chats
-        historical_conversations = self.get_recent_conversations(user_id, half_limit, chat_id=None)  # Get all chats
+        conversations = []
         
-        logger.info(f"Found {len(session_conversations)} session conversations and {len(historical_conversations)} historical conversations")
+        if is_new_chat:
+            # NEW CHAT: 30% only from RELATED chats (intelligent topic matching)
+            logger.info(f"📊 NEW CHAT - Fetching 30% from RELATED chats only")
+            conversations = self._get_related_conversations(user_id, limit, current_chat_messages)
+        else:
+            # EXISTING CHAT: 70% current + 30% related
+            logger.info(f"📊 EXISTING CHAT - Fetching 70% current + 30% related")
+            current_convs = self._get_chat_specific_conversations(user_id, chat_id, int(limit * 0.7))
+            related_convs = self._get_related_conversations(user_id, int(limit * 0.3), current_chat_messages)
+            conversations = current_convs + related_convs
+            conversations.sort(key=lambda x: x.timestamp, reverse=True)
+            conversations = conversations[:limit]
+
+        if not conversations:
+            logger.info(f"⚠️ No conversations found")
+            return "No previous conversation history available."
+
+        # Build context string
+        context_parts = [f"=== CONTEXT (NEW: {is_new_chat}) ==="]
+        MAX_CONTEXT_CHARS = 8000
+        current_length = len("\n".join(context_parts))
+        
+        for i, conv in enumerate(conversations):
+            user_msg = conv.user_message[:500] + "..." if len(conv.user_message) > 500 else conv.user_message
+            ai_msg = conv.ai_response[:1000] + "..." if len(conv.ai_response) > 1000 else conv.ai_response
+            chat_info = f" [Chat: {conv.chat_id}]" if hasattr(conv, 'chat_id') and conv.chat_id else ""
+            
+            conv_text = (
+                f"\n--- Conv {i + 1}{chat_info} ---\n"
+                f"USER: {user_msg}\n"
+                f"AI: {ai_msg}"
+            )
+            
+            if current_length + len(conv_text) > MAX_CONTEXT_CHARS:
+                logger.info(f"Context limit reached")
+                break
+            
+            context_parts.append(conv_text)
+            current_length += len(conv_text)
+
+        context_parts.append("\n=== END CONTEXT ===")
+        context = "\n".join(context_parts)
+
+        # Cache and return
+        self._cached_context[cache_key] = context
+        self._context_cache_time[cache_key] = now
+
+        logger.info(f"✅ Context: {len(conversations)} convs, {len(context)} chars")
+        return context
+
+    def _get_chat_specific_conversations(self, user_id: str, chat_id: str, limit: int) -> List:
+        """Get conversations from specific chat only (no cross-chat)."""
+        from lazycook6 import Conversation
+        
+        try:
+            # Access per-chat conversation history
+            conv_ref = self.db.collection('users').document(user_id)\
+                .collection('chatHistory').document(chat_id)\
+                .collection('conversations')
+            
+            query = conv_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
+            docs = query.stream()
+            
+            conversations = []
+            for doc in docs:
+                data = doc.to_dict()
+                if data:
+                    if 'timestamp' in data:
+                        dt = self._firestore_to_datetime(data['timestamp'])
+                        data['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                    if data.get('multi_agent_session') and isinstance(data['multi_agent_session'], dict):
+                        if 'timestamp' in data['multi_agent_session']:
+                            dt = self._firestore_to_datetime(data['multi_agent_session']['timestamp'])
+                            data['multi_agent_session']['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                    conversations.append(Conversation.from_dict(data))
+            
+            logger.info(f"Fetched {len(conversations)} conversations from chat {chat_id}")
+            return conversations
+        except Exception as e:
+            logger.warning(f"Error fetching chat-specific conversations: {e}")
+            return []
+
+    def _get_related_conversations(self, user_id: str, limit: int, current_prompt: Optional[List] = None) -> List:
+        """Get relevant conversations from other chats based on topic similarity.
+        
+        Filters to show only RELATED chats, skipping completely unrelated ones.
+        """
+        from lazycook6 import Conversation
+        
+        try:
+            # Get all chat IDs for this user
+            chats_ref = self.db.collection('users').document(user_id).collection('chats')
+            chat_docs = chats_ref.stream()
+            chat_ids = [doc.id for doc in chat_docs]
+            
+            if not chat_ids:
+                logger.info("No previous chats found")
+                return []
+            
+            all_conversations = []
+            
+            # Fetch from each chat's history
+            for chat_id in chat_ids:
+                try:
+                    conv_ref = self.db.collection('users').document(user_id)\
+                        .collection('chatHistory').document(chat_id)\
+                        .collection('conversations')
+                    
+                    docs = conv_ref.order_by('timestamp', direction='DESCENDING').limit(5).stream()
+                    
+                    for doc in docs:
+                        data = doc.to_dict()
+                        if data:
+                            if 'timestamp' in data:
+                                dt = self._firestore_to_datetime(data['timestamp'])
+                                data['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                            if data.get('multi_agent_session') and isinstance(data['multi_agent_session'], dict):
+                                if 'timestamp' in data['multi_agent_session']:
+                                    dt = self._firestore_to_datetime(data['multi_agent_session']['timestamp'])
+                                    data['multi_agent_session']['timestamp'] = dt.isoformat() if isinstance(dt, datetime) else str(dt)
+                            all_conversations.append(Conversation.from_dict(data))
+                except Exception as e:
+                    logger.warning(f"Error fetching from chat {chat_id}: {e}")
+                    continue
+            
+            # Filter for relevance (if current prompt provided)
+            if current_prompt and len(current_prompt) > 0:
+                current_text = current_prompt[0].get('content', '') if isinstance(current_prompt[0], dict) else str(current_prompt[0])
+                filtered = self._filter_relevant_conversations(all_conversations, current_text, limit)
+                logger.info(f"Filtered to {len(filtered)} relevant conversations from {len(all_conversations)} total")
+                return filtered
+            
+            # Return top conversations by timestamp
+            all_conversations.sort(key=lambda x: x.timestamp, reverse=True)
+            return all_conversations[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error getting related conversations: {e}")
+            return []
+
+    def _filter_relevant_conversations(self, conversations: List, current_text: str, limit: int) -> List:
+        """Filter conversations by relevance to current prompt using simple keyword matching.
+        
+        Extracts key topics and returns conversations with matching topics.
+        """
+        if not current_text or not conversations:
+            return conversations[:limit]
+        
+        # Extract topics from current text
+        current_topics = set()
+        words = current_text.lower().split()
+        # Get unique meaningful words (>4 chars, not stopwords)
+        stopwords = {'the', 'and', 'or', 'is', 'are', 'was', 'were', 'been', 'be', 'have', 'has', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'a', 'an', 'to', 'of', 'in', 'for', 'with', 'from', 'as', 'at', 'by', 'on', 'how', 'what', 'when', 'where', 'why', 'which', 'who'}
+        current_topics = {w for w in words if len(w) > 3 and w not in stopwords}
+        
+        if not current_topics:
+            # If no meaningful keywords, return most recent
+            return conversations[:limit]
+        
+        logger.info(f"Current topics: {current_topics}")
+        
+        # Score conversations by topic overlap
+        scored_convs = []
+        for conv in conversations:
+            # Extract topics from previous response
+            prev_text = (conv.user_message + " " + conv.ai_response).lower()
+            prev_words = prev_text.split()
+            prev_topics = {w for w in prev_words if len(w) > 3 and w not in stopwords}
+            
+            # Calculate overlap score
+            overlap = len(current_topics & prev_topics)
+            if overlap > 0:  # Only include if there's some relevance
+                scored_convs.append((conv, overlap))
+        
+        if not scored_convs:
+            # No relevant conversations found - return empty (don't pollute context)
+            logger.info("No related conversations found - returning empty")
+            return []
+        
+        # Sort by relevance score (descending) then by timestamp
+        scored_convs.sort(key=lambda x: (-x[1], x[0].timestamp), reverse=True)
+        return [conv for conv, _ in scored_convs[:limit]]
         
         # Debug: Log chat_ids to verify we're getting conversations from all chats
         if session_conversations:
@@ -466,13 +665,149 @@ class FirestoreManager:
             self.save_conversation(conversation)
 
     @log_errors
-    def clear_cached_context(self, user_id: str):
-        """Clear cached context for a user."""
-        keys_to_remove = [k for k in self._cached_context.keys() if k.startswith(f"{user_id}_")]
+    def clear_cached_context(self, user_id: str, chat_id: Optional[str] = None):
+        """Clear cached context for a user or specific chat.
+        
+        Args:
+            user_id: User to clear cache for
+            chat_id: Optional - if provided, only clear cache for this chat
+        """
+        if chat_id:
+            # Clear cache only for specific chat
+            prefix = f"{user_id}_{chat_id}_"
+        else:
+            # Clear all caches for user
+            prefix = f"{user_id}_"
+        
+        keys_to_remove = [k for k in self._cached_context.keys() if k.startswith(prefix)]
         for key in keys_to_remove:
             self._cached_context.pop(key, None)
             self._context_cache_time.pop(key, None)
-        logger.info(f"Cleared {len(keys_to_remove)} cached contexts for {user_id}")
+        
+        if chat_id:
+            logger.info(f"Cleared {len(keys_to_remove)} cached contexts for {user_id}/{chat_id}")
+        else:
+            logger.info(f"Cleared {len(keys_to_remove)} cached contexts for {user_id}")
+
+    @log_errors
+    def get_new_conversation_data(self, user_id: str) -> Dict[str, Any]:
+        """Get all data from newConversation for a user."""
+        try:
+            # Path: users/{id}/chatHistory/newChat/conversations
+            new_convo_ref = self.db.collection('users').document(user_id)\
+                .collection('chatHistory').document('newChat')\
+                .collection('conversations')
+            docs = new_convo_ref.stream()
+            
+            new_convo_data = {}
+            for doc in docs:
+                data = doc.to_dict()
+                if data:
+                    new_convo_data[doc.id] = data
+            
+            logger.info(f"Fetched newConversation data for user {user_id}: {len(new_convo_data)} items")
+            return new_convo_data
+        except Exception as e:
+            logger.error(f"Error fetching newConversation data for user {user_id}: {e}")
+            return {}
+
+    @log_errors
+    def clear_new_conversation(self, user_id: str):
+        """Clear all conversations from newConversation collection for a user."""
+        try:
+            # Path: users/{id}/chatHistory/newChat/conversations
+            new_convo_ref = self.db.collection('users').document(user_id)\
+                .collection('chatHistory').document('newChat')\
+                .collection('conversations')
+            docs = new_convo_ref.stream()
+            
+            for doc in docs:
+                doc.reference.delete()
+            
+            logger.info(f"Cleared newConversation for user {user_id}")
+        except Exception as e:
+            logger.error(f"Error clearing newConversation for user {user_id}: {e}")
+
+    @log_errors
+    def promote_new_conversation(self, user_id: str, new_chat_id: str) -> bool:
+        """Promote newConversation to a numbered chat.
+        
+        Args:
+            user_id: User identifier
+            new_chat_id: The new chat ID (e.g., 'chat_11')
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get all data from newChat (chatHistory/newChat/conversations)
+            new_convo_data = self.get_new_conversation_data(user_id)
+            
+            if not new_convo_data:
+                logger.warning(f"No data in newChat to promote for user {user_id}")
+                return False
+            
+            # Create/update the new chat document with messages from newConversation
+            messages = []
+            
+            for conv_id, conv_data in new_convo_data.items():
+                # Extract message data if it's a message
+                if 'role' in conv_data and 'content' in conv_data:
+                    # This is a message doc
+                    messages.append({
+                        'id': conv_id,
+                        'role': conv_data.get('role'),
+                        'content': conv_data.get('content'),
+                        'timestamp': conv_data.get('timestamp')
+                    })
+                # Handle Conversation object format as well
+                elif 'user_message' in conv_data and 'ai_response' in conv_data:
+                    messages.append({
+                        'id': f"{conv_id}_user",
+                        'role': 'user',
+                        'content': conv_data.get('user_message'),
+                        'timestamp': conv_data.get('timestamp')
+                    })
+                    messages.append({
+                        'id': f"{conv_id}_ai",
+                        'role': 'assistant',
+                        'content': conv_data.get('ai_response'),
+                        'timestamp': conv_data.get('timestamp')
+                    })
+            
+            # Create the new chat document
+            chat_doc = {
+                'id': new_chat_id,
+                'title': 'New Chat',  # Can be updated by frontend
+                'createdAt': SERVER_TIMESTAMP,
+                'updatedAt': SERVER_TIMESTAMP,
+                'messages': messages
+            }
+            
+            # Save to chats collection (Metadata)
+            chat_ref = self.db.collection('users').document(user_id).collection('chats').document(new_chat_id)
+            chat_ref.set(chat_doc)
+            
+            # Move conversations to chatHistory/{new_chat_id}/conversations
+            for conv_id, conv_data in new_convo_data.items():
+                # Update chat_id field
+                conv_data['chat_id'] = new_chat_id
+                
+                # Save to: chatHistory/{new_chat_id}/conversations/{conv_id}
+                target_ref = self.db.collection('users').document(user_id)\
+                    .collection('chatHistory').document(new_chat_id)\
+                    .collection('conversations').document(conv_id)
+                target_ref.set(conv_data)
+            
+            # Clear newChat (chatHistory/newChat)
+            self.clear_new_conversation(user_id)
+            
+            logger.info(f"✅ Promoted newChat to chat {new_chat_id} for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error promoting newConversation for user {user_id}: {e}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return False
 
     def cleanup_session_file(self):
         """Clean up session conversations (matching old structure: new_convo.json cleanup)."""

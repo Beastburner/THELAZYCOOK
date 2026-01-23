@@ -18,10 +18,17 @@ export type Chat = {
   messages: Message[];
 };
 
+export type NewConversation = {
+  title: string;
+  messages: Message[];
+};
+
 interface ConversationsContextType {
   chats: Chat[];
+  newConversation: NewConversation | null;
   activeChatId: string | null;
   setChats: (chats: Chat[] | ((prev: Chat[]) => Chat[])) => void;
+  setNewConversation: (convo: NewConversation | null) => void;
   setActiveChatId: (id: string | null) => void;
   email: string;
   plan: Plan | null;

@@ -2378,7 +2378,8 @@ class AutonomousMultiAgentAssistant:
             potential_followups=[],
             chat_id=chat_id  # Link conversation to the chat
         )
-        self.file_manager.save_conversation(conversation)
+        # Save to per-chat history (newChat if unsaved, or specific chat_id)
+        self.file_manager.save_conversation(conversation, chat_id=chat_id or "newChat")
         await self._analyze_and_create_tasks(conversation)
         
         # Ensure we return a non-empty response

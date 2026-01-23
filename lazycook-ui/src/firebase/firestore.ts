@@ -357,3 +357,146 @@ export const shareChat = async (chatId: string, chatData: any): Promise<void> =>
   }
 };
 
+/**
+ * Get newConversation for a user (current unsaved chat)
+ */
+export const getNewConversation = async (userId: string): Promise<DocumentData | null> => {
+  try {
+    const newConvoRef = collection(db, 'users', userId, 'newConversation');
+    const querySnapshot = await getDocs(newConvoRef);
+    
+    const messages: any[] = [];
+    querySnapshot.docs.forEach(doc => {
+      messages.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return messages.length > 0 ? { messages } : null;
+  } catch (error) {
+    console.error('Error fetching newConversation:', error);
+    return null;
+  }
+};
+
+/**
+ * Subscribe to real-time updates of newConversation
+ */
+export const subscribeToNewConversation = (
+  userId: string,
+  callback: (newConvo: any) => void,
+  onError?: (error: Error) => void
+): (() => void) => {
+  try {
+    const newConvoRef = collection(db, 'users', userId, 'newConversation');
+    const q = query(newConvoRef, orderBy('timestamp', 'asc'));
+    
+    return onSnapshot(
+      q,
+      (snapshot: QuerySnapshot) => {
+        const messages = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        callback({
+          messages,
+          title: 'New Chat'
+        });
+      },
+      (error: any) => {
+        console.error('⚠️ [FIRESTORE] newConversation subscription error:', error);
+        if (onError) {
+          onError(error);
+        }
+      }
+    );
+  } catch (error: any) {
+    console.error('Error subscribing to newConversation:', error);
+    if (onError) {
+      onError(error);
+    }
+    return () => {}; // Return empty unsubscribe function
+  }
+};
+
+/**
+ * Save a message to newConversation
+ */
+export const saveToNewConversation = async (
+  userId: string,
+  messageId: string,
+  message: any
+): Promise<void> => {
+  try {
+    const messageRef = doc(db, 'users', userId, 'newConversation', messageId);
+    const cleanData = removeUndefinedValues(message);
+    
+    await setDoc(messageRef, {
+      ...cleanData,
+      timestamp: message.timestamp || serverTimestamp()
+    }, { merge: true });
+  } catch (error: any) {
+    console.error('Error saving to newConversation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear newConversation (after promoting to a numbered chat)
+ */
+export const clearNewConversation = async (userId: string): Promise<void> => {
+  try {
+    const newConvoRef = collection(db, 'users', userId, 'newConversation');
+    const querySnapshot = await getDocs(newConvoRef);
+    
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+    
+    console.log('✅ newConversation cleared');
+  } catch (error: any) {
+    console.error('Error clearing newConversation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Promote newConversation to a numbered chat
+ * Called when user saves/closes the new conversation
+ */
+export const promoteChat = async (
+  userId: string,
+  newChatId: string
+): Promise<boolean> => {
+  try {
+    // Call backend to handle the promotion
+    const token = localStorage.getItem('firebaseToken');
+    const response = await fetch(`${import.meta.env.VITE_API_BASE}/promote-chat`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-User-ID': userId,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        new_chat_id: newChatId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Promotion failed: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ Chat promoted:', result);
+    
+    // Clear local newConversation
+    await clearNewConversation(userId);
+    
+    return true;
+  } catch (error: any) {
+    console.error('Error promoting chat:', error);
+    return false;
+  }
+};

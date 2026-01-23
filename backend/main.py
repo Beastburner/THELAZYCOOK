@@ -406,3 +406,57 @@ async def upload_file(
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}") from e
+
+class PromoteChatIn(BaseModel):
+    """Request payload for promoting newConversation to a numbered chat"""
+    model_config = ConfigDict(extra="ignore")
+    
+    new_chat_id: str  # The new chat ID to create (e.g., 'chat_11')
+
+
+@app.post("/promote-chat")
+def promote_chat(
+    payload: PromoteChatIn,
+    user: Dict[str, Any] = Depends(auth.get_current_user),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-ID"),
+) -> Dict[str, Any]:
+    """
+    Promote newConversation to a numbered chat.
+    
+    This is called when user saves a new conversation, moving it from
+    the temporary newConversation collection to a permanent numbered chat.
+    
+    Args:
+        payload: Contains new_chat_id (e.g., 'chat_11')
+        user: Current authenticated user
+        x_user_id: Optional user ID header override
+    
+    Returns:
+        Success status and new chat ID
+    """
+    try:
+        user_id = (x_user_id or user["user_id"]).strip() or user["user_id"]
+        
+        from firestore_manager import FirestoreManager
+        file_manager = FirestoreManager()
+        
+        success = file_manager.promote_new_conversation(user_id, payload.new_chat_id)
+        
+        if success:
+            logger.info(f"✅ Chat promoted: {payload.new_chat_id} for user {user_id}")
+            return {
+                "success": True,
+                "chat_id": payload.new_chat_id,
+                "message": f"New conversation promoted to chat {payload.new_chat_id}"
+            }
+        else:
+            logger.warning(f"❌ Failed to promote chat for user {user_id}")
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to promote conversation. No data in newConversation or database error."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error promoting chat: {e}")
+        raise HTTPException(status_code=500, detail=f"Chat promotion failed: {str(e)}") from e
