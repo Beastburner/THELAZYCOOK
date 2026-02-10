@@ -125,19 +125,24 @@ def gemini(
                     run_in_new_loop,
                     assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id, document_ids=document_ids)
                 )
-                response = future.result(timeout=300)  # 5 minute timeout
+                result_data = future.result(timeout=300)  # 5 minute timeout
         except RuntimeError:
             # No event loop running, safe to use asyncio.run()
-            response = asyncio.run(
+            result_data = asyncio.run(
                 assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id)
             )
         
+        # result_data is now a dict: {"text": str, "charts": list}
+        response_text = result_data.get("text", "") if isinstance(result_data, dict) else result_data
+        chart_files = result_data.get("charts", []) if isinstance(result_data, dict) else []
+
         # Get quality metrics
         insights = assistant.get_user_insights(user_id)
         
         return {
             "model": "gemini",
-            "response": response,
+            "response": response_text,
+            "charts": chart_files,
             "metadata": {
                 "quality_score": insights.get("average_quality_score", 0),
                 "iterations": insights.get("average_iterations", 0),
@@ -335,12 +340,17 @@ def mixed(
                 assistant.process_user_message(user_id, prompt, chat_id=chat_id, document_id=document_id)
             )
         
+        # Extract text and charts from session object
+        response_text = response.final_response if hasattr(response, 'final_response') else str(response)
+        chart_files = [os.path.basename(f) for f in response.chart_files] if hasattr(response, 'chart_files') and response.chart_files else []
+        
         # Get quality metrics
         insights = assistant.get_user_insights(user_id)
         
         return {
             "model": "mixed",
-            "response": response,  # Unified response from lazycook_grok_gemini_2.py
+            "response": response_text,
+            "charts": chart_files,
             "metadata": {
                 "quality_score": insights.get("average_quality_score", 0),
                 "iterations": insights.get("average_iterations", 0),
@@ -442,7 +452,7 @@ def run_cli_by_plan(plan: str):
             import lazycook6
             config = lazycook6.create_assistant(
                 gemini_key,
-                conversation_limit=70
+                conversation_limit=15,
             )
             asyncio.run(config.run_cli())
             

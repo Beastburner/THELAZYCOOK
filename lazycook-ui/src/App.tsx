@@ -73,6 +73,7 @@ type Message = {
   role: Role;
   content: string;
   confidenceScore?: number;
+  charts?: string[];
   highlights?: Highlight[];
   attachedFile?: { id: string; filename: string };
   attachedFiles?: { id: string; filename: string }[];
@@ -698,9 +699,8 @@ function addEmotionalContext(
   if (patternIndex === 2 && wordCount >= 2) {
     const adjective = adjectives[hash % adjectives.length];
     const rest = baseWords.slice(1).join(" ");
-    const result = `${
-      adjective.charAt(0).toUpperCase() + adjective.slice(1)
-    } ${rest}`;
+    const result = `${adjective.charAt(0).toUpperCase() + adjective.slice(1)
+      } ${rest}`;
     if (result.split(" ").length <= 6) return result;
   }
 
@@ -1276,9 +1276,9 @@ function enhanceWithEmojis(content: string): string {
           } else {
             processedSentences.push(
               sentence.trim() +
-                " " +
-                emoji +
-                (sentence.endsWith("\n") ? "\n" : "")
+              " " +
+              emoji +
+              (sentence.endsWith("\n") ? "\n" : "")
             );
           }
           emojiCount++;
@@ -1316,6 +1316,7 @@ function MessageItem({
   firebaseUser?: User | null;
   plan?: Plan | null;
   getIdToken?: () => Promise<string | null>;
+  charts?: string[];
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
@@ -1635,9 +1636,8 @@ function MessageItem({
 
   return (
     <div
-      className={`lc-msg ${
-        message.role === "user" ? "is-user" : "is-assistant"
-      }`}
+      className={`lc-msg ${message.role === "user" ? "is-user" : "is-assistant"
+        }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -1646,18 +1646,18 @@ function MessageItem({
           {message.role === "user" ? (
             "You"
           ) : // Show loading text in role area if message is empty
-          !message.content || message.content.trim().length === 0 ? (
-            <span className="lc-typing-text">
-              <LazyCookText /> is cooking
-              <span className="lc-typing-dots">
-                <span className="lc-typing-dot">.</span>
-                <span className="lc-typing-dot">.</span>
-                <span className="lc-typing-dot">.</span>
+            !message.content || message.content.trim().length === 0 ? (
+              <span className="lc-typing-text">
+                <LazyCookText /> is cooking
+                <span className="lc-typing-dots">
+                  <span className="lc-typing-dot">.</span>
+                  <span className="lc-typing-dot">.</span>
+                  <span className="lc-typing-dot">.</span>
+                </span>
               </span>
-            </span>
-          ) : (
-            <LazyCookText />
-          )}
+            ) : (
+              <LazyCookText />
+            )}
         </div>
         <div className="lc-msg-content" ref={contentRef}>
           {message.role === "assistant" ? (
@@ -1666,6 +1666,8 @@ function MessageItem({
                 <MarkdownContent
                   content={message.content}
                   highlights={message.highlights}
+                  charts={message.charts}
+                  apiBase={apiBase}
                   onHighlightClick={(text, event) => {
                     // This is a fallback - main handling is done via event delegation in handleClick
                     if (!highlightEnabled || !onUpdateHighlights) return;
@@ -1843,7 +1845,7 @@ function MessageItem({
               </button>
               <button
                 className="lc-msg-action-btn"
-                onClick={() => {}}
+                onClick={() => { }}
                 aria-label="Thumbs down"
                 title="Bad response"
               >
@@ -1851,7 +1853,7 @@ function MessageItem({
               </button>
               <button
                 className="lc-msg-action-btn"
-                onClick={() => {}}
+                onClick={() => { }}
                 aria-label="Share"
                 title="Share"
               >
@@ -1867,7 +1869,7 @@ function MessageItem({
               </button>
               <button
                 className="lc-msg-action-btn"
-                onClick={() => {}}
+                onClick={() => { }}
                 aria-label="More options"
                 title="More"
               >
@@ -3209,6 +3211,8 @@ export default function App() {
         data.quality_metrics?.combined ||
         undefined;
 
+      const chartsData = data.charts || [];
+
       // Remove confidence score from content if it appears in the text (for all plans)
       // This ensures it only appears once in the UI, not in both content and separately
       if (confidenceScore !== undefined) {
@@ -3357,13 +3361,13 @@ export default function App() {
             "with content length:",
             content?.length
           );
-          next[idx] = { ...next[idx], content, confidenceScore };
+          next[idx] = { ...next[idx], content, confidenceScore, charts: chartsData };
         } else {
           console.error(
             "❌ [FRONTEND] Could not find assistant message! Adding new one."
           );
           // Fallback: add the message at the end
-          next.push({ ...assistantMsg, content, confidenceScore });
+          next.push({ ...assistantMsg, content, confidenceScore, charts: chartsData });
         }
 
         // Save updated messages to Firestore (only if quota not exceeded)
@@ -3437,8 +3441,8 @@ export default function App() {
         const errorContent = isBlocked
           ? `⚠️ Request blocked by browser extension or ad blocker. Please disable ad blockers for this site or whitelist ${API_BASE}, then try again.`
           : isTimeout
-          ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection."
-          : `Error: ${errorMessage}`;
+            ? "Request timed out. The AI is processing your request, but it's taking longer than expected. Please try again or check your connection."
+            : `Error: ${errorMessage}`;
 
         if (idx >= 0) {
           next[idx] = {
@@ -4187,9 +4191,8 @@ export default function App() {
               filteredChats.map((c) => (
                 <div
                   key={c.id}
-                  className={`lc-chat-item ${
-                    c.id === activeChatId ? "active" : ""
-                  }`}
+                  className={`lc-chat-item ${c.id === activeChatId ? "active" : ""
+                    }`}
                   onClick={() => {
                     if (renamingChatId !== c.id) {
                       setActiveChatId(c.id);
@@ -4264,23 +4267,23 @@ export default function App() {
               <div className="lc-avatar">
                 {firebaseUser?.email || email
                   ? (
-                      (firebaseUser?.email || email)
-                        .split("@")[0]
-                        .match(/\b\w/g) || []
-                    )
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()
+                    (firebaseUser?.email || email)
+                      .split("@")[0]
+                      .match(/\b\w/g) || []
+                  )
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()
                   : "U"}
               </div>
               <div className="lc-usertext">
                 <div className="lc-username">
                   {firebaseUser?.email || email
                     ? (firebaseUser?.email || email)
-                        .split("@")[0]
-                        .split(/[._-]/)
-                        .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
-                        .join(" ")
+                      .split("@")[0]
+                      .split(/[._-]/)
+                      .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
+                      .join(" ")
                     : "User"}
                 </div>
                 <div className="lc-userplan">{plan || "GO"}</div>
@@ -4291,33 +4294,33 @@ export default function App() {
                     <div className="lc-avatar-menu">
                       {firebaseUser?.email || email
                         ? (
-                            (firebaseUser?.email || email)
-                              .split("@")[0]
-                              .match(/\b\w/g) || []
-                          )
-                            .slice(0, 2)
-                            .join("")
-                            .toUpperCase()
+                          (firebaseUser?.email || email)
+                            .split("@")[0]
+                            .match(/\b\w/g) || []
+                        )
+                          .slice(0, 2)
+                          .join("")
+                          .toUpperCase()
                         : "U"}
                     </div>
                     <div className="lc-user-menu-info">
                       <div className="lc-user-menu-name">
                         {firebaseUser?.email || email
                           ? (firebaseUser?.email || email)
-                              .split("@")[0]
-                              .split(/[._-]/)
-                              .map(
-                                (n) => n.charAt(0).toUpperCase() + n.slice(1)
-                              )
-                              .join(" ")
+                            .split("@")[0]
+                            .split(/[._-]/)
+                            .map(
+                              (n) => n.charAt(0).toUpperCase() + n.slice(1)
+                            )
+                            .join(" ")
                           : "User"}
                       </div>
                       <div className="lc-user-menu-username">
                         @
                         {firebaseUser?.email || email
                           ? (firebaseUser?.email || email)
-                              .split("@")[0]
-                              .toLowerCase()
+                            .split("@")[0]
+                            .toLowerCase()
                           : "user"}
                       </div>
                     </div>
@@ -4432,9 +4435,8 @@ export default function App() {
                     </svg>
                     <span>Enable Text Highlighting</span>
                     <div
-                      className={`lc-toggle-switch ${
-                        highlightEnabled ? "is-active" : ""
-                      }`}
+                      className={`lc-toggle-switch ${highlightEnabled ? "is-active" : ""
+                        }`}
                     >
                       <div className="lc-toggle-slider"></div>
                     </div>
@@ -4579,16 +4581,15 @@ export default function App() {
                   {model === "gemini"
                     ? "Gemini"
                     : model === "grok"
-                    ? "Grok"
-                    : "Mixed"}
+                      ? "Grok"
+                      : "Mixed"}
                 </span>
                 <FiChevronDown className="lc-dropdown-icon" />
                 {showModelDropdown && (
                   <div className="lc-model-dropdown">
                     <button
-                      className={`lc-model-option ${
-                        model === "gemini" ? "is-active" : ""
-                      }`}
+                      className={`lc-model-option ${model === "gemini" ? "is-active" : ""
+                        }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!plan || PLAN_MODELS[plan].includes("gemini")) {
@@ -4604,9 +4605,8 @@ export default function App() {
                         : ""}
                     </button>
                     <button
-                      className={`lc-model-option ${
-                        model === "grok" ? "is-active" : ""
-                      }`}
+                      className={`lc-model-option ${model === "grok" ? "is-active" : ""
+                        }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!plan || PLAN_MODELS[plan].includes("grok")) {
@@ -4622,9 +4622,8 @@ export default function App() {
                         : ""}
                     </button>
                     <button
-                      className={`lc-model-option ${
-                        model === "mixed" ? "is-active" : ""
-                      }`}
+                      className={`lc-model-option ${model === "mixed" ? "is-active" : ""
+                        }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!plan || PLAN_MODELS[plan].includes("mixed")) {
@@ -4684,7 +4683,7 @@ export default function App() {
                           const newTitle = window.prompt(
                             "Enter new chat title:",
                             chats.find((c) => c.id === activeChatId)?.title ||
-                              ""
+                            ""
                           );
                           if (newTitle !== null && newTitle.trim()) {
                             handleRenameChat(activeChatId, newTitle.trim());
@@ -4788,33 +4787,33 @@ export default function App() {
                     onUpdateHighlights={
                       m.role === "assistant" && activeChat
                         ? (highlights: Highlight[]) => {
-                            updateChatMessages(activeChat.id, (messages) => {
-                              const next = [...messages];
-                              const idx = next.findIndex(
-                                (msg) => msg.id === m.id
-                              );
-                              if (idx >= 0) {
-                                next[idx] = { ...next[idx], highlights };
-                              }
-                              return next;
-                            });
-                          }
+                          updateChatMessages(activeChat.id, (messages) => {
+                            const next = [...messages];
+                            const idx = next.findIndex(
+                              (msg) => msg.id === m.id
+                            );
+                            if (idx >= 0) {
+                              next[idx] = { ...next[idx], highlights };
+                            }
+                            return next;
+                          });
+                        }
                         : undefined
                     }
                     onAskChatGPT={
                       m.role === "assistant"
                         ? (text: string) => {
-                            setPrompt(text);
-                            // Auto-focus the textarea
-                            setTimeout(() => {
-                              textareaRef.current?.focus();
-                              // Scroll to input
-                              textareaRef.current?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "nearest",
-                              });
-                            }, 100);
-                          }
+                          setPrompt(text);
+                          // Auto-focus the textarea
+                          setTimeout(() => {
+                            textareaRef.current?.focus();
+                            // Scroll to input
+                            textareaRef.current?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "nearest",
+                            });
+                          }, 100);
+                        }
                         : undefined
                     }
                     highlightEnabled={highlightEnabled}
@@ -4827,21 +4826,20 @@ export default function App() {
                 {activeChat && activeChat.messages.length > 0 && (
                   <div className="lc-chat-actions">
                     <button
-                      className={`lc-chat-action-btn ${
-                        chatCopyStatus === "copied"
-                          ? "is-copied"
-                          : chatCopyStatus === "error"
+                      className={`lc-chat-action-btn ${chatCopyStatus === "copied"
+                        ? "is-copied"
+                        : chatCopyStatus === "error"
                           ? "is-error"
                           : ""
-                      }`}
+                        }`}
                       onClick={copyWholeChat}
                       aria-label="Copy whole chat"
                       title={
                         chatCopyStatus === "copied"
                           ? "Copied!"
                           : chatCopyStatus === "error"
-                          ? "Copy failed"
-                          : "Copy chat"
+                            ? "Copy failed"
+                            : "Copy chat"
                       }
                     >
                       <FiCopy
@@ -4852,8 +4850,8 @@ export default function App() {
                         {chatCopyStatus === "copied"
                           ? "Copied"
                           : chatCopyStatus === "error"
-                          ? "Failed"
-                          : "Copy Chat"}
+                            ? "Failed"
+                            : "Copy Chat"}
                       </span>
                     </button>
                     <button
@@ -4875,9 +4873,8 @@ export default function App() {
             )}
             {/* Scroll to bottom arrow - ChatGPT exact behavior */}
             <button
-              className={`lc-scroll-to-bottom ${
-                showScrollToBottom ? "is-visible" : ""
-              }`}
+              className={`lc-scroll-to-bottom ${showScrollToBottom ? "is-visible" : ""
+                }`}
               onClick={scrollToBottom}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -4988,7 +4985,7 @@ export default function App() {
                                 .catch(() => ({ detail: "Upload failed" }));
                               throw new Error(
                                 errorData.detail ||
-                                  `Upload failed: ${response.statusText}`
+                                `Upload failed: ${response.statusText}`
                               );
                             }
 
@@ -5030,8 +5027,8 @@ export default function App() {
                             errors.length === 1
                               ? errors[0]
                               : `Some files failed to upload:\n${errors.join(
-                                  "\n"
-                                )}`;
+                                "\n"
+                              )}`;
                           setError(errorMsg);
                           setTimeout(() => setError(null), 5000);
                         }
@@ -5039,7 +5036,7 @@ export default function App() {
                         console.error("File upload error:", err);
                         setError(
                           err.message ||
-                            "Failed to upload files. Please try again."
+                          "Failed to upload files. Please try again."
                         );
                       } finally {
                         setUploadingFile(false);

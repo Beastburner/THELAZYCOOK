@@ -18,6 +18,8 @@ type Highlight = {
 interface MarkdownContentProps {
   content: string;
   highlights?: Highlight[];
+  charts?: string[];
+  apiBase?: string;
   onHighlightClick?: (text: string, event: React.MouseEvent) => void;
 }
 
@@ -264,9 +266,8 @@ function processTextWithHighlights(
           result.push(
             <mark
               key={`highlight-${keyCounter++}`}
-              className={`lc-highlight lc-highlight-${highlight.color} ${
-                highlight.note ? "has-note" : ""
-              }`}
+              className={`lc-highlight lc-highlight-${highlight.color} ${highlight.note ? "has-note" : ""
+                }`}
               data-highlight-text={highlight.text}
               data-highlight-id={highlight.id}
               data-highlight-note={highlight.note || ""}
@@ -500,6 +501,8 @@ function processLazyCookNodes(children: any, parentKey?: string): any {
 export default function MarkdownContent({
   content,
   highlights = [],
+  charts = [],
+  apiBase = "",
   onHighlightClick,
 }: MarkdownContentProps) {
   const segments = splitContentIntoSegments(content);
@@ -722,6 +725,44 @@ export default function MarkdownContent({
           </ReactMarkdown>
         );
       })}
+
+      {/* ─────── CHARTS ─────── */}
+      {charts && charts.length > 0 && (
+        <div className="lc-charts-container" style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+          {charts.map((chartFile, idx) => (
+            <div key={idx} className="lc-chart-wrapper" style={{
+              borderRadius: "12px",
+              overflow: "hidden",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              backgroundColor: "rgba(0, 0, 0, 0.2)",
+              padding: "10px"
+            }}>
+              <div style={{ marginBottom: "8px", fontSize: "0.8rem", color: "rgba(255, 255, 255, 0.5)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Interactive Chart</span>
+                <a
+                  href={`${apiBase}/charts/${chartFile}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent)", textDecoration: "none", fontSize: "0.75rem" }}
+                >
+                  Open in New Tab
+                </a>
+              </div>
+              <iframe
+                src={`${apiBase}/charts/${chartFile}`}
+                style={{
+                  width: "100%",
+                  height: "450px",
+                  border: "none",
+                  backgroundColor: "white", // Plotly charts usually have white backgrounds unless themed
+                  borderRadius: "8px"
+                }}
+                title={`Chart ${idx + 1}`}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

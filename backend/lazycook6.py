@@ -48,6 +48,9 @@ from rich.style import Style
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 """# --- Logging Configuration ---
 logging.basicConfig(
@@ -160,6 +163,7 @@ class MultiAgentSession:
     total_iterations: int
     timestamp: datetime
     context_used: str
+    chart_files: List[str] = None  # NEW: Track generated chart paths
 
     def to_dict(self):
         serializable_iterations = []
@@ -181,9 +185,9 @@ class MultiAgentSession:
             'quality_score': self.quality_score,
             'total_iterations': self.total_iterations,
             'timestamp': self.timestamp.isoformat(),
-            'context_used': self.context_used
+            'context_used': self.context_used,
+            'chart_files': self.chart_files or []
         }
-
 
 @dataclass
 class Conversation:
@@ -227,7 +231,8 @@ class Conversation:
                 quality_score=multi_agent_data['quality_score'],
                 total_iterations=multi_agent_data['total_iterations'],
                 timestamp=datetime.fromisoformat(multi_agent_data['timestamp']),
-                context_used=multi_agent_data.get('context_used', '')
+                context_used=multi_agent_data.get('context_used', ''),
+                chart_files=multi_agent_data.get('chart_files', [])
             )
         return cls(
             id=data['id'],
@@ -358,6 +363,266 @@ class AnimatedProgressBar(ProgressBar):
         if full < 1.0:
             ranges.append((full, 1.0, animated_pulse))
         return ranges
+
+
+# --- Plotly Chart Generator ---
+class PlotlyChartGenerator:
+    """Generate interactive Plotly charts from <plot_config> JSON blocks"""
+    
+    def __init__(self, output_dir: str = "multi_agent_data/charts"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+    def extract_plot_configs(self, text: str) -> List[Dict]:
+        """Extract all <plot_config> JSON blocks from text"""
+        import re
+        configs = []
+        
+        # Find all <plot_config>...</plot_config> blocks
+        pattern = r'<plot_config>\s*(\{[\s\S]*?\})\s*</plot_config>'
+        matches = re.finditer(pattern, text)
+        
+        for match in matches:
+            try:
+                config_json = match.group(1)
+                config = json.loads(config_json)
+                configs.append(config)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse plot_config JSON: {e}")
+                continue
+                
+        return configs
+    
+    def create_chart(self, config: Dict) -> Optional[go.Figure]:
+        """Create a Plotly figure based on configuration"""
+        try:
+            chart_type = config.get('type', 'bar').lower()
+            
+            if chart_type == 'bar':
+                return self._create_bar_chart(config)
+            elif chart_type == 'line':
+                return self._create_line_chart(config)
+            elif chart_type == 'pie':
+                return self._create_pie_chart(config)
+            elif chart_type == 'scatter':
+                return self._create_scatter_chart(config)
+            elif chart_type == 'heatmap':
+                return self._create_heatmap(config)
+            else:
+                logger.warning(f"Unknown chart type: {chart_type}, defaulting to bar")
+                return self._create_bar_chart(config)
+                
+        except Exception as e:
+            logger.error(f"Error creating chart: {e}")
+            return None
+    
+    def _create_bar_chart(self, config: Dict) -> go.Figure:
+        """Create a bar chart"""
+        title = config.get('title', 'Bar Chart')
+        xaxis_title = config.get('xaxis_title', 'Category')
+        yaxis_title = config.get('yaxis_title', 'Value')
+        
+        # Support both old format (data.labels/datasets) and new format (labels/datasets)
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+        
+        fig = go.Figure()
+        
+        for dataset in datasets:
+            fig.add_trace(go.Bar(
+                name=dataset.get('label', 'Data'),
+                x=labels,
+                y=dataset.get('data', dataset.get('values', [])),
+                text=dataset.get('data', dataset.get('values', [])),
+                textposition='auto',
+                marker=dict(color='#ff6666')
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            barmode='group',
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_line_chart(self, config: Dict) -> go.Figure:
+        """Create a line chart"""
+        title = config.get('title', 'Line Chart')
+        xaxis_title = config.get('xaxis_title', 'X-axis')
+        yaxis_title = config.get('yaxis_title', 'Y-axis')
+        
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+        
+        fig = go.Figure()
+        
+        for dataset in datasets:
+            fig.add_trace(go.Scatter(
+                name=dataset.get('label', 'Data'),
+                x=labels,
+                y=dataset.get('data', dataset.get('values', [])),
+                mode='lines+markers',
+                line=dict(width=3, color='#ff6666'),
+                marker=dict(size=8, color='#ff6666')
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_pie_chart(self, config: Dict) -> go.Figure:
+        """Create a pie chart"""
+        title = config.get('title', 'Pie Chart')
+        
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+            values = datasets[0].get('data', datasets[0].get('values', [])) if datasets else []
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+            values = datasets[0].get('data', datasets[0].get('values', [])) if datasets else []
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.3,
+            textinfo='label+percent',
+            marker=dict(colors=px.colors.qualitative.Set3)
+        )])
+        
+        fig.update_layout(
+            title=title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_scatter_chart(self, config: Dict) -> go.Figure:
+        """Create a scatter plot"""
+        title = config.get('title', 'Scatter Plot')
+        xaxis_title = config.get('xaxis_title', 'X-axis')
+        yaxis_title = config.get('yaxis_title', 'Y-axis')
+        
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+        
+        fig = go.Figure()
+        
+        for dataset in datasets:
+            fig.add_trace(go.Scatter(
+                name=dataset.get('label', 'Data'),
+                x=labels,
+                y=dataset.get('data', dataset.get('values', [])),
+                mode='markers',
+                marker=dict(size=12, color='#ff6666')
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_heatmap(self, config: Dict) -> go.Figure:
+        """Create a heatmap"""
+        title = config.get('title', 'Heatmap')
+        xaxis_title = config.get('xaxis_title', 'X-axis')
+        yaxis_title = config.get('yaxis_title', 'Y-axis')
+        
+        z_values = config.get('z_values', [])
+        x_labels = config.get('x_labels', [])
+        y_labels = config.get('y_labels', [])
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=z_values,
+            x=x_labels,
+            y=y_labels,
+            colorscale='Viridis',
+            text=z_values,
+            texttemplate='%{text:.2f}',
+            textfont={"size": 10}
+        ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def generate_charts(self, response_text: str) -> tuple:
+        """
+        Extract plot configs, generate charts, save as HTML files.
+        Returns: (cleaned_text, list_of_chart_file_paths)
+        """
+        import re
+        
+        # Extract all plot configs
+        configs = self.extract_plot_configs(response_text)
+        
+        if not configs:
+            return response_text, []
+        
+        chart_files = []
+        
+        # Generate charts from configs
+        for i, config in enumerate(configs):
+            # Check if config has 'charts' key (nested format)
+            if 'charts' in config:
+                chart_list = config['charts']
+            else:
+                chart_list = [config]
+            
+            for j, chart_config in enumerate(chart_list):
+                fig = self.create_chart(chart_config)
+                
+                if fig:
+                    # Generate unique filename
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    chart_type = chart_config.get('type', 'chart')
+                    filename = f"{chart_type}_{timestamp}_{i}_{j}.html"
+                    filepath = self.output_dir / filename
+                    
+                    # Save as HTML
+                    fig.write_html(str(filepath))
+                    chart_files.append(str(filepath))
+                    logger.info(f"Generated chart: {filepath}")
+        
+        # Remove <plot_config> blocks from response text
+        cleaned_text = re.sub(r'<plot_config>\s*\{[\s\S]*?\}\s*</plot_config>', '', response_text)
+        
+        return cleaned_text.strip(), chart_files
 
 
 # --- File Manager ---
@@ -1055,74 +1320,217 @@ class AIAgent:
     def _create_default_instructions(self):
         """Create default instruction files if they don't exist"""
         defaults = {
-            'generator_instructions.txt': """1. FIRST: Review the conversation history above to understand what was previously discussed
-            2. If the current query refers to something mentioned before (like "another way" or "indian style"), connect it to the previous topic
-            3. Provide a detailed response that builds on the conversation history
-            4. Reference specific points from previous exchanges when relevant
-            5. Provide a detailed, well-structured response that naturally incorporates relevant context
-            6. Reference specific points from the context when relevant
-            7. Make the response feel complete and self-contained
-            8. Include practical examples where relevant
-            9. Consider multiple approaches if applicable
-            10. Be thorough but clear
-            11. ERROR ON THE SIDE OF VERBOSITY. Provide comprehensive, detailed answers. Do not summarize unless asked.
-            12. Rate your confidence in this solution (0-1)""",
+                'generator_instructions.txt': """LAZYCOOK MISSION: Minimize human intervention by providing COMPREHENSIVE yet CONCISE responses that require NO follow-up questions or editing.
+        
+        1. PRIMARY FOCUS: The latest user query is your immediate task.
+        2. TOPICAL RELEVANCE: Review the conversation history and uploaded documents in CONTEXT.
+        3. STRICT SEPARATION: Only use historical data or document content IF it is directly relevant to the current query.
+        4. PIVOT DETECTION: If the user suddenly changes topic (e.g., from Engines to Cooking), IGNORE the previous documents entirely.
+        5. LATEST INTENT: If the user query is a pivot or a new topic, treat it as a fresh start, using history only for continuity or style.
+        6. NO POLLUTION: Do not mix ideas or terminology from previous files if the current query has shifted scope.
+        
+        7. COMPREHENSIVE COVERAGE (CRITICAL):
+            - Address EVERY part of the user's question - if they ask about A, B, and C, cover ALL THREE thoroughly
+            - For multi-part questions, create clear sections for each part
+            - Include examples, use cases, and practical applications
+            - Anticipate related questions and address them proactively
+            - Self-check: "Have I addressed every aspect? Would the user need to ask a follow-up?"
+        
+        8. RELEVANCE FILTER (ANTI-VERBOSITY):
+            - ONLY include content explicitly requested or directly relevant to the query
+            - DON'T add unrequested extras (e.g., if they ask about A, B, C - don't add D, E, F)
+            - DON'T include tangential information "for completeness" unless asked
+            - Self-check: "Did the user actually ask for this detail, or am I adding bloat?"
+            - COMPREHENSIVE ≠ VERBOSE: Be thorough on what's asked, skip what's not
+        
+        9. STRUCTURE & CLARITY:
+            - Use clear headings, bullet points, and numbered lists
+            - Provide a detailed, well-structured response that is self-contained and accurate
+            - Include practical examples where relevant and consider multiple approaches
+            - Make it easy to scan and understand
+            - Keep explanations concise but complete
+        
+        10. DATA VISUALIZATION ASSESSMENT:
+            - Review the user query for data complexity. If it involves comparisons, trends, proportions, or multi-faceted data that would be easier to understand visually, you MUST explicitly state at the end of your response: "DATA_VISUALIZATION_RECOMMENDED: [Reasoning]".
+            - Identify and extract the specific data points that should be charted.
+            - Do NOT generate any JSON or <plot_config> blocks yourself; the Optimizer will handle the actual chart creation.
+            - Just prepare the ground by formatting the numerical data in a clear markdown table.
+        
+        11. COMPLETENESS CHECK:
+            - Before finishing, verify: Does this response fully satisfy the user's query?
+            - Would they need to ask "tell me more" or "what about X"?
+            - If yes, expand your response NOW.
+        
+        12. CONCISENESS CHECK:
+            - Before finishing, verify: Is every paragraph necessary?
+            - Would removing this section make the answer incomplete?
+            - If no, it's bloat - remove it.
+            - Goal: Complete but NOT verbose
+        
+        13. Rate your confidence in this solution (0-1).""",
 
-        'analyzer_instructions.txt': """1. Review the conversation history to understand the full context
-                    2. Check if the solution properly addresses the user's query in context of previous conversations
-                    3. Identify factual errors or inaccuracies
-                    4. Find logical inconsistencies
-                    5. Spot missing information or gaps
-                    6. Check if the solution maintains conversational continuity
-                    7. Verify if previous relevant information was properly considered
-                    8. Suggest areas for improvement
-                    9. Rate the overall quality (0-1)
-                    10. Be thorough but constructive
+                'analyzer_instructions.txt': """LAZYCOOK MISSION: Ensure responses are COMPREHENSIVE yet CONCISE - users need NO follow-ups or editing.
 
-        Format your response as JSON:
-        {
-            "analysis": "Your detailed analysis",
-            "errors_found": ["error1", "error2"],
-            "gaps_identified": ["gap1", "gap2"],
-            "improvements_needed": ["improvement1", "improvement2"],
-            "quality_score": 0.75,
-            "strengths": ["strength1", "strength2"],
-            "recommendations": ["rec1", "rec2"],
-            "context_adherence": 0.8,
-            "continuity_score": 0.7
-        }""",
+            1. COMPLETENESS AUDIT (HIGHEST PRIORITY):
+                - Did the generator address EVERY part of the user's query?
+                - For multi-part questions (e.g., "What is X and how does Y work?"), verify EACH part is covered
+                - Check for missing aspects, topics, or perspectives
+                - Flag if the response would require follow-up questions like "tell me more" or "what about Z?"
+            
+            2. VERBOSITY AUDIT (NEW - CRITICAL):
+                - Did the generator add UNREQUESTED content not in the original query?
+                - Flag any tangential information, extra examples, or topics NOT explicitly asked for
+                - Check: "Would a user need to trim/edit this response?"
+                - Penalize bloat: If user asked about A, B, C and got A, B, C, D, E, F - flag D, E, F as bloat
+                - COMPREHENSIVE ≠ VERBOSE: Thorough on requested topics, skip unrequested ones
+            
+            3. CONTEXT POLLUTION CHECK: Verify if the solution accidentally mixed content from unrelated previous files or chat history into the current topic.
+            
+            4. RELEVANCE AUDIT: If the user query is new, ensure the assistant didn't over-rely on background documents that are no longer relevant.
+            
+            5. DEPTH & BREADTH (for requested topics only):
+                - Is the explanation detailed enough for what was ASKED?
+                - Are examples provided where REQUESTED?
+                - Are edge cases mentioned if RELEVANT to the query?
+            
+            6. Identify factual errors, logical inconsistencies, or gaps.
+            
+            7. Check if the solution addresses the LATEST user query as the priority.
+            
+            8. Spot "hallucinated connections" between the current topic and old uploaded files.
+            
+            9. Check if the solution maintains conversational continuity.
+            
+            10. Suggest improvements: Add missing requested content, REMOVE unrequested bloat.
+            
+            11. Rate the overall quality (0-1) - be STRICT on completeness AND conciseness.
+            
+            12. Be thorough but constructive.
 
-        'optimizer_instructions.txt': """1. Review the conversation history to maintain context and continuity
-        2. Fix all identified errors
-        3. Address the gaps and improvements
-        4. Enhance clarity and completeness
-        5. Provide a significantly improved solution
-        6. Reference specific improvements made
-
-        Format your response as JSON:
+    Format your response as JSON:
     {
-        "optimized_solution": "Your improved solution here",
-        "changes_made": ["change1", "change2"],
-        "errors_fixed": ["fix1", "fix2"],
-        "enhancements": ["enhancement1", "enhancement2"],
-        "confidence": 0.95,
-        "context_integration": "How previous conversations were integrated"
-    }
+        "analysis": "Your detailed analysis",
+        "errors_found": ["error1", "error2"],
+        "gaps_identified": ["gap1", "gap2", "missing_aspect1"],
+        "improvements_needed": ["improvement1", "Add coverage of aspect X", "Expand on topic Y"],
+        "bloat_identified": ["Unrequested topic D", "Tangential example E", "Extra table F not asked for"],
+        "quality_score": 0.75,
+        "strengths": ["strength1", "strength2"],
+        "recommendations": ["rec1", "rec2"],
+        "data_visualization_needed": true, // Set to true if the query involves data that is inherently complex to grasp textually (comparisons, timelines, distributions, breakdowns) and charts would aid "better understanding".
+        "context_adherence": 0.8,
+        "continuity_score": 0.7,
+        "completeness_score": 0.8, // Rate how completely all REQUESTED aspects were covered (0-1)
+        "conciseness_score": 0.85, // NEW: Rate relevance - penalize unrequested content (0-1, lower = more bloat)
+        "note": "IMPORTANT: If data_visualization_needed is true, you MUST specifically instruct the Optimizer to 'Create 2-3 informative charts using <plot_config> based on the provided data tables' in the 'improvements_needed' list."
+    }""",
 
-        """,
+                'optimizer_instructions.txt': """LAZYCOOK MISSION: Create responses so COMPLETE yet CONCISE that users need NO follow-ups or editing.
 
-        'validator_instructions.txt': """1. Check for factual accuracy
-        2. Ensure the solution fully addresses the user query
-        3. Verify all claims can be supported by the context
-        4. Check for logical consistency
-        5. Rate confidence (0-1)
-        6. Provide specific validation feedback"""
+    1. COMPREHENSIVE EXPANSION (TOP PRIORITY):
+       - Review the analyzer's "gaps_identified" and "improvements_needed" lists
+       - For EVERY missing REQUESTED aspect or topic, add a dedicated section
+       - If the query has multiple parts (A, B, C), ensure ALL are covered in depth
+       - Add examples, use cases, comparisons ONLY where requested or directly relevant
+    
+    2. BLOAT REMOVAL (NEW - CRITICAL):
+       - Review the analyzer's "bloat_identified" list
+       - REMOVE any unrequested content, tangential examples, or extra topics
+       - If user asked about A, B, C - don't include D, E, F even if "related"
+       - Check "conciseness_score" - if low (<0.80), aggressively trim bloat
+       - COMPREHENSIVE ≠ VERBOSE: Thorough on requested topics, skip unrequested ones
+    
+    3. ERROR CORRECTION:
+       - Fix all identified errors and "context pollution" (mixing unrelated topics)
+       - Ensure the solution fulfills the current user intent
+       - If the history contains unrelated files, DISCARD their influence
+    
+    4. STRUCTURE & CLARITY:
+       - Organize with clear headings for each major REQUESTED topic/aspect
+       - Use bullet points, numbered lists, and tables for readability
+       - Make the response scannable and well-structured
+       - Keep explanations concise but complete
+    
+    5. DEPTH ENHANCEMENT (for requested topics only):
+       - Don't just answer "what" - explain "why" and "how" WHERE ASKED
+       - Include edge cases, alternatives, and best practices IF RELEVANT
+       - Provide context and background where HELPFUL, not exhaustive
+    
+    6. COMPLETENESS & CONCISENESS VERIFICATION:
+       - Self-check 1: "Would the user need to ask 'tell me more' or 'what about X'?"
+       - If yes, expand NOW before finalizing
+       - Self-check 2: "Would the user need to trim/edit this response?"
+       - If yes, remove bloat NOW before finalizing
+       - Goal: Complete on what's asked, concise on delivery
+    
+    7. VISUALIZATION RULE (IMPORTANT): If the user query involves data, trends, breakdowns, or comparisons, you MUST include one or more interactive charts using the <plot_config> XML-like tag.
+    
+    SCHEMA for <plot_config>:
+    <plot_config>
+    {
+      "charts": [
+        {
+          "type": "bar" | "line" | "pie" | "scatter" | "heatmap",
+          "title": "Chart Title",
+          "xaxis_title": "X Axis Label",
+          "yaxis_title": "Y Axis Label",
+          "data": {
+            "labels": ["A", "B", "C"],
+            "datasets": [
+              {
+                "label": "Series 1",
+                "data": [10, 20, 30]
+              }
+            ]
+          }
+        }
+      ]
     }
+    </plot_config>
+    
+    For HEATMAP:
+    <plot_config>
+    {
+      "charts": [
+        {
+          "type": "heatmap",
+          "title": "Correlation Matrix",
+          "z_values": [[1, 0.5], [0.5, 1]],
+          "x_labels": ["A", "B"],
+          "y_labels": ["A", "B"]
+        }
+      ]
+    }
+    </plot_config>
+    
+    Format your response as JSON:
+{
+    "optimized_solution": "Your improved, COMPREHENSIVE yet CONCISE solution here with the <plot_config> block included if needed",
+    "changes_made": ["change1", "Added coverage of aspect X", "Expanded section on Y", "Removed unrequested topic Z"],
+    "errors_fixed": ["fix1", "fix2"],
+    "enhancements": ["enhancement1", "Added examples for requested topic A", "Included comparison of B vs C as asked"],
+    "bloat_removed": ["Removed unrequested section D", "Trimmed tangential example E"],
+    "confidence": 0.95,
+    "context_integration": "How previous conversations were integrated",
+    "completeness_improvements": ["Addressed missing aspect X", "Expanded on topic Y"],
+    "conciseness_improvements": ["Removed bloat Z", "Trimmed verbose explanation of W"]
+}
+""",
+
+                'validator_instructions.txt': """1. Check for factual accuracy
+    2. Ensure the solution fully addresses the user query
+    3. Verify all claims can be supported by the context
+    4. Check for logical consistency
+    5. Rate confidence (0-1)
+    6. Provide specific validation feedback"""
+            }
+        
+      
 
         for filename, content in defaults.items():
             filepath = self.prompts_dir / filename
-            if not filepath.exists():
-                filepath.write_text(content.strip(), encoding='utf-8')
+            # Always overwrite to ensure instructions stay synced with code updates
+            filepath.write_text(content.strip(), encoding='utf-8')
 
 
     def _load_instructions(self, instruction_file: str) -> str:
@@ -1755,6 +2163,9 @@ class MultiAgentSystem:
 
         # Add complexity analyzer
         self.complexity_analyzer = QueryComplexityAnalyzer()
+        
+        # Add chart generator
+        self.chart_generator = PlotlyChartGenerator()
 
         # NEW: Higher quality settings
         self.max_iterations = 4  # Allow up to 4 iterations for quality
@@ -1983,6 +2394,14 @@ class MultiAgentSystem:
 
             iterations.append(iteration_data)
             final_response = optimizer_response.content
+            
+            # Generate charts from <plot_config> blocks
+            cleaned_response, chart_files = self.chart_generator.generate_charts(final_response)
+            if chart_files:
+                final_response = cleaned_response
+                iteration_data['chart_files'] = chart_files
+                logger.info(f"📊 Generated {len(chart_files)} chart(s): {chart_files}")
+
 
             # Get threshold for current iteration
             current_threshold = iteration_thresholds.get(current_iteration, self.quality_threshold)
@@ -2019,6 +2438,12 @@ class MultiAgentSystem:
         )
 
 
+        # Collect all chart files from all iterations
+        all_chart_files = []
+        for it in iterations:
+            if 'chart_files' in it:
+                all_chart_files.extend(it['chart_files'])
+
         return MultiAgentSession(
             session_id=session_id,
             user_query=user_query,
@@ -2027,7 +2452,8 @@ class MultiAgentSystem:
             quality_score=quality_score,
             total_iterations=len(iterations),
             timestamp=datetime.now(),
-            context_used=context[:1000] + "..." if len(context) > 1000 else context
+            context_used=context[:1000] + "..." if len(context) > 1000 else context,
+            chart_files=all_chart_files
         )
 
     # Add this method to your MultiAgentSystem class (after process_query method, around line 1450)
@@ -2165,7 +2591,12 @@ class AutonomousMultiAgentAssistant:
         # Save to per-chat history (newChat if unsaved, or specific chat_id)
         self.file_manager.save_conversation(conversation, chat_id=chat_id or "newChat")
         await self._analyze_and_create_tasks(conversation)
-        return multi_agent_session.final_response
+        
+        # Return structured data for the API/Web version
+        return {
+            "text": multi_agent_session.final_response,
+            "charts": [os.path.basename(f) for f in multi_agent_session.chart_files] if hasattr(multi_agent_session, 'chart_files') else []
+        }
 
     @log_errors
     async def _analyze_and_create_tasks(self, conversation: Conversation):
@@ -3073,8 +3504,29 @@ class RichMultiAgentCLI:
         if quality_info:
             # Get latest conversation for detailed metrics
             conversations = self.assistant.file_manager.get_recent_conversations(self.user_id, 1)
+            # 4. Charts Panel (NEW: Display interactive chart links)
             if conversations and conversations[0].multi_agent_session:
                 session = conversations[0].multi_agent_session
+                chart_files = session.chart_files if hasattr(session, 'chart_files') else []
+                
+                if chart_files:
+                    formatted_links = []
+                    for i, path in enumerate(chart_files):
+                        # Use forward slashes for the file:/// link (works on Windows too)
+                        web_path = path.replace('\\', '/')
+                        fname = os.path.basename(path)
+                        formatted_links.append(f"• [bold cyan]Chart {i+1}:[/bold cyan] [link=file:///{web_path}]Open in Browser[/link] ([dim]{fname}[/dim])")
+                    
+                    chart_links = "\n".join(formatted_links)
+                    
+                    chart_panel = Panel(
+                        Text.from_markup(chart_links),
+                        title="📊 Generated Interactive Charts",
+                        border_style="magenta",
+                        padding=(1, 2),
+                        expand=True
+                    )
+                    self.console.print(chart_panel)
 
                 # Check if quality metrics exist in iterations
                 if session.iterations and 'quality_metrics' in session.iterations[-1]:
@@ -4316,7 +4768,7 @@ class RichMultiAgentCLI:
 class MultiAgentAssistantConfig:
     """Configuration class for external usage of the Multi-Agent Assistant"""
 
-    def __init__(self, api_key: str, conversation_limit: int=None, document_limit: int = 2, file_manager=None):
+    def __init__(self, api_key: str, conversation_limit: int = 15, document_limit: int = 2, file_manager=None):
         self.api_key = api_key
         self.conversation_limit = conversation_limit
         self.document_limit = document_limit
@@ -4329,7 +4781,7 @@ class MultiAgentAssistantConfig:
         # Use provided file_manager or create FirestoreManager with limits
         if self.file_manager is None:
             file_manager = FirestoreManager(
-                conversation_limit=self.conversation_limit or 70,
+                conversation_limit=self.conversation_limit or 15,
                 document_limit=self.document_limit
             )
         else:
@@ -4345,7 +4797,7 @@ class MultiAgentAssistantConfig:
         # Use provided file_manager or create FirestoreManager with limits
         if self.file_manager is None:
             file_manager = FirestoreManager(
-                conversation_limit=self.conversation_limit or 70,
+                conversation_limit=self.conversation_limit or 15,
                 document_limit=self.document_limit
             )
         else:

@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, List
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 import tempfile
 from pathlib import Path
@@ -65,6 +66,11 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Mount charts directory for static serving
+charts_dir = Path("multi_agent_data/charts")
+charts_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/charts", StaticFiles(directory=str(charts_dir)), name="charts")
 
 
 @app.get("/health")

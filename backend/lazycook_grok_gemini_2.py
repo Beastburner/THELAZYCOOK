@@ -49,6 +49,9 @@ from rich.style import Style
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 """# --- Logging Configuration ---
 logging.basicConfig(
@@ -149,6 +152,7 @@ class MultiAgentSession:
     total_iterations: int
     timestamp: datetime
     context_used: str
+    chart_files: List[str] = None
 
     def to_dict(self):
         serializable_iterations = []
@@ -170,7 +174,8 @@ class MultiAgentSession:
             'quality_score': self.quality_score,
             'total_iterations': self.total_iterations,
             'timestamp': self.timestamp.isoformat(),
-            'context_used': self.context_used
+            'context_used': self.context_used,
+            'chart_files': self.chart_files or []
         }
 
 
@@ -216,7 +221,8 @@ class Conversation:
                 quality_score=multi_agent_data['quality_score'],
                 total_iterations=multi_agent_data['total_iterations'],
                 timestamp=datetime.fromisoformat(multi_agent_data['timestamp']),
-                context_used=multi_agent_data.get('context_used', '')
+                context_used=multi_agent_data.get('context_used', ''),
+                chart_files=multi_agent_data.get('chart_files', [])
             )
         return cls(
             id=data['id'],
@@ -314,6 +320,265 @@ class Document:
             hash_value=data['hash_value'],
             metadata=data.get('metadata', {})
         )
+
+
+class PlotlyChartGenerator:
+    """Generate interactive Plotly charts from <plot_config> JSON blocks"""
+    
+    def __init__(self, output_dir: str = "multi_agent_data/charts"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+    def extract_plot_configs(self, text: str) -> List[Dict]:
+        """Extract all <plot_config> JSON blocks from text"""
+        import re
+        configs = []
+        
+        # Find all <plot_config>...</plot_config> blocks
+        pattern = r'<plot_config>\s*(\{[\s\S]*?\})\s*</plot_config>'
+        matches = re.finditer(pattern, text)
+        
+        for match in matches:
+            try:
+                config_json = match.group(1)
+                config = json.loads(config_json)
+                configs.append(config)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse plot_config JSON: {e}")
+                continue
+                
+        return configs
+    
+    def create_chart(self, config: Dict) -> Optional[go.Figure]:
+        """Create a Plotly figure based on configuration"""
+        try:
+            chart_type = config.get('type', 'bar').lower()
+            
+            if chart_type == 'bar':
+                return self._create_bar_chart(config)
+            elif chart_type == 'line':
+                return self._create_line_chart(config)
+            elif chart_type == 'pie':
+                return self._create_pie_chart(config)
+            elif chart_type == 'scatter':
+                return self._create_scatter_chart(config)
+            elif chart_type == 'heatmap':
+                return self._create_heatmap(config)
+            else:
+                logger.warning(f"Unknown chart type: {chart_type}, defaulting to bar")
+                return self._create_bar_chart(config)
+                
+        except Exception as e:
+            logger.error(f"Error creating chart: {e}")
+            return None
+    
+    def _create_bar_chart(self, config: Dict) -> go.Figure:
+        """Create a bar chart"""
+        title = config.get('title', 'Bar Chart')
+        xaxis_title = config.get('xaxis_title', 'Category')
+        yaxis_title = config.get('yaxis_title', 'Value')
+        
+        # Support both old format (data.labels/datasets) and new format (labels/datasets)
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+        
+        fig = go.Figure()
+        
+        for dataset in datasets:
+            fig.add_trace(go.Bar(
+                name=dataset.get('label', 'Data'),
+                x=labels,
+                y=dataset.get('data', dataset.get('values', [])),
+                text=dataset.get('data', dataset.get('values', [])),
+                textposition='auto',
+                marker=dict(color='#ff6666')
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            barmode='group',
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_line_chart(self, config: Dict) -> go.Figure:
+        """Create a line chart"""
+        title = config.get('title', 'Line Chart')
+        xaxis_title = config.get('xaxis_title', 'X-axis')
+        yaxis_title = config.get('yaxis_title', 'Y-axis')
+        
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+        
+        fig = go.Figure()
+        
+        for dataset in datasets:
+            fig.add_trace(go.Scatter(
+                name=dataset.get('label', 'Data'),
+                x=labels,
+                y=dataset.get('data', dataset.get('values', [])),
+                mode='lines+markers',
+                line=dict(width=3, color='#ff6666'),
+                marker=dict(size=8, color='#ff6666')
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_pie_chart(self, config: Dict) -> go.Figure:
+        """Create a pie chart"""
+        title = config.get('title', 'Pie Chart')
+        
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+            values = datasets[0].get('data', datasets[0].get('values', [])) if datasets else []
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+            values = datasets[0].get('data', datasets[0].get('values', [])) if datasets else []
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.3,
+            textinfo='label+percent',
+            marker=dict(colors=px.colors.qualitative.Set3)
+        )])
+        
+        fig.update_layout(
+            title=title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_scatter_chart(self, config: Dict) -> go.Figure:
+        """Create a scatter plot"""
+        title = config.get('title', 'Scatter Plot')
+        xaxis_title = config.get('xaxis_title', 'X-axis')
+        yaxis_title = config.get('yaxis_title', 'Y-axis')
+        
+        if 'data' in config:
+            labels = config['data'].get('labels', [])
+            datasets = config['data'].get('datasets', [])
+        else:
+            labels = config.get('labels', [])
+            datasets = config.get('datasets', [])
+        
+        fig = go.Figure()
+        
+        for dataset in datasets:
+            fig.add_trace(go.Scatter(
+                name=dataset.get('label', 'Data'),
+                x=labels,
+                y=dataset.get('data', dataset.get('values', [])),
+                mode='markers',
+                marker=dict(size=12, color='#ff6666')
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def _create_heatmap(self, config: Dict) -> go.Figure:
+        """Create a heatmap"""
+        title = config.get('title', 'Heatmap')
+        xaxis_title = config.get('xaxis_title', 'X-axis')
+        yaxis_title = config.get('yaxis_title', 'Y-axis')
+        
+        z_values = config.get('z_values', [])
+        x_labels = config.get('x_labels', [])
+        y_labels = config.get('y_labels', [])
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=z_values,
+            x=x_labels,
+            y=y_labels,
+            colorscale='Viridis',
+            text=z_values,
+            texttemplate='%{text:.2f}',
+            textfont={"size": 10}
+        ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=500,
+            template='plotly_dark'
+        )
+        
+        return fig
+    
+    def generate_charts(self, response_text: str) -> tuple:
+        """
+        Extract plot configs, generate charts, save as HTML files.
+        Returns: (cleaned_text, list_of_chart_file_paths)
+        """
+        import re
+        
+        # Extract all plot configs
+        configs = self.extract_plot_configs(response_text)
+        
+        if not configs:
+            return response_text, []
+        
+        chart_files = []
+        
+        # Generate charts from configs
+        for i, config in enumerate(configs):
+            # Check if config has 'charts' key (nested format)
+            if 'charts' in config:
+                chart_list = config['charts']
+            else:
+                chart_list = [config]
+            
+            for j, chart_config in enumerate(chart_list):
+                fig = self.create_chart(chart_config)
+                
+                if fig:
+                    # Generate unique filename
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    chart_type = chart_config.get('type', 'chart')
+                    filename = f"{chart_type}_{timestamp}_{i}_{j}.html"
+                    filepath = self.output_dir / filename
+                    
+                    # Save as HTML
+                    fig.write_html(str(filepath))
+                    chart_files.append(str(filepath))
+                    logger.info(f"Generated chart: {filepath}")
+        
+        # Remove <plot_config> blocks from response text
+        cleaned_text = re.sub(r'<plot_config>\s*\{[\s\S]*?\}\s*</plot_config>', '', response_text)
+        
+        return cleaned_text.strip(), chart_files
 
 
 # --- Custom Progress Bar ---
@@ -1186,6 +1451,36 @@ class AIAgent:
         "context_integration": "How previous conversations were integrated"
     }
 
+    7. VISUALIZATION RULE (IMPORTANT): If the user query involves data, trends, or comparisons, you MUST include one or more interactive charts using the <plot_config> XML-like tag.
+    
+    SCHEMA for <plot_config>:
+    <plot_config>
+    {
+      "type": "bar" | "line" | "pie" | "scatter" | "heatmap",
+      "title": "Chart Title",
+      "xaxis_title": "X Axis Label",
+      "yaxis_title": "Y Axis Label",
+      "labels": ["A", "B", "C"],
+      "datasets": [
+        {
+          "label": "Series 1",
+          "data": [10, 20, 30]
+        }
+      ]
+    }
+    </plot_config>
+    
+    For HEATMAP:
+    <plot_config>
+    {
+      "type": "heatmap",
+      "title": "Correlation Matrix",
+      "z_values": [[1, 0.5], [0.5, 1]],
+      "x_labels": ["A", "B"],
+      "y_labels": ["A", "B"]
+    }
+    </plot_config>
+
         """,
 
         'validator_instructions.txt': """1. Check for factual accuracy
@@ -1985,12 +2280,9 @@ class MultiAgentSystem:
         self.generator = AIAgent(api_key_gemini, api_key_grok, AgentRole.GENERATOR, temperature=0.7)
         self.analyzer = AIAgent(api_key_gemini, api_key_grok, AgentRole.ANALYZER, temperature=0.2)
         self.optimizer = AIAgent(api_key_gemini, api_key_grok, AgentRole.OPTIMIZER, temperature=0.4)
-        self.validator = AIAgent(api_key_gemini, api_key_grok, AgentRole.VALIDATOR, temperature=0.1)
-
-
-        # Add complexity analyzer
+        self.validator = AIAgent(api_key_gemini, api_key_grok, AgentRole.VALIDATOR, temperature=0.7)
         self.complexity_analyzer = QueryComplexityAnalyzer()
-
+        self.chart_generator = PlotlyChartGenerator()
         # NEW: Higher quality settings
         self.max_iterations = 4  # Allow up to 4 iterations for quality
         self.quality_threshold = 0.95  # YOUR TARGET
@@ -2151,21 +2443,12 @@ class MultiAgentSystem:
 
             # NEW: Combine subjective (agent confidence) with objective metrics
             subjective_score = (
-                    optimizer_response.confidence * 0.40 +
-                    validator_response.confidence * 0.30 +
-                    analyzer_response.confidence * 0.30
-            )
-
-            quality_score = (objective_metrics['overall'] * 0.50 + subjective_score * 0.50)
-
-            # NEW: Combine subjective (agent confidence) with objective metrics
-            subjective_score = (
                     optimizer_response.confidence * 0.40 +  # Optimizer confidence
                     validator_response.confidence * 0.30 +  # Validator confidence
                     analyzer_response.confidence * 0.30  # Analyzer confidence
             )
 
-            # Weight: 40% objective, 60% subjective
+            # Weight: 50% objective, 50% subjective
             quality_score = (objective_metrics['overall'] * 0.50 + subjective_score * 0.50)
 
             # Add boost for excellent responses
@@ -2195,6 +2478,13 @@ class MultiAgentSystem:
 
             iterations.append(iteration_data)
             final_response = optimizer_response.content
+            
+            # Generate charts from <plot_config> blocks
+            cleaned_response, chart_files = self.chart_generator.generate_charts(final_response)
+            if chart_files:
+                final_response = cleaned_response
+                iteration_data['chart_files'] = chart_files
+                logger.info(f"📊 Generated {len(chart_files)} chart(s): {chart_files}")
             
             logger.info(f"📝 [MULTI_AGENT] Setting final_response from optimizer: length={len(final_response) if final_response else 0}")
             logger.info(f"📝 [MULTI_AGENT] Optimizer content preview: {optimizer_response.content[:200] if optimizer_response.content else 'EMPTY'}...")
@@ -2239,6 +2529,11 @@ class MultiAgentSystem:
             f"final quality: {quality_score:.3f}"
         )
 
+        # Collect all chart files from all iterations
+        all_chart_files = []
+        for it in iterations:
+            if 'chart_files' in it:
+                all_chart_files.extend(it['chart_files'])
 
         return MultiAgentSession(
             session_id=session_id,
@@ -2248,7 +2543,8 @@ class MultiAgentSystem:
             quality_score=quality_score,
             total_iterations=len(iterations),
             timestamp=datetime.now(),
-            context_used=context[:1000] + "..." if len(context) > 1000 else context
+            context_used=context[:1000] + "..." if len(context) > 1000 else context,
+            chart_files=all_chart_files
         )
 
     # Add this method to your MultiAgentSystem class (after process_query method, around line 1450)
@@ -2326,7 +2622,7 @@ class AutonomousMultiAgentAssistant:
 
     @log_errors
     async def process_user_message(self, user_id: str, message: str, reset_context: bool = False,
-                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None, document_id: Optional[str] = None, document_ids: Optional[List[str]] = None) -> str:
+                                   progress_callback: Optional[Callable] = None, chat_id: Optional[str] = None, document_id: Optional[str] = None, document_ids: Optional[List[str]] = None) -> MultiAgentSession:
         if reset_context:
             self.clear_cached_context(user_id)
 
@@ -2382,12 +2678,7 @@ class AutonomousMultiAgentAssistant:
         self.file_manager.save_conversation(conversation, chat_id=chat_id or "newChat")
         await self._analyze_and_create_tasks(conversation)
         
-        # Ensure we return a non-empty response
-        if not multi_agent_session.final_response or len(multi_agent_session.final_response.strip()) == 0:
-            logger.error("❌ [MIXED_MODEL] final_response is empty! Returning error message.")
-            return "Error: The AI response was empty. Please try again."
-        
-        return multi_agent_session.final_response
+        return multi_agent_session
 
     @log_errors
     async def _analyze_and_create_tasks(self, conversation: Conversation):
@@ -3192,10 +3483,10 @@ class RichMultiAgentCLI:
         """
         self.console.print(Panel(perf_text, border_style="green", padding=(1, 2)))
 
-    def display_response(self, user_message: str, ai_response: str, processing_time: float, context_used: str = ""):
-        """Display properly formatted responses with JSON artifact removal"""
-        import re
-        import json
+    @log_errors
+    def display_response(self, user_message: str, ai_response: str, processing_time: float, context_used: str = "", chart_files: List[str] = None):
+        """Display properly formatted responses with JSON artifact removal and interactive charts"""
+        quality_info = f"⏱️ Processed in {processing_time:.2f}s"
 
         # ✅ ADDITIONAL SAFETY: Clean response one more time before display
         def final_clean(text):
@@ -3255,15 +3546,31 @@ class RichMultiAgentCLI:
             self.console.print(response_panel)
 
         # 3. Quality Footer
-        if quality_info:
-            quality_panel = Panel(
-                Text(quality_info, style="bold dim"),
-                title="📊 Processing Metrics",
+        quality_panel = Panel(
+            Text(quality_info, style="bold dim"),
+            title="📊 Processing Metrics",
+            border_style="cyan",
+            padding=(0, 1),
+            expand=True
+        )
+        self.console.print(quality_panel)
+
+        # 4. Interactive Charts (NEW)
+        if chart_files:
+            chart_links = []
+            for f in chart_files:
+                # FIXED: Process path outside f-string to avoid SyntaxError in Python < 3.12
+                abs_path = str(Path(f).absolute()).replace('\\', '/')
+                chart_links.append(f"  • {Path(f).name}: file:///{abs_path}")
+            
+            chart_panel = Panel(
+                Text("\n".join(chart_links), style="cyan underline"),
+                title="📊 Interactive Charts (Click to Open)",
                 border_style="cyan",
-                padding=(0, 1),
+                padding=(1, 2),
                 expand=True
             )
-            self.console.print(quality_panel)
+            self.console.print(chart_panel)
 
     def display_quality_breakdown(self, quality_metrics: Dict[str, Any]):
         """Display detailed quality metrics breakdown"""
@@ -3420,7 +3727,7 @@ class RichMultiAgentCLI:
                                     description=stage_desc if not description else description)
 
             start_time = time.time()
-            response = await self.assistant.process_user_message(
+            session = await self.assistant.process_user_message(
                 self.user_id,
                 message,
                 reset_context=False,
@@ -3440,13 +3747,16 @@ class RichMultiAgentCLI:
             # Add a newline after the Live context ends to separate from next output
         self.console.print()  # This adds the needed separation
 
-        # Get context used for display
-        context = self.assistant.get_cached_context(self.user_id)
+        # Display the response with context and charts
+        self.display_response(
+            message, 
+            session.final_response, 
+            processing_time, 
+            session.context_used,
+            chart_files=session.chart_files
+        )
 
-        # Display the response with context
-        self.display_response(message, response, processing_time, context)
-
-        return response
+        return session.final_response
 
     def display_insights(self):
         """Display insights with animated progress tracking"""
